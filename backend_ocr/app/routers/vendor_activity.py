@@ -70,7 +70,8 @@ def _q_disbursements(cur, tenant, sid, before, cap):
     return _rows(cur, """
         SELECT d.disbursement_id::text, d.invoice_id::text, d.amount, d.status, d.status_message,
                d.beneficiary_account, d.initiated_by, d.updated_by,
-               d.created_at, d.updated_at, d.receipt_emailed_at, fi.invoice_number
+               d.created_at, d.updated_at, d.receipt_emailed_at, d.rail, d.currency_code,
+               fi.invoice_number
           FROM fact_disbursements d
           LEFT JOIN fact_invoices fi ON fi.invoice_id = d.invoice_id
          WHERE d.tenant_id = %s AND d.supplier_id = %s AND d.created_at < %s::timestamptz

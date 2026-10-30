@@ -42,6 +42,23 @@ def inr(amount: Any) -> str | None:
     return "₹" + text
 
 
+def payout_money(amount: Any, currency: Any = None, rail: Any = None) -> str | None:
+    """A payout in what it was paid in: ₹ for INR, '1 USDC' for a USDC payout of
+    a USD bill, 'EUR 12.50' otherwise. The amount is in the bill's currency."""
+    cur = (_s(currency) or "INR").upper()
+    if cur == "INR":
+        return inr(amount)
+    value = _num(amount)
+    if value is None:
+        return None
+    text = f"{value:,.2f}"
+    if text.endswith(".00"):
+        text = text[:-3]
+    if cur == "USD" and (_s(rail) or "").upper() == "USDC":
+        return f"{text} USDC"
+    return f"{cur} {text}"
+
+
 def mask_account(number: Any) -> str:
     """'50100123456789' -> '••••6789'. Never shows more than the last four."""
     digits = re.sub(r"\s+", "", str(number or ""))
@@ -411,7 +428,7 @@ def disbursements_to_events(rows: Iterable[dict]) -> list[dict]:
         did = r.get("disbursement_id")
         no = r.get("invoice_number")
         amount = _num(r.get("amount"))
-        money = inr(amount)
+        money = payout_money(amount, r.get("currency_code"), r.get("rail"))
         bill = _bill_label(no)
         to_acct = f" to {mask_account(r.get('beneficiary_account'))}" if r.get("beneficiary_account") else ""
         common = dict(invoice_id=r.get("invoice_id"), bill_no=no, amount=amount)

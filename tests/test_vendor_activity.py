@@ -167,6 +167,19 @@ def test_disbursement_events_and_masking():
     assert len({e["id"] for e in evs}) == 2
 
 
+def test_usdc_payout_is_not_shown_in_rupees():
+    evs = va.disbursements_to_events([{
+        "disbursement_id": "d2", "invoice_id": "b2", "invoice_number": "NOVA-1042", "amount": 1,
+        "rail": "USDC", "currency_code": "USD", "status": "SUCCESS", "status_message": None,
+        "beneficiary_account": "0xabc3881", "initiated_by": "Asha", "updated_by": None,
+        "created_at": at(0), "updated_at": at(1), "receipt_emailed_at": None}])
+    assert evs[0]["title"].startswith("Started a payment of 1 USDC for bill NOVA-1042")
+    assert evs[1]["title"] == "Payment of 1 USDC for bill NOVA-1042 went through"
+    assert va.payout_money(0.7, "USD", "USDC") == "0.70 USDC"
+    assert va.payout_money(12.5, "EUR", "USDC") == "EUR 12.50"
+    assert va.payout_money(253686, None, None) == "₹2,53,686"
+
+
 def test_override_masks_both_accounts():
     [ev] = va.overrides_to_events([{
         "override_id": "o1", "invoice_id": "b1", "invoice_number": "INV-1", "overridden_by": "admin",
