@@ -348,6 +348,7 @@ export async function createVendor(payload: {
   company_id?: string
   bank_account?: string
   bank_ifsc?: string
+  country_code?: string
 }): Promise<{
   supplier_id: string
   legal_name?: string

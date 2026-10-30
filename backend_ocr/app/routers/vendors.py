@@ -190,35 +190,50 @@ class VendorCreateRequest(BaseModel):
     bank_account: str | None = None
     bank_ifsc: str | None = None
     bank_name: str | None = None
+    # ISO 3166 alpha-2. A tenant without the GST pack identifies a vendor by
+    # country instead of GSTIN; an Indian tenant's vendors are IN.
+    country_code: str | None = None
 
 @router.post("/api/vendors")
 def create_vendor(body: VendorCreateRequest):
     tenant = require_tenant()  # tenant from JWT; client company_id ignored
     import re as _re
     GSTN_RE = r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$'
-    if not body.gstn or not body.gstn.strip():
-        raise HTTPException(status_code=422, detail="GSTN is required")
-    gstn_clean = body.gstn.strip().upper()
-    if not _re.match(GSTN_RE, gstn_clean):
-        raise HTTPException(status_code=422, detail="Invalid GSTN format (e.g. 29AABCT1332L1ZU)")
-
     acct = (body.bank_account or "").strip()
     ifsc = (body.bank_ifsc or "").strip().upper()
     name = body.name.strip()
+    if not name:
+        raise HTTPException(status_code=422, detail="Vendor name is required")
+    gstn_clean = (body.gstn or "").strip().upper() or None
+    country = (body.country_code or "").strip().upper() or None
+    if country and not _re.match(r'^[A-Z]{2}$', country):
+        raise HTTPException(status_code=422, detail="Country must be a 2-letter ISO code (e.g. US, SG)")
 
     # Vendor is saved as UNVERIFIED; the verification pipeline handles KYB asynchronously.
     conn = get_conn()
     conn.autocommit = False
     try:
         with conn.cursor() as cur:
+            # GSTIN is the identity of an Indian vendor and is required there.
+            # Elsewhere there is none to ask for: it is optional, and the
+            # vendor is placed by country.
+            if jurisdiction_for_cursor(cur, tenant).has("gst"):
+                if not gstn_clean:
+                    raise HTTPException(status_code=422, detail="GSTN is required")
+                if not _re.match(GSTN_RE, gstn_clean):
+                    raise HTTPException(status_code=422, detail="Invalid GSTN format (e.g. 29AABCT1332L1ZU)")
+                country = country or "IN"
+            elif gstn_clean and not _re.match(GSTN_RE, gstn_clean):
+                raise HTTPException(status_code=422, detail="Invalid GSTN format (e.g. 29AABCT1332L1ZU)")
+            source_id = gstn_clean or f"MANUAL_{name.lower().replace(' ', '_')}_{str(_uuid.uuid4())[:8]}"
             cur.execute(
                 """INSERT INTO dim_suppliers
                    (tenant_id, name, gstn, email, payment_terms_days, status, is_active, source, source_supplier_id,
-                    bank_account, bank_ifsc, bank_verified, bank_name)
-                   VALUES (%s, %s, %s, %s, %s, 'UNVERIFIED', true, 'MANUAL', %s, %s, %s, false, %s)
+                    bank_account, bank_ifsc, bank_verified, bank_name, country_code, tax_residency)
+                   VALUES (%s, %s, %s, %s, %s, 'UNVERIFIED', true, 'MANUAL', %s, %s, %s, false, %s, %s, %s)
                    RETURNING supplier_id""",
-                (tenant, name, gstn_clean, body.email, body.payment_terms_days, gstn_clean,
-                 acct or None, ifsc or None, body.bank_name or None),
+                (tenant, name, gstn_clean, body.email, body.payment_terms_days, source_id,
+                 acct or None, ifsc or None, body.bank_name or None, country, country),
             )
             supplier_id = str(cur.fetchone()[0])
         conn.commit()
@@ -227,6 +242,9 @@ def create_vendor(body: VendorCreateRequest):
             "status": "created",
             "verification_status": "UNVERIFIED",
         }
+    except HTTPException:
+        conn.rollback()
+        raise
     except Exception as e:
         conn.rollback()
         raise HTTPException(status_code=500, detail=str(e))

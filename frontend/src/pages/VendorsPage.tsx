@@ -264,9 +264,13 @@ function AddVendorModal({ companyId, onClose, onDone }: {
   onDone: () => void
 }) {
   const [tab, setTab] = useState<'manual' | 'excel'>('manual')
+  // An international tenant has no GSTIN or IFSC to ask for: the vendor is
+  // placed by country and paid to a wallet added on its card.
+  const j = useJurisdiction()
+  const gstOn = j.packs.gst, bankOn = j.packs.bank_india
 
   // manual form
-  const [form, setForm] = useState({ name: '', gstn: '', email: '', payment_terms_days: '30', bank_account: '', bank_ifsc: '' })
+  const [form, setForm] = useState({ name: '', gstn: '', country_code: '', email: '', payment_terms_days: '30', bank_account: '', bank_ifsc: '' })
   const [saving, setSaving] = useState(false)
   const [manualErr, setManualErr] = useState('')
   const [manualOk, setManualOk] = useState(false)
@@ -287,19 +291,22 @@ function AddVendorModal({ companyId, onClose, onDone }: {
 
   const handleManualSubmit = async () => {
     if (!form.name.trim()) { setManualErr('Vendor name is required'); return }
-    const gstn = form.gstn.trim().toUpperCase()
-    if (!gstn) { setManualErr('GSTN is required'); return }
-    if (!GSTN_RE.test(gstn)) { setManualErr('Invalid GSTN format (e.g. 29AABCT1332L1ZU)'); return }
+    const gstn = gstOn ? form.gstn.trim().toUpperCase() : ''
+    const country = form.country_code.trim().toUpperCase()
+    if (gstOn && !gstn) { setManualErr('GSTN is required'); return }
+    if (gstn && !GSTN_RE.test(gstn)) { setManualErr('Invalid GSTN format (e.g. 29AABCT1332L1ZU)'); return }
+    if (!gstOn && !/^[A-Z]{2}$/.test(country)) { setManualErr('Country is required (2-letter code, e.g. US)'); return }
     setSaving(true); setManualErr('')
     try {
       const res = await createVendor({
         name: form.name.trim(),
-        gstn,
+        gstn: gstn || undefined,
+        country_code: gstOn ? undefined : country,
         email: form.email.trim() || undefined,
         payment_terms_days: parseInt(form.payment_terms_days) || 30,
         company_id: companyId,
-        bank_account: form.bank_account.trim() || undefined,
-        bank_ifsc: form.bank_ifsc.trim().toUpperCase() || undefined,
+        bank_account: bankOn ? form.bank_account.trim() || undefined : undefined,
+        bank_ifsc: bankOn ? form.bank_ifsc.trim().toUpperCase() || undefined : undefined,
       })
       setVerifyResult({
         legal_name: res.legal_name,
@@ -310,7 +317,7 @@ function AddVendorModal({ companyId, onClose, onDone }: {
         pan_warning: res.pan_warning,
         bank_verified: res.bank_verified,
         name_at_bank: res.name_at_bank,
-        bank_provided: !!(form.bank_account.trim() && form.bank_ifsc.trim()),
+        bank_provided: bankOn && !!(form.bank_account.trim() && form.bank_ifsc.trim()),
         bank_skipped: res.bank_skipped,
         bank_warning: res.bank_warning,
       })
@@ -324,10 +331,14 @@ function AddVendorModal({ companyId, onClose, onDone }: {
   }
 
   const downloadTemplate = () => {
-    const rows = [
+    const rows = gstOn ? [
       ['Name', 'GSTN', 'Email', 'Payment Terms'],
       ['Acme Pvt Ltd', '29AABCT1332L1ZU', 'billing@acme.com', '30'],
       ['XYZ Technologies', '27AAACX1234A1Z5', 'accounts@xyz.in', '45'],
+    ] : [
+      ['Name', 'Email', 'Payment Terms'],
+      ['Acme Inc', 'billing@acme.com', '30'],
+      ['XYZ Technologies Pte Ltd', 'accounts@xyz.sg', '45'],
     ]
     const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -385,11 +396,15 @@ function AddVendorModal({ companyId, onClose, onDone }: {
             <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
               {[
                 { label:'Vendor Name *', key:'name', placeholder:'e.g. Acme Pvt Ltd', type:'text', hint: '' },
-                { label:'GSTN *', key:'gstn', placeholder:'e.g. 29AABCT1332L1ZU', type:'text', hint: '15-character GST Identification Number' },
+                gstOn
+                  ? { label:'GSTN *', key:'gstn', placeholder:'e.g. 29AABCT1332L1ZU', type:'text', hint: '15-character GST Identification Number' }
+                  : { label:'Country *', key:'country_code', placeholder:'e.g. US', type:'text', hint: '2-letter ISO code of the country the vendor is based in' },
                 { label:'Email', key:'email', placeholder:'billing@vendor.com', type:'email', hint: '' },
                 { label:'Payment Terms (days)', key:'payment_terms_days', placeholder:'30', type:'number', hint: '' },
-                { label:'Bank Account Number', key:'bank_account', placeholder:'e.g. 1234567890', type:'text', hint: '' },
-                { label:'IFSC Code', key:'bank_ifsc', placeholder:'e.g. HDFC0001234', type:'text', hint: '' },
+                ...(bankOn ? [
+                  { label:'Bank Account Number', key:'bank_account', placeholder:'e.g. 1234567890', type:'text', hint: '' },
+                  { label:'IFSC Code', key:'bank_ifsc', placeholder:'e.g. HDFC0001234', type:'text', hint: '' },
+                ] : []),
               ].map(f => {
                 const val = form[f.key as keyof typeof form]
                 const gstnInvalid = f.key === 'gstn' && val.trim().length > 0 && !GSTN_RE.test(val.trim().toUpperCase())
@@ -401,7 +416,8 @@ function AddVendorModal({ companyId, onClose, onDone }: {
                       type={f.type}
                       placeholder={f.placeholder}
                       value={val}
-                      onChange={e => setForm(p => ({ ...p, [f.key]: (f.key === 'gstn' || f.key === 'bank_ifsc') ? e.target.value.toUpperCase() : e.target.value }))}
+                      maxLength={f.key === 'country_code' ? 2 : undefined}
+                      onChange={e => setForm(p => ({ ...p, [f.key]: (f.key === 'gstn' || f.key === 'bank_ifsc' || f.key === 'country_code') ? e.target.value.toUpperCase() : e.target.value }))}
                       style={{ width:'100%', padding:'8px 12px', border:`1px solid ${gstnInvalid ? '#fca5a5' : '#e5e7eb'}`, borderRadius:8, fontSize:13, fontFamily:'inherit', boxSizing:'border-box', outline:'none', background: gstnInvalid ? '#fff5f5' : '#fff' }}
                       onFocus={e => { if (!gstnInvalid) e.target.style.borderColor='#2563eb' }}
                       onBlur={e => { if (!gstnInvalid) e.target.style.borderColor='#e5e7eb' }}
@@ -414,7 +430,7 @@ function AddVendorModal({ companyId, onClose, onDone }: {
               {manualOk && verifyResult && (
                 <div style={{ background:'#f0fdf4', border:'1px solid #86efac', borderRadius:10, padding:'14px 16px' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:6, color:'#15803d', fontSize:13, fontWeight:700, marginBottom:10 }}>
-                    <CheckCircle2 size={15} /> Vendor added & verified
+                    <CheckCircle2 size={15} /> {gstOn ? 'Vendor added & verified' : 'Vendor added'}
                   </div>
                   {verifyResult.legal_name && (
                     <div style={{ fontSize:11, color:'#166534', marginBottom:8, fontWeight:600 }}>
@@ -423,7 +439,7 @@ function AddVendorModal({ companyId, onClose, onDone }: {
                   )}
                   <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
                     {[
-                      {
+                      ...(gstOn ? [{
                         label: 'GSTIN Active',
                         ok: verifyResult.gstin_verified,
                         note: verifyResult.gstin_verified ? 'Confirmed active on GST portal' : 'Could not verify',
@@ -432,8 +448,8 @@ function AddVendorModal({ companyId, onClose, onDone }: {
                         label: `PAN ${verifyResult.pan ?? ''}`,
                         ok: verifyResult.pan_verified,
                         note: verifyResult.pan_verified ? 'Confirmed via GSTIN (embedded PAN)' : (verifyResult.pan_warning ?? 'Could not verify'),
-                      },
-                      {
+                      }] : []),
+                      bankOn ? {
                         label: 'Bank Account',
                         ok: !verifyResult.bank_provided || verifyResult.bank_skipped ? null : verifyResult.bank_verified,
                         note: !verifyResult.bank_provided
@@ -443,6 +459,10 @@ function AddVendorModal({ companyId, onClose, onDone }: {
                             : verifyResult.bank_verified
                               ? `Account exists · ${verifyResult.name_at_bank ?? ''}`
                               : (verifyResult.bank_warning ?? 'Verification failed'),
+                      } : {
+                        label: 'Payout wallet',
+                        ok: null,
+                        note: 'Add one on the vendor card to pay in USDC',
                       },
                     ].map(row => (
                       <div key={row.label} style={{ display:'flex', alignItems:'center', gap:8, fontSize:12 }}>
@@ -485,7 +505,7 @@ function AddVendorModal({ companyId, onClose, onDone }: {
                 <div style={{ display:'flex', flexDirection:'column', gap:5, marginBottom:12 }}>
                   {[
                     { col:'Name', req:true, note:'Vendor company name' },
-                    { col:'GSTN', req:true, note:'15-char GST number e.g. 29AABCT1332L1ZU' },
+                    ...(gstOn ? [{ col:'GSTN', req:true, note:'15-char GST number e.g. 29AABCT1332L1ZU' }] : []),
                     { col:'Email', req:false, note:'Billing contact email' },
                     { col:'Payment Terms', req:false, note:'Number of days e.g. 30' },
                   ].map(r => (
