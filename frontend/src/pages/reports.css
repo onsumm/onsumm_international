@@ -1,0 +1,1724 @@
+/**
+ * Reports — the analytics surface.
+ *
+ * Replaces the page's injected <style> block and ~600 inline style objects. The
+ * old page had 40+ raw hexes, seven font sizes below the 11px floor (9px axis
+ * labels), no motion, no focus states and hard 1px dividers under fixed chrome.
+ *
+ * Built on the Apple design foundations (skills/apple-design-skill.md):
+ *   · Response      — every control gives feedback on pointer-down, not release.
+ *   · Materials     — the tab rail is a translucent layer content scrolls under,
+ *                     with a scroll-edge fade instead of a hard divider.
+ *   · Spatial       — the tab indicator slides between tabs so the switch reads
+ *                     as one continuous object moving, not two states swapping.
+ *   · Typography    — tracking is size-specific: tight and negative on display
+ *                     figures, near zero on body, positive on small caps labels.
+ *   · Restraint     — one accent per surface, tinted from currentColor so a
+ *                     series' colour is declared once and inherited by its mark.
+ *
+ * Charts inherit their hue through `color`, so every mark (line, area, bar, dot,
+ * swatch, tint) is `currentColor` and a series is recoloured in exactly one
+ * place. All colour/space/type values come from tokens.css.
+ */
+
+.rp {
+  /* Categorical slots. 1–8 are the colour-blind-safe token ramp; 9–10 extend it
+     for books with more than eight live categories. */
+  --rp-c1: var(--cat-1);
+  --rp-c2: var(--cat-2);
+  --rp-c3: var(--cat-3);
+  --rp-c4: var(--cat-4);
+  --rp-c5: var(--cat-5);
+  --rp-c6: var(--cat-6);
+  --rp-c7: var(--cat-7);
+  --rp-c8: var(--cat-8);
+  --rp-c9: #6d28d9;
+  --rp-c10: #0f766e;
+
+  /* Critically damped (damping 1.0, response ~0.35s): the house default. */
+  --rp-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Slight overshoot — only for marks that grow from nothing, never for chrome. */
+  --rp-spring: cubic-bezier(0.34, 1.26, 0.64, 1);
+  --rp-rail-h: 41px;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--canvas);
+  font-family: var(--font-sans);
+}
+
+/* Embedded in another page (the Dashboard's progression panel): keep the scoped
+   tokens and the marks, drop the page shell — no full height, no scroller of its
+   own, no canvas fill over the host's background. */
+.rp--embed {
+  height: auto;
+  overflow: visible;
+  background: none;
+  gap: var(--sp-5);
+}
+
+/* One scroll container for the whole page, so the rail can be sticky inside it
+   and body content passes beneath the material rather than starting below it. */
+.rp__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────
+   Scrolls away; only the rail stays. A title pinned forever costs 80px of
+   every screen to say something the user already knows. */
+.rp__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-8) var(--sp-5);
+}
+
+.rp__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+
+  /* Negative tracking as type grows — letters read too loose at display size. */
+  letter-spacing: -0.028em;
+  color: var(--ink-900);
+}
+
+.rp__sub {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-500);
+}
+
+.rp__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 34px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: rgb(255 255 255 / 72%);
+  backdrop-filter: blur(12px) saturate(160%);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform 100ms ease-out;
+}
+
+.rp__refresh:hover:not(:disabled) {
+  background: var(--surface-0);
+  border-color: var(--line-300);
+}
+
+/* Feedback on the press, not the release. */
+.rp__refresh:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.rp__refresh:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+@keyframes rp-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rp__spin {
+  animation: rp-rotate 0.8s linear infinite;
+}
+
+/* ── Tab rail — a translucent layer, not an opaque strip ────────────────── */
+.rp__rail {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  padding: 0 var(--sp-8);
+  background: rgb(245 247 251 / 78%);
+  backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* Scroll edge effect: content fades out under the rail instead of being cut by
+   a 1px rule. The hairline is the bottom of the material, not a divider. */
+.rp__rail::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 -14px;
+  height: 14px;
+  background: linear-gradient(rgb(245 247 251 / 90%), rgb(245 247 251 / 0%));
+  pointer-events: none;
+}
+
+.rp__rail::after {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: 1px;
+  background: var(--line-200);
+}
+
+.rp__tabs {
+  position: relative;
+  display: flex;
+  gap: var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rp__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.rp__tab {
+  position: relative;
+  flex-shrink: 0;
+  height: 40px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.005em;
+  color: var(--ink-500);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    transform 100ms ease-out;
+}
+
+.rp__tab:hover {
+  color: var(--ink-800);
+}
+
+.rp__tab:active {
+  transform: scale(0.96);
+}
+
+.rp__tab[aria-selected="true"] {
+  color: var(--brand-600);
+}
+
+/* One indicator that slides, so the active tab reads as a single object moving
+   across the rail rather than one underline dying and another being born. */
+.rp__ind {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  border-radius: var(--r-full);
+  background: var(--brand-600);
+  transition:
+    transform 0.34s var(--rp-ease),
+    width 0.34s var(--rp-ease);
+  pointer-events: none;
+}
+
+/* ── Panels ───────────────────────────────────────────────────────────────
+   A panel materialises — blur and scale resolve together, so the surface reads
+   as arriving rather than an opacity fade of something that was already there. */
+.rp__body {
+  padding: var(--sp-5) var(--sp-8) var(--sp-10);
+}
+
+@keyframes rp-materialize {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.994);
+    filter: blur(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+    filter: blur(0);
+  }
+}
+
+.rp__panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+@keyframes rp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Staggered so the eye is led down the page in reading order. Capped at six —
+   past that the last row would arrive late enough to feel like latency. */
+.rp__panel > * {
+  animation: rp-rise 0.42s var(--rp-ease) both;
+}
+
+.rp__panel > :nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.rp__panel > :nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.rp__panel > :nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.rp__panel > :nth-child(4) {
+  animation-delay: 130ms;
+}
+
+.rp__panel > :nth-child(n + 5) {
+  animation-delay: 165ms;
+}
+
+/* ── Grids ──────────────────────────────────────────────────────────────── */
+.rp__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--sp-3);
+}
+
+.rp__duo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+@media (width <= 1080px) {
+  .rp__duo {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── KPI tile ─────────────────────────────────────────────────────────────
+   The accent arrives as a hairline that fades out plus a corner bloom, both
+   tinted from the tile's own `color`. The old 3px full-width top border read
+   as a status bar on every tile at once. */
+.rp__kpi {
+  position: relative;
+  overflow: hidden;
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+  transition:
+    transform var(--dur-slow) var(--rp-ease),
+    box-shadow var(--dur-slow) var(--rp-ease);
+}
+
+.rp__kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, currentcolor, color-mix(in srgb, currentcolor 8%, transparent));
+}
+
+.rp__kpi::after {
+  content: "";
+  position: absolute;
+  top: -55%;
+  right: -12%;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, currentcolor 14%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+.rp__kpi:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--e-2);
+}
+
+/* Small caps labels want positive tracking — the opposite of display type. */
+.rp__kpi-lbl {
+  position: relative;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-500);
+}
+
+.rp__kpi-val {
+  position: relative;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: currentcolor;
+}
+
+.rp__kpi-val--sm {
+  font-size: var(--fs-xl);
+}
+
+.rp__kpi-sub {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+/* Delta chip — sign carried by colour AND glyph, never colour alone. */
+.rp__delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Card ───────────────────────────────────────────────────────────────── */
+.rp__card {
+  padding: var(--sp-5);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+}
+
+.rp__card--flush {
+  padding: var(--sp-5) 0 0;
+}
+
+.rp__card-hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.rp__card--flush .rp__card-hdr {
+  padding: 0 var(--sp-5);
+}
+
+.rp__card-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.012em;
+  color: var(--ink-900);
+}
+
+.rp__card-count {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0;
+  color: var(--ink-500);
+}
+
+.rp__card-sub {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.rp__hdr-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.rp__export,
+.rp__link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    border-color var(--dur-fast) var(--ease),
+    transform 100ms ease-out;
+}
+
+.rp__export:hover,
+.rp__link:hover {
+  background: var(--surface-1);
+  border-color: var(--line-300);
+}
+
+.rp__export:active,
+.rp__link:active {
+  transform: scale(0.96);
+}
+
+.rp__link {
+  border-color: transparent;
+  background: none;
+  color: var(--brand-600);
+}
+
+.rp__link:hover {
+  background: var(--brand-50);
+  border-color: transparent;
+}
+
+.rp__trend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 3px var(--sp-2);
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Period toolbar ───────────────────────────────────────────────────────
+   Grain is a property of the whole dashboard, not of one chart, so the control
+   sits above every chart it changes rather than being repeated inside each. */
+.rp__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.rp__toolbar-note {
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+/* Segmented control: one thumb that slides, so the two options read as one
+   switch rather than two buttons that happen to be adjacent. */
+.rp__seg {
+  position: relative;
+  display: grid;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
+  padding: 3px;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+}
+
+.rp__seg-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  bottom: 3px;
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+  transition: transform 0.32s var(--rp-ease);
+  pointer-events: none;
+}
+
+.rp__seg-btn {
+  position: relative;
+  z-index: 1;
+  height: 28px;
+  padding: 0 var(--sp-4);
+  border: 0;
+  border-radius: var(--r-full);
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-500);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease),
+    transform 100ms ease-out;
+}
+
+.rp__seg-btn:active {
+  transform: scale(0.96);
+}
+
+.rp__seg-btn[aria-pressed="true"] {
+  color: var(--ink-900);
+}
+
+/* ── Columns ────────────────────────────────────────────────────────────── */
+@keyframes rp-col {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.rp__col {
+  fill: currentcolor;
+  animation: rp-col 0.5s var(--rp-ease) both;
+  transition: opacity var(--dur-fast) var(--ease);
+}
+
+/* The current period is still filling up. Drawn hollow so a month-to-date
+   column cannot be misread as a collapse in spend. */
+.rp__col--running {
+  opacity: 0.45;
+  stroke: currentcolor;
+  stroke-width: 1.5;
+  stroke-dasharray: 3 2.5;
+}
+
+.rp__col--muted {
+  opacity: 0.32;
+}
+
+.rp__zero {
+  stroke: var(--ink-300);
+  stroke-width: 1;
+}
+
+.rp__overlay {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rp__overlay-dot {
+  fill: var(--surface-0);
+  stroke: currentcolor;
+  stroke-width: 2;
+}
+
+.rp__band {
+  fill: color-mix(in srgb, currentcolor 8%, transparent);
+}
+
+.rp__chart-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+/* ── Static legend (bands whose sum is the point) ───────────────────────── */
+.rp__keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-4);
+  margin-top: var(--sp-3);
+}
+
+.rp__key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-600);
+}
+
+.rp__key-mark {
+  width: 10px;
+  height: 10px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+.rp__key-mark--line {
+  height: 3px;
+  width: 14px;
+  border-radius: 2px;
+}
+
+/* ── KPI sparkline ──────────────────────────────────────────────────────── */
+.rp__kpi-spark {
+  position: relative;
+  margin-top: var(--sp-3);
+  height: 30px;
+}
+
+.rp__kpi-spark svg {
+  display: block;
+  width: 100%;
+  height: 30px;
+  overflow: visible;
+}
+
+.rp__spark-line {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.75;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.rp__spark-area {
+  fill: color-mix(in srgb, currentcolor 14%, transparent);
+}
+
+.rp__spark-tip {
+  fill: currentcolor;
+}
+
+/* An explanatory note, not a warning — the neutral sibling of .rp__note. */
+.rp__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-600);
+}
+
+.rp__hint svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+  color: var(--ink-400);
+}
+
+/* ── Line chart ─────────────────────────────────────────────────────────── */
+.rp__chart {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.rp__chart svg {
+  display: block;
+  width: 100%;
+  overflow: visible;
+}
+
+.rp__grid-line {
+  stroke: var(--line-100);
+  stroke-width: 1;
+}
+
+.rp__axis {
+  font-size: var(--fs-2xs);
+  fill: var(--ink-500);
+}
+
+.rp__line {
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+.rp__area {
+  transition: opacity var(--dur-base) var(--ease);
+}
+
+/* Draw the line on rather than fading it in — the stroke's direction is the
+   same left-to-right direction the data is read in. */
+@keyframes rp-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.rp__line--enter {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: rp-draw 1.1s var(--rp-ease) both;
+}
+
+.rp__series--dim .rp__line,
+.rp__series--dim .rp__area {
+  opacity: 0.12;
+}
+
+.rp__crosshair {
+  stroke: var(--ink-300);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.rp__dot {
+  fill: var(--surface-0);
+  stroke: currentcolor;
+  stroke-width: 2;
+}
+
+/* Tooltip tracks the pointer 1:1 across the plot. */
+.rp__tip {
+  position: absolute;
+  top: 0;
+  z-index: var(--z-dropdown);
+  min-width: 148px;
+  max-width: 240px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(14px) saturate(180%);
+  box-shadow: var(--e-3);
+  pointer-events: none;
+}
+
+.rp__tip-day {
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.rp__tip-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  color: var(--ink-700);
+}
+
+.rp__tip-row span:first-of-type {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp__tip-val {
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+}
+
+.rp__swatch {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+/* ── Legend — a control, not a caption ──────────────────────────────────── */
+.rp__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.rp__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px var(--sp-2);
+  border: 1px solid transparent;
+  border-radius: var(--r-full);
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-600);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease),
+    color var(--dur-fast) var(--ease),
+    opacity var(--dur-fast) var(--ease),
+    transform 100ms ease-out;
+}
+
+.rp__legend-item:hover {
+  background: var(--surface-1);
+  color: var(--ink-800);
+}
+
+.rp__legend-item:active {
+  transform: scale(0.95);
+}
+
+.rp__legend-item[aria-pressed="false"] {
+  opacity: 0.45;
+}
+
+.rp__legend-item[aria-pressed="false"] .rp__legend-mark {
+  background: var(--ink-300);
+}
+
+.rp__legend-mark {
+  width: 12px;
+  height: 3px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+.rp__legend-hint {
+  align-self: center;
+  margin-left: var(--sp-1);
+  font-size: var(--fs-2xs);
+  color: var(--ink-400);
+}
+
+/* ── Spark bars ─────────────────────────────────────────────────────────── */
+.rp__spark {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  height: 132px;
+}
+
+.rp__spark-col {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  cursor: default;
+}
+
+.rp__spark-track {
+  display: flex;
+  align-items: flex-end;
+  width: 100%;
+  flex: 1;
+}
+
+@keyframes rp-grow {
+  from {
+    transform: scaleY(0);
+  }
+
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.rp__spark-bar {
+  width: 100%;
+  border-radius: var(--r-sm) var(--r-sm) 2px 2px;
+  background: linear-gradient(to top, color-mix(in srgb, currentcolor 55%, white), currentcolor);
+  transform-origin: bottom;
+  animation: rp-grow 0.55s var(--rp-spring) both;
+  transition: filter var(--dur-fast) var(--ease);
+}
+
+.rp__spark-col:hover .rp__spark-bar {
+  filter: brightness(1.08) saturate(1.1);
+}
+
+.rp__spark-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-500);
+}
+
+.rp__spark-col--now .rp__spark-lbl {
+  font-weight: var(--fw-bold);
+  color: var(--ink-800);
+}
+
+.rp__spark-amt {
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-500);
+}
+
+/* ── Donut ──────────────────────────────────────────────────────────────── */
+.rp__donut {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.rp__donut-seg {
+  fill: none;
+  stroke: currentcolor;
+  stroke-linecap: round;
+  transition:
+    stroke-width var(--dur-base) var(--rp-ease),
+    opacity var(--dur-base) var(--ease);
+}
+
+.rp__donut-mid {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.rp__donut-val {
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  letter-spacing: -0.02em;
+  color: var(--ink-900);
+}
+
+.rp__donut-lbl {
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+/* ── Meter rows (category / vendor / status lists) ──────────────────────── */
+.rp__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.rp__rows--scroll {
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: var(--sp-1);
+}
+
+.rp__row {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
+}
+
+.rp__row-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: 5px;
+}
+
+.rp__row-id {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.rp__row-name {
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-700);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp__row-amt {
+  flex-shrink: 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+}
+
+.rp__row-pct {
+  flex-shrink: 0;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-500);
+}
+
+/* Monogram — tinted from the row's own colour, so the avatar, the bar and the
+   swatch are provably the same hue. */
+.rp__mono {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, currentcolor 14%, transparent);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: currentcolor;
+}
+
+.rp__mono--lg {
+  width: 30px;
+  height: 30px;
+  font-size: var(--fs-xs);
+}
+
+.rp__meter {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--line-100);
+}
+
+.rp__meter--thin {
+  height: 5px;
+}
+
+@keyframes rp-fill {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.rp__meter-fill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: currentcolor;
+  transform-origin: left;
+  animation: rp-fill 0.7s var(--rp-ease) both;
+  transition: width 0.6s var(--rp-ease);
+}
+
+.rp__dotmark {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentcolor;
+  box-shadow: 0 0 0 3px color-mix(in srgb, currentcolor 14%, transparent);
+}
+
+.rp__sqmark {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  background: currentcolor;
+}
+
+/* ── Aging summary line ─────────────────────────────────────────────────── */
+.rp__aging-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-1);
+  border-radius: var(--r-md);
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.rp__aging-row:hover {
+  background: var(--surface-1);
+}
+
+.rp__aging-lbl {
+  flex: 1;
+  font-size: var(--fs-xs);
+  color: var(--ink-700);
+}
+
+.rp__aging-amt {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: currentcolor;
+}
+
+.rp__aging-amt--zero {
+  color: var(--ink-500);
+  font-weight: var(--fw-medium);
+}
+
+.rp__aging-n {
+  min-width: 52px;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--ink-500);
+}
+
+/* ── Bucket tiles ───────────────────────────────────────────────────────── */
+.rp__buckets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-3);
+}
+
+.rp__bucket {
+  position: relative;
+  overflow: hidden;
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid color-mix(in srgb, currentcolor 24%, transparent);
+  border-radius: var(--r-lg);
+  background:
+    linear-gradient(
+      160deg,
+      color-mix(in srgb, currentcolor 9%, var(--surface-0)),
+      color-mix(in srgb, currentcolor 3%, var(--surface-0))
+    );
+  transition:
+    transform var(--dur-slow) var(--rp-ease),
+    box-shadow var(--dur-slow) var(--rp-ease);
+}
+
+.rp__bucket:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--e-2);
+}
+
+.rp__bucket-lbl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: currentcolor;
+}
+
+.rp__bucket-val {
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+}
+
+.rp__bucket-sub {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+/* ── Tables ─────────────────────────────────────────────────────────────── */
+.rp__tblwrap {
+  overflow: auto;
+  border-top: 1px solid var(--line-100);
+}
+
+.rp__tblwrap--tall {
+  max-height: min(62vh, 680px);
+}
+
+.rp__tbl {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+/* Sticky within the table's own scroller, translucent so rows read as passing
+   under the header rather than being clipped by it. */
+.rp__tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+  background: rgb(241 245 249 / 88%);
+  backdrop-filter: blur(10px);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--ink-600);
+  white-space: nowrap;
+}
+
+.rp__tbl td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-100);
+  color: var(--ink-700);
+  vertical-align: middle;
+}
+
+.rp__tbl tbody tr {
+  transition: background var(--dur-fast) var(--ease);
+}
+
+.rp__tbl tbody tr:hover td {
+  background: var(--surface-1);
+}
+
+.rp__num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp__cell-strong {
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.rp__cell-amt {
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+  text-align: right;
+}
+
+.rp__cell-muted {
+  color: var(--ink-500);
+}
+
+.rp__rank {
+  width: 44px;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--ink-400);
+}
+
+/* Group header row — a band, not a row, so scanning skips it or lands on it
+   deliberately. */
+.rp__group td {
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+  background: var(--brand-50);
+}
+
+.rp__tbl tbody tr.rp__group:hover td {
+  background: var(--brand-50);
+}
+
+.rp__group-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.rp__group-tag {
+  display: inline-block;
+  padding: 3px var(--sp-3);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, currentcolor 12%, transparent);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: currentcolor;
+}
+
+.rp__group-amt {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+}
+
+.rp__indent {
+  padding-left: var(--sp-8);
+}
+
+.rp__tbl tfoot td {
+  position: sticky;
+  bottom: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--line-200);
+  border-bottom: 0;
+  background: rgb(248 250 252 / 94%);
+  backdrop-filter: blur(10px);
+  font-weight: var(--fw-bold);
+  color: var(--ink-900);
+}
+
+.rp__pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, currentcolor 13%, transparent);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: currentcolor;
+  white-space: nowrap;
+}
+
+.rp__pill + .rp__pill {
+  margin-left: var(--sp-1);
+}
+
+.rp__bar-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 120px;
+}
+
+.rp__bar-cell .rp__meter {
+  flex: 1;
+}
+
+/* ── FX deck ────────────────────────────────────────────────────────────── */
+.rp__deck {
+  position: relative;
+  overflow: hidden;
+  padding: var(--sp-6) var(--sp-8);
+  border-radius: var(--r-lg);
+  background:
+    radial-gradient(120% 140% at 90% -30%, rgb(92 216 218 / 24%) 0%, transparent 55%),
+    linear-gradient(135deg, var(--brand-900) 0%, var(--brand-700) 60%, var(--brand-600) 100%);
+  box-shadow: var(--e-2);
+  color: #fff;
+}
+
+/* A bright top edge is light catching the surface — the same cue a real
+   material gives, and it separates the deck from the canvas without a border. */
+.rp__deck::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 45%), transparent);
+}
+
+.rp__deck-eyebrow {
+  position: relative;
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 72%);
+}
+
+.rp__deck-grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--sp-5);
+}
+
+.rp__deck-lbl {
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.04em;
+  color: rgb(255 255 255 / 68%);
+}
+
+/* Vibrancy: text over a coloured material is heavier and slightly tracked out,
+   never a flat mid-grey. */
+.rp__deck-val {
+  font-family: var(--font-display);
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.rp__deck-val--up {
+  color: #ffc9c9;
+}
+
+.rp__deck-val--down {
+  color: #a7f3c4;
+}
+
+/* ── Spread tiles ───────────────────────────────────────────────────────── */
+.rp__spreads {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: var(--sp-3);
+}
+
+.rp__note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--danger-700);
+}
+
+/* ── States ─────────────────────────────────────────────────────────────── */
+.rp__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  min-height: 260px;
+  padding: var(--sp-8);
+  color: var(--ink-500);
+  text-align: center;
+}
+
+.rp__empty svg {
+  margin-bottom: var(--sp-1);
+  color: var(--ink-300);
+}
+
+.rp__empty-title {
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+}
+
+.rp__empty-sub {
+  font-size: var(--fs-sm);
+  color: var(--ink-500);
+}
+
+@keyframes rp-shimmer {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.rp__skel {
+  border-radius: var(--r-md);
+  background: linear-gradient(90deg, var(--line-100) 25%, var(--surface-2) 37%, var(--line-100) 63%);
+  background-size: 200% 100%;
+  animation: rp-shimmer 1.3s linear infinite;
+}
+
+/* ── Tones ──────────────────────────────────────────────────────────────── */
+.rp-t--brand {
+  color: var(--brand-600);
+}
+
+.rp-t--info {
+  color: var(--info-600);
+}
+
+.rp-t--violet {
+  color: var(--cat-4);
+}
+
+.rp-t--success {
+  color: var(--success-600);
+}
+
+.rp-t--warn {
+  color: var(--warn-600);
+}
+
+.rp-t--orange {
+  color: var(--cat-8);
+}
+
+.rp-t--danger {
+  color: var(--danger-600);
+}
+
+.rp-t--crit {
+  color: var(--danger-700);
+}
+
+.rp-t--muted {
+  color: var(--ink-500);
+}
+
+.rp-t--indigo {
+  color: var(--cat-4);
+}
+
+.rp-c1 {
+  color: var(--rp-c1);
+}
+
+.rp-c2 {
+  color: var(--rp-c2);
+}
+
+.rp-c3 {
+  color: var(--rp-c3);
+}
+
+.rp-c4 {
+  color: var(--rp-c4);
+}
+
+.rp-c5 {
+  color: var(--rp-c5);
+}
+
+.rp-c6 {
+  color: var(--rp-c6);
+}
+
+.rp-c7 {
+  color: var(--rp-c7);
+}
+
+.rp-c8 {
+  color: var(--rp-c8);
+}
+
+.rp-c9 {
+  color: var(--rp-c9);
+}
+
+.rp-c10 {
+  color: var(--rp-c10);
+}
+
+/* ── Accessibility ──────────────────────────────────────────────────────── */
+
+/* Reduced motion keeps the feedback and drops the travel: panels cross-fade,
+   marks appear at full size, the indicator jumps. tokens.css already zeroes
+   durations globally; these rules remove the transforms it cannot reach. */
+@media (prefers-reduced-motion: reduce) {
+  .rp__panel,
+  .rp__panel > *,
+  .rp__line--enter,
+  .rp__spark-bar,
+  .rp__meter-fill {
+    animation: none;
+    filter: none;
+    opacity: 1;
+    transform: none;
+    stroke-dasharray: none;
+  }
+
+  .rp__scroll {
+    scroll-behavior: auto;
+  }
+
+  .rp__refresh:active,
+  .rp__tab:active,
+  .rp__export:active,
+  .rp__link:active,
+  .rp__legend-item:active {
+    transform: none;
+  }
+
+  .rp__kpi:hover,
+  .rp__bucket:hover {
+    transform: none;
+  }
+}
+
+/* Frostier, not see-through: raise the opacity and drop the blur. */
+@media (prefers-reduced-transparency: reduce) {
+  .rp__rail,
+  .rp__refresh,
+  .rp__tip {
+    background: var(--surface-0);
+    backdrop-filter: none;
+  }
+
+  .rp__rail {
+    background: var(--canvas);
+  }
+
+  .rp__tbl thead th {
+    background: var(--surface-2);
+    backdrop-filter: none;
+  }
+
+  .rp__tbl tfoot td {
+    background: var(--surface-1);
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .rp__card,
+  .rp__kpi,
+  .rp__bucket,
+  .rp__tip {
+    border-color: var(--ink-600);
+  }
+
+  .rp__kpi-sub,
+  .rp__card-sub,
+  .rp__aging-n,
+  .rp__row-pct,
+  .rp__spark-amt {
+    color: var(--ink-700);
+  }
+}
+
+@media print {
+  .rp {
+    height: auto;
+    overflow: visible;
+  }
+
+  .rp__scroll,
+  .rp__tblwrap,
+  .rp__tblwrap--tall {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .rp__rail,
+  .rp__refresh,
+  .rp__export {
+    display: none;
+  }
+
+  .rp__card,
+  .rp__kpi,
+  .rp__bucket {
+    box-shadow: none;
+  }
+}

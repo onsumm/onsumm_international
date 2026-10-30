@@ -1,0 +1,179 @@
+/* Platform ops panel. Tokens only — no literal colours, so it follows the same
+   theme as the tenant app. `adm__` prefix; `u-` stays reserved for the kit. */
+
+.adm {
+  display: flex;
+  min-height: 100vh;
+  background: var(--canvas);
+}
+
+.adm__rail {
+  width: 220px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--line-200);
+  background: var(--surface-100);
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-4) var(--sp-3);
+  gap: var(--sp-1);
+}
+
+.adm__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-weight: 700;
+  font-size: var(--fs-2);
+  color: var(--ink-900);
+  margin-bottom: var(--sp-4);
+  padding: 0 var(--sp-2);
+}
+
+/* A visible marker that this is the ops panel, not a customer's account. */
+.adm__brand-tag {
+  font-size: var(--fs-0);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warn-700, var(--ink-500));
+  background: var(--warn-100, var(--surface-200));
+  border-radius: var(--radius-1);
+  padding: 2px 6px;
+}
+
+.adm__navitem {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
+  border-radius: var(--radius-2);
+  border: none;
+  background: none;
+  color: var(--ink-700);
+  font: inherit;
+  font-size: var(--fs-1);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+}
+.adm__navitem:hover { background: var(--surface-200); }
+.adm__navitem--active { background: var(--brand-100); color: var(--brand-700); font-weight: 600; }
+
+.adm__main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.adm__body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-5); }
+
+.adm__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--line-200);
+  background: var(--surface-100);
+}
+.adm__who { font-size: var(--fs-1); color: var(--ink-600); }
+
+/* Tables scroll inside their own container so the page never scrolls sideways. */
+.adm__tablewrap { overflow-x: auto; }
+.adm__table { width: 100%; border-collapse: collapse; font-size: var(--fs-1); }
+.adm__table th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-600);
+  padding: var(--sp-2);
+  border-bottom: 1px solid var(--line-200);
+  white-space: nowrap;
+}
+.adm__table td { padding: var(--sp-2); border-bottom: 1px solid var(--line-100); }
+.adm__table tbody tr:hover { background: var(--surface-200); }
+.adm__row-link { cursor: pointer; }
+
+.adm__tabs { display: flex; gap: var(--sp-1); border-bottom: 1px solid var(--line-200); margin-bottom: var(--sp-4); }
+.adm__tab {
+  padding: var(--sp-2) var(--sp-3);
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-1);
+  color: var(--ink-600);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.adm__tab--active { color: var(--brand-700); border-bottom-color: var(--brand-500); font-weight: 600; }
+
+/* ── Licensing toggles ───────────────────────────────────────────────────── */
+.adm__svc { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.adm__svc-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--line-100);
+}
+.adm__svc-row:last-child { border-bottom: none; }
+.adm__svc-meta { flex: 1; min-width: 0; }
+.adm__svc-name { font-weight: 600; color: var(--ink-900); font-size: var(--fs-1); }
+.adm__svc-desc { color: var(--ink-500); font-size: var(--fs-0); margin: 2px 0 0; }
+.adm__svc-limit { width: 120px; flex-shrink: 0; }
+
+/* Sticky save bar — the diff must stay reachable however long the list is. */
+.adm__savebar {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  margin-top: var(--sp-4);
+  background: var(--surface-100);
+  border: 1px solid var(--line-200);
+  border-radius: var(--radius-3);
+  box-shadow: var(--shadow-2, 0 -2px 8px rgb(0 0 0 / 8%));
+}
+.adm__savebar-summary { font-size: var(--fs-1); color: var(--ink-700); }
+
+.adm__grid { display: grid; gap: var(--sp-3); grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.adm__stat-label { font-size: var(--fs-0); color: var(--ink-500); }
+.adm__stat-value { font-size: var(--fs-3); font-weight: 700; color: var(--ink-900); }
+
+.adm__form { display: flex; flex-direction: column; gap: var(--sp-3); max-width: 560px; }
+.adm__form-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3); }
+
+.adm__login { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--canvas); }
+.adm__login-card { width: min(400px, 92vw); }
+
+.adm__boot { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+
+.adm__problem { color: var(--danger-700, var(--ink-900)); font-size: var(--fs-0); }
+.adm__warn { color: var(--warn-700, var(--ink-600)); font-size: var(--fs-0); }
+
+.adm__json {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--fs-0);
+  color: var(--ink-600);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-width: 320px;
+}
+
+/* Impersonation banner, rendered in the TENANT shell. Deliberately loud. */
+.adm-imp {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--warn-100, #fef3c7);
+  color: var(--warn-700, #92400e);
+  border-left: 3px solid var(--warn-500, #f59e0b);
+  font-size: var(--fs-1);
+  font-weight: 500;
+}
+
+@media (max-width: 720px) {
+  .adm__rail { display: none; }
+  .adm__body { padding: var(--sp-3); }
+  .adm__form-row { grid-template-columns: 1fr; }
+}

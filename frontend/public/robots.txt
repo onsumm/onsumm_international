@@ -1,0 +1,79 @@
+# Onsumm — AP automation for Indian SMEs.
+#
+# The answer engines are named explicitly rather than left to the wildcard: an
+# unnamed crawler is allowed by default, but several of these treat a missing
+# rule and a permissive rule differently, and Google-Extended controls AI
+# Overviews independently of Googlebot's own crawl.
+
+User-agent: *
+Allow: /
+
+# Search
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Answer engines / AI crawlers — we want to be cited in AP automation,
+# Tally integration and GST/TDS answers, so these stay open.
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: Applebot-Extended
+Allow: /
+
+User-agent: Bytespider
+Allow: /
+
+User-agent: Amazonbot
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+# The authenticated app: real customer data behind a login, nothing to index,
+# and every one of these paths returns the SPA shell to a crawler anyway.
+Disallow: /login
+Disallow: /upload
+Disallow: /bills
+Disallow: /vendors
+Disallow: /dashboard
+Disallow: /reports
+Disallow: /data-extraction
+Disallow: /nova
+Disallow: /review
+Disallow: /agent-hub
+Disallow: /integrations
+Disallow: /settings
+Disallow: /payments
+Disallow: /admin
+
+Sitemap: https://www.onsumm.ai/sitemap.xml

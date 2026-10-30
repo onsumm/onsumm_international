@@ -1,0 +1,23 @@
+{
+  "source": "Hackathon static list. Production replaces this with a screening API (TRM, Chainalysis or Elliptic) and daily re-screening.",
+  "updated": "2026-10-29",
+  "addresses": [
+    {
+      "address": "0x098B716B8Aaf21512996dC57EB0615e2383E2f96",
+      "label": "Lazarus Group (Ronin bridge exploit), OFAC SDN digital currency address, added April 2022",
+      "category": "sanctions"
+    },
+    {
+      "address": "0x000000000000000000000000000000000000dEaD",
+      "label": "DEMO ONLY: stands in for a sanctioned wallet in the hackathon demo",
+      "category": "demo"
+    }
+  ],
+  "names": [
+    {
+      "name": "Demo Sanctioned Person",
+      "label": "DEMO ONLY: stands in for a sanctioned individual in UBO screening",
+      "category": "demo"
+    }
+  ]
+}

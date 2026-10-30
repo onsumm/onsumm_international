@@ -1,0 +1,1406 @@
+/**
+ * Vendor payment — the screen that moves money.
+ *
+ * The first cut was 470 lines of inline styles with ~40 hardcoded hex values,
+ * no media queries and no designed loading/error/empty states. It also led with
+ * the demo remitter balance, so the largest number on a payment screen was the
+ * one number the user must not act on. This lays the flow out as four named
+ * steps with the beneficiary as the visual anchor, because the question a payer
+ * actually asks is "who is about to receive this, and how much".
+ *
+ * All colour/space/type values come from tokens.css.
+ */
+
+/* Two panes side by side, each scrolling on its own: the sidebar is docked to the
+   page's left edge and stays whole while the step column scrolls under it. */
+.pay {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  overflow: hidden;
+  background: var(--canvas);
+  font-family: var(--font-sans);
+}
+
+.pay__scroll {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
+  padding: var(--sp-5) var(--sp-6) var(--sp-10);
+}
+
+/* The page is a route now (/bills/pay/:supplierId), so it needs no stacking of
+   its own. The modifier remains only for a caller that still mounts it inline —
+   at the token scale, because it no longer has to out-rank the legacy panels. */
+.pay--overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  background: var(--canvas);
+}
+
+.pay__inner {
+  max-width: 880px;
+  margin-inline: auto;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────────
+   What is true of the whole payment and belongs nowhere in the sequence — today
+   the account the money leaves. Full height at the left edge, so the space below
+   the sections is already there for what comes next (more remitter accounts,
+   account selection) rather than a card that has to be redesigned to grow. */
+.pay__side {
+  flex: 0 0 288px;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+  padding-bottom: var(--sp-6);
+  border-right: 1px solid var(--line-200);
+  background: var(--surface-0);
+}
+
+.pay-side__sec {
+  padding: var(--sp-4);
+}
+
+.pay-side__sec + .pay-side__sec {
+  border-top: 1px solid var(--line-200);
+}
+
+.pay-side__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+/* A list, because the second account is a row and not a redesign. */
+.pay-side__accts {
+  display: grid;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pay-side__acct {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--sp-1) var(--sp-2);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.pay-side__acct--sel {
+  border-color: var(--brand-100);
+  background: var(--brand-50);
+}
+
+.pay-side__acct-bank {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  overflow-wrap: anywhere;
+}
+
+.pay-side__acct-num {
+  grid-row: 2;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The balance is the number a payer must not act on, so it sits at label scale
+   in the corner rather than as the largest figure on a payment screen. */
+.pay-side__acct-bal {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pay-side__rows {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.pay-side__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-xs);
+}
+
+.pay-side__key {
+  color: var(--ink-500);
+}
+
+.pay-side__val {
+  min-width: 0;
+  font-weight: var(--fw-semibold);
+  color: var(--ink-800);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.pay-side__tally {
+  display: flex;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-100);
+  font-size: var(--fs-2xs);
+  color: var(--ink-600);
+  flex-wrap: wrap;
+}
+
+.pay-side__ok { color: var(--success-700); }
+.pay-side__fail { color: var(--danger-700); }
+.pay-side__wait { color: var(--warn-700); }
+
+/* ── Header + stepper ─────────────────────────────────────────────────────── */
+.pay__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.pay__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--ink-900);
+}
+
+.pay__sub {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-600);
+}
+
+.pay__head-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Ordered list, not divs: the step sequence is real structure for a screen
+   reader, and `aria-current="step"` needs somewhere to live. */
+.pay__steps {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-5);
+  padding: 0;
+  list-style: none;
+}
+
+.pay__step {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+.pay__step-num {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--line-300);
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  color: var(--ink-500);
+}
+
+.pay__step--current {
+  color: var(--brand-600);
+}
+
+.pay__step--current .pay__step-num {
+  border-color: var(--brand-600);
+  background: var(--brand-600);
+  color: var(--surface-0);
+}
+
+.pay__step--done {
+  color: var(--success-700);
+}
+
+.pay__step--done .pay__step-num {
+  border-color: var(--success-600);
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.pay__step-sep {
+  flex: 1;
+  min-width: var(--sp-3);
+  height: 1px;
+  background: var(--line-200);
+}
+
+/* Narrow viewports get a text counter instead of the full rail. */
+.pay__steps-compact {
+  display: none;
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--brand-600);
+}
+
+/* ── Cards ────────────────────────────────────────────────────────────────── */
+.pay-card {
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+}
+
+.pay-card + .pay-card {
+  margin-top: var(--sp-4);
+}
+
+.pay-card__title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.pay-label {
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+/* ── Beneficiary ──────────────────────────────────────────────────────────── */
+.pay-bene {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+}
+
+.pay-bene__rows {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.pay-bene__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.pay-bene__key {
+  flex: 0 0 108px;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.pay-bene__val {
+  min-width: 0;
+  font-weight: var(--fw-medium);
+  color: var(--ink-800);
+  overflow-wrap: anywhere;
+}
+
+.pay-bene__val--mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-bene__total {
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.pay-bene__amount {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-bene__count {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+}
+
+/* Stated once, plainly, next to the number it applies to. */
+.pay-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--warn-100);
+  border-radius: var(--r-md);
+  background: var(--warn-50);
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--warn-700);
+}
+
+.pay-warn--danger {
+  border-color: var(--danger-100);
+  background: var(--danger-50);
+  color: var(--danger-700);
+}
+
+.pay-warn__icon {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ── Bill selection ───────────────────────────────────────────────────────── */
+.pay-bills {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.pay-bill {
+  display: grid;
+  gap: var(--sp-2) var(--sp-4);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  transition: border-color var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+}
+
+.pay-bill--sel {
+  border-color: var(--success-600);
+  background: var(--success-50);
+}
+
+.pay-bill__meta {
+  min-width: 0;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+}
+
+.pay-bill__id {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.pay-bill__due--overdue {
+  font-weight: var(--fw-semibold);
+  color: var(--danger-600);
+}
+
+.pay-bill__amt {
+  justify-self: end;
+  min-width: 140px;
+}
+
+.pay-bill__out {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-800);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.pay-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-200);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-bold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Action bar ───────────────────────────────────────────────────────────── */
+.pay-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-top: var(--sp-4);
+  flex-wrap: wrap;
+}
+
+.pay-actions__right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-inline-start: auto;
+}
+
+/* ── OTP ──────────────────────────────────────────────────────────────────── */
+.pay-otp {
+  display: grid;
+  gap: var(--sp-3);
+  max-width: 420px;
+}
+
+.pay-otp__input input {
+  max-width: 180px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-otp__timer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-otp__timer--soon {
+  color: var(--warn-700);
+}
+
+.pay-otp__timer--out {
+  color: var(--danger-700);
+}
+
+.pay-otp__fail {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: var(--r-md);
+  border: 1px solid var(--danger-100);
+  background: var(--danger-50);
+  color: var(--danger-700, var(--danger-600));
+}
+.pay-otp__fail--expired,
+.pay-otp__fail--too_many {
+  /* Recoverable with one click (resend) — reads as a warning, not a hard stop. */
+  border-color: var(--warn-100);
+  background: var(--warn-50);
+  color: var(--warn-700);
+}
+.pay-otp__fail-title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+.pay-otp__fail-hint {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+
+.pay-demo {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--warn-100);
+  border-radius: var(--r-md);
+  background: var(--warn-50);
+  font-size: var(--fs-xs);
+  color: var(--warn-700);
+  flex-wrap: wrap;
+}
+
+.pay-demo__code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.15em;
+}
+
+/* ── Result / receipt ─────────────────────────────────────────────────────── */
+.pay-summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  flex-wrap: wrap;
+}
+
+.pay-result {
+  display: grid;
+  gap: var(--sp-2) var(--sp-4);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+}
+
+.pay-result + .pay-result {
+  margin-top: var(--sp-2);
+}
+
+.pay-result--ok {
+  border-color: var(--success-100);
+  background: var(--success-50);
+}
+
+.pay-result--wait {
+  border-color: var(--warn-100);
+  background: var(--warn-50);
+}
+
+.pay-result--fail {
+  border-color: var(--danger-100);
+  background: var(--danger-50);
+}
+
+.pay-result__icon--ok { color: var(--success-700); }
+.pay-result__icon--wait { color: var(--warn-700); }
+.pay-result__icon--fail { color: var(--danger-700); }
+
+.pay-result__head {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.pay-result__msg {
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--ink-700);
+}
+
+.pay-result__amt {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The bank reference is what reconciliation and vendor support run on, so it is
+   selectable text with a copy control — never an un-copyable label. */
+.pay-ref {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+  flex-wrap: wrap;
+}
+
+.pay-ref__val {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  user-select: all;
+}
+
+/* ── Receipt preview ──────────────────────────────────────────────────────────
+   Paper-shaped, and deliberately slower on entry than the app's 180ms standard:
+   this sheet is the artefact of an irreversible action, and the extra beat is
+   what makes it read as "here is your receipt" rather than another panel
+   swapping in. Zeroed by the prefers-reduced-motion block in tokens.css. */
+.pay-receipt {
+  padding: var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  animation: pay-receipt-pop 420ms var(--ease) both;
+}
+
+@keyframes pay-receipt-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+
+  60% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.pay-receipt__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px dashed var(--line-300);
+}
+
+.pay-receipt__label {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.pay-receipt__amount {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-receipt__to {
+  font-size: var(--fs-sm);
+  color: var(--ink-700);
+}
+
+.pay-receipt__grid {
+  display: grid;
+  gap: var(--sp-1);
+  margin: var(--sp-3) 0;
+}
+
+.pay-receipt__row {
+  display: grid;
+  gap: var(--sp-3);
+  grid-template-columns: 116px minmax(0, 1fr);
+  font-size: var(--fs-xs);
+}
+
+.pay-receipt__row dt {
+  color: var(--ink-500);
+}
+
+.pay-receipt__row dd {
+  margin: 0;
+  font-weight: var(--fw-medium);
+  color: var(--ink-800);
+  overflow-wrap: anywhere;
+}
+
+.pay-receipt__mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-receipt__section {
+  padding-top: var(--sp-3);
+  border-top: 1px dashed var(--line-300);
+}
+
+.pay-receipt__bill {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line-100);
+}
+
+.pay-receipt__billid {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.pay-receipt__billmeta {
+  font-size: var(--fs-2xs);
+  color: var(--ink-600);
+}
+
+.pay-receipt__billamt {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pay-receipt__summary {
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+}
+
+.pay-receipt__note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+}
+
+@media (width <= 640px) {
+  .pay-receipt__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+}
+
+/* ── Earlier payments (collapsed by default) ───────────────────────────────────
+   A disclosure, not a block of grey lines: closed, the header answers "has
+   anything already gone out?"; open, each attempt explains itself. Rows where no
+   money left the account are muted, so the settled ones read first. */
+.pay-log {
+  margin-top: var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+  overflow: hidden;
+}
+
+.pay-log__toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--ink-500);
+  text-align: start;
+  cursor: pointer;
+}
+
+.pay-log__toggle:hover {
+  background: var(--surface-1);
+}
+
+.pay-log__toggle:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: -2px;
+}
+
+.pay-log__title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+/* The outcome, in the header, so opening the section is optional. */
+.pay-log__summary {
+  margin-inline-start: auto;
+  padding-inline-start: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+  text-align: end;
+}
+
+.pay-log__summary b {
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-log__rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--line-200);
+}
+
+.pay-log__row {
+  display: grid;
+  grid-template-columns: 152px minmax(0, 1fr) auto;
+  gap: var(--sp-1) var(--sp-3);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.pay-log__row + .pay-log__row {
+  border-top: 1px solid var(--line-100);
+}
+
+.pay-log__row:hover {
+  background: var(--surface-1);
+}
+
+/* No money left the account on these — an expired code, a rejected transfer. */
+.pay-log__row--void .pay-log__amt {
+  font-weight: var(--fw-medium);
+  color: var(--ink-500);
+}
+
+.pay-log__row--void .pay-log__when {
+  color: var(--ink-500);
+}
+
+.pay-log__meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1) var(--sp-3);
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+  flex-wrap: wrap;
+}
+
+.pay-log__when {
+  color: var(--ink-700);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pay-log__ref {
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-700);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-log__why {
+  color: var(--danger-700);
+}
+
+.pay-log__amt {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+  white-space: nowrap;
+}
+
+@media (width <= 640px) {
+  .pay-log__row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .pay-log__meta {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  /* The title alone at this width; the rows carry the detail. */
+  .pay-log__summary {
+    display: none;
+  }
+}
+
+/* ── Bill lines (review step) ─────────────────────────────────────────────── */
+.pay-hist {
+  display: grid;
+  gap: var(--sp-2) var(--sp-4);
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--line-100);
+  font-size: var(--fs-xs);
+  color: var(--ink-700);
+}
+
+.pay-hist__amt {
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Loading ──────────────────────────────────────────────────────────────── */
+.pay-skel {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+/* Below this a 288px dock and a readable step column no longer fit side by side,
+   so the two panes become one scroll with the sidebar at the foot of the page —
+   after the flow, where its rank puts it — rather than pushing the bills down. */
+@media (width <= 1024px) {
+  .pay {
+    flex-direction: column-reverse;
+    overflow: auto;
+  }
+
+  .pay__scroll,
+  .pay__side {
+    flex: none;
+    height: auto;
+    overflow: visible;
+  }
+
+  .pay__side {
+    padding-bottom: 0;
+    border-right: none;
+    border-top: 1px solid var(--line-200);
+  }
+}
+
+@media (width <= 768px) {
+  .pay-bene {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pay__steps {
+    display: none;
+  }
+
+  .pay__steps-compact {
+    display: block;
+  }
+}
+
+@media (width <= 640px) {
+  .pay {
+    padding: var(--sp-4) var(--sp-4) var(--sp-10);
+  }
+
+  .pay-card {
+    padding: var(--sp-3) var(--sp-4);
+  }
+
+  .pay-bill {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pay-bill__amt {
+    justify-self: stretch;
+    min-width: 0;
+  }
+
+  .pay-bill__out {
+    text-align: start;
+  }
+
+  .pay-bene__key {
+    flex-basis: 84px;
+  }
+
+  .pay-result {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pay-result__amt {
+    grid-column: 2;
+  }
+
+  /* Primary action within thumb reach, full width, never off-screen. */
+  .pay-actions {
+    position: sticky;
+    bottom: 0;
+    margin-inline: calc(var(--sp-4) * -1);
+    padding: var(--sp-3) var(--sp-4);
+    border-top: 1px solid var(--line-200);
+    background: var(--surface-0);
+    box-shadow: var(--e-2);
+  }
+
+  .pay-actions__right {
+    width: 100%;
+  }
+
+  .pay-actions__right > * {
+    flex: 1;
+  }
+}
+
+/* ── Settling ─────────────────────────────────────────────────────────────────
+   The wait between "OTP accepted" and "the bank has decided", carried by the
+   Onsumm mark in motion (PaymentProcessing.tsx). Nothing here claims progress:
+   the orbits turn at a constant rate because the bank gives us no percentage,
+   and a bar that crept to 90% and stopped would be a lie about an irreversible
+   transfer. */
+.pay-proc {
+  display: grid;
+  justify-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6) var(--sp-5) var(--sp-5);
+  text-align: center;
+}
+
+.pay-proc__stage {
+  width: min(320px, 72vw);
+  margin-bottom: var(--sp-2);
+}
+
+.pay-proc__atom {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Breathing core: the one thing that says "working" without implying a duration. */
+.pay-proc__core {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pay-core-pulse 2.6s var(--ease) infinite;
+}
+
+.pay-proc__halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pay-halo-pulse 2.6s var(--ease) infinite;
+}
+
+@keyframes pay-core-pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.035); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pay-halo-pulse {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.97);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+
+  100% {
+    opacity: 0.75;
+    transform: scale(0.97);
+  }
+}
+
+.pay-proc__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-bold);
+  color: var(--ink-900);
+}
+
+.pay-proc__sub {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-800);
+  font-variant-numeric: tabular-nums;
+}
+
+.pay-proc__meta {
+  max-width: 42ch;
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pay-proc__core,
+  .pay-proc__halo {
+    animation: none;
+  }
+}
+
+/* ── Receipt printing ────────────────────────────────────────────────────────
+   A thermal printer feeding a slip out. The paper never moves: a window over it
+   grows downward in discrete steps, which is exactly what a print head does —
+   animating the paper's own transform instead would slide finished text around
+   and read as a scroll, not a print. */
+
+.rcpt-stage {
+  position: fixed; inset: 0; z-index: 1200;
+  display: flex; justify-content: center;
+  padding: clamp(16px, 6vh, 64px) 16px 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(2px);
+  overflow-y: auto;
+  cursor: pointer;
+  animation: rcpt-fade 220ms var(--ease) both;
+}
+
+@keyframes rcpt-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.rcpt-machine { display: flex; flex-direction: column; align-items: center; width: min(340px, 100%); }
+
+/* Printer housing. The slit is an inset shadow rather than a border so the paper
+   appears to come from inside the body. */
+.rcpt-printer {
+  position: relative; z-index: 2;
+  width: 100%; height: 46px; border-radius: 10px 10px 4px 4px;
+  background: linear-gradient(#3f4654, #262b36 62%, #1b1f27);
+  box-shadow: 0 10px 22px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.14);
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+}
+
+.rcpt-printer__name {
+  font-size: 9px; font-weight: 700; letter-spacing: .18em;
+  color: rgba(255,255,255,.42);
+}
+
+.rcpt-led {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #22c55e; box-shadow: 0 0 6px #22c55e;
+  animation: rcpt-blink 380ms steps(2, end) infinite;
+}
+.rcpt-led--idle { animation: none; background: #14532d; box-shadow: none; }
+@keyframes rcpt-blink { 0%,49% { opacity: 1 } 50%,100% { opacity: .25 } }
+
+/* The mouth of the printer, sitting just below the housing's lower edge. */
+.rcpt-slit {
+  position: absolute; left: 10px; right: 10px; bottom: -3px; height: 6px;
+  border-radius: 3px;
+  background: #0b0e13;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.08);
+}
+
+/* The growing window. overflow:hidden is the whole trick — content is fixed and
+   gets uncovered a line at a time. */
+/* Outer: swings once the free length of paper stops being driven. Kept off the
+   clipping element so the sway is not cut off by its own overflow. */
+.rcpt-sway { width: calc(100% - 22px); transform-origin: 50% 0; }
+.rcpt-sway--settle { animation: rcpt-settle 620ms var(--ease) both; }
+
+/* Middle: the slot's mouth. Fixed at the slip's full length and clipping at its
+   top edge, so paper inside the printer is hidden until it travels out.
+   A soft gradient under the slit gives the depth the paper's own shadow used to,
+   without costing a filter repaint on every frame. */
+.rcpt-window {
+  position: relative;
+  width: 100%;
+  height: var(--rcpt-h, 480px);
+  overflow: hidden;
+}
+
+.rcpt-window::before {
+  content: ''; position: absolute; inset: 0 0 auto; height: 16px; z-index: 2;
+  background: linear-gradient(rgba(15,23,42,.22), transparent);
+  pointer-events: none;
+}
+
+@keyframes rcpt-feed {
+  from { transform: translate3d(0, -100%, 0) }
+  to   { transform: translate3d(0, 0, 0) }
+}
+
+/* The free length of paper drops and swings once the feed stops. */
+@keyframes rcpt-settle {
+  0%   { transform: translateY(-3px) rotate(0deg) }
+  35%  { transform: translateY(0) rotate(.35deg) }
+  65%  { transform: translateY(0) rotate(-.22deg) }
+  100% { transform: translateY(0) rotate(0deg) }
+}
+
+/* Inner: the sheet itself, sliding down out of the slot. Starts wholly inside the
+   printer and descends until its top edge clears the slit. Because it exits
+   bottom-edge first, the last lines printed are what you see first and the header
+   arrives last — which is what a slip actually does. Linear, not eased: a feed
+   roller turns at constant speed. */
+.rcpt-paper {
+  animation: rcpt-feed var(--rcpt-feed, 900ms) linear both;
+  /* Promoted so the travel is a compositor transform rather than a repaint. */
+  will-change: transform;
+  backface-visibility: hidden;
+  background: #fbfbf8;
+  color: #14181f;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 10.5px; line-height: 1.55;
+}
+
+/* The printed form. Padding lives here so the perforation above it can run the
+   full width of the roll instead of stopping at the text margin. */
+.rcpt-doc { padding: 14px 15px 18px; }
+
+/* The tear line. Holes are punched with a mask rather than painted, so the
+   backdrop genuinely shows through them — painted dots read as printed ink, not
+   as paper that is missing. The faint crease either side makes it look pressed.
+   2.1px holes on a 9px pitch: dense enough to read as perforation at this scale,
+   sparse enough that the strip still looks like it holds together. */
+.rcpt-perf {
+  position: relative;
+  height: 14px;
+  background: #fbfbf8;
+}
+
+/* The valley. A perforation is pressed before it is cut, so the sheet dips along
+   the line: a soft shadow easing into the fold, then a bright lip just past it
+   where the paper rises again. Wide and gradual — a hard band reads as a printed
+   rule, and this is the layer that makes the line look like a physical crease. */
+.rcpt-perf::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg,
+    rgba(0,0,0,.010) 0%,
+    rgba(0,0,0,.035) 30%,
+    rgba(0,0,0,.062) 46%,
+    rgba(0,0,0,.075) 50%,
+    rgba(255,255,255,.97) 54%,
+    rgba(255,255,255,.62) 66%,
+    rgba(255,255,255,.10) 84%,
+    transparent 100%);
+  pointer-events: none;
+}
+
+/* The cuts. Three layers, because a real perforation is not a dashed border:
+     1. an occasional intact bridge, on a 41px cycle that shares no factor with
+        the 8px pitch — this is what breaks the mechanical rhythm. Perfectly even
+        dashes are the single biggest giveaway.
+     2. the slit itself, a 1px hairline in mid grey. Behind the paper is the
+        overlay — slate at ~55% over a light page — so a cut this thin shows grey,
+        not black; near-black also came out darker than the receipt's own printed
+        rules (#b9bcc2), which is backwards, since ink is darker than a gap.
+     3. a 3px halo of the same pattern, for the crushed paper around each cut.
+   Long cuts, short bridges (5.5px of 8px), which is the ratio on real fanfold. */
+.rcpt-perf::after {
+  content: ''; position: absolute; left: 0; right: 0; top: 50%;
+  height: 3px; transform: translateY(-50%);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(251,251,248,.92) 0 2.5px, transparent 2.5px 41px),
+    repeating-linear-gradient(90deg, rgba(146,150,159,.78) 0 5.5px, transparent 5.5px 8px),
+    repeating-linear-gradient(90deg, rgba(146,150,159,.22) 0 5.5px, transparent 5.5px 8px);
+  background-size: 41px 3px, 8px 1px, 8px 3px;
+  background-position: 0 50%, 0 50%, 0 50%;
+  background-repeat: repeat-x, repeat-x, repeat-x;
+  pointer-events: none;
+}
+
+/* The head of the next form, above the tear line and nearest the slot. Plain
+   paper: the slot's own shadow (.rcpt-window::before) already darkens this strip,
+   and a second gradient here turned the two into one grey smudge. */
+.rcpt-next {
+  height: 28px;
+  background: #fbfbf8;
+}
+
+.rcpt-brand {
+  text-align: center; font-weight: 700; letter-spacing: .3em;
+  font-size: 12px;
+}
+.rcpt-kind {
+  text-align: center; letter-spacing: .16em; font-size: 9px;
+  color: #4b5563; margin-top: 1px;
+}
+.rcpt-demo {
+  text-align: center; font-weight: 700; font-size: 9px;
+  letter-spacing: .1em; color: #92400e;
+}
+.rcpt-rule {
+  border-top: 1px dashed #b9bcc2;
+  margin: 8px 0;
+}
+.rcpt-total { display: flex; justify-content: space-between; align-items: baseline; font-weight: 700; }
+.rcpt-total__amt { font-size: 14px; }
+
+.rcpt-line { display: flex; justify-content: space-between; gap: 10px; }
+.rcpt-line__k { color: #565e6b; text-transform: uppercase; font-size: 9px; letter-spacing: .06em; flex: none; }
+.rcpt-line__v { text-align: right; word-break: break-word; }
+
+.rcpt-head { font-weight: 700; font-size: 9px; letter-spacing: .14em; }
+.rcpt-bill { margin-top: 4px; }
+.rcpt-sub { font-size: 9px; color: #565e6b; text-transform: uppercase; letter-spacing: .04em; }
+
+.rcpt-foot { text-align: center; font-size: 8.5px; letter-spacing: .1em; color: #4b5563; }
+.rcpt-foot--dim { color: #8b909a; }
+.rcpt-stars { text-align: center; letter-spacing: .5em; margin-top: 6px; color: #8b909a; }
+
+.rcpt-window--done .rcpt-paper {
+  filter: drop-shadow(0 12px 18px rgba(0,0,0,.26));
+  will-change: auto;
+}
+
+/* The choices, under the paper. Fades in with the finished slip rather than
+   sliding, so nothing is still moving when the buttons become clickable. */
+.rcpt-actions {
+  display: flex; gap: var(--sp-2); flex-wrap: wrap; justify-content: center;
+  margin-top: 18px; padding-bottom: 40px;
+  animation: rcpt-actions-in 300ms var(--ease) both;
+}
+
+@keyframes rcpt-actions-in {
+  from { opacity: 0; transform: translateY(-4px) }
+  to   { opacity: 1; transform: translateY(0) }
+}
+
+/* Which bank pays: switchable until the confirmation code goes out. */
+.pay-side__banks {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 10px;
+  padding: 3px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.pay-side__bank {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--ink-600);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.pay-side__bank:hover:not(:disabled) {
+  color: var(--ink-900);
+}
+
+.pay-side__bank--on {
+  background: var(--surface-0);
+  color: var(--ink-900);
+  box-shadow: var(--e-1);
+}
+
+.pay-side__bank:disabled {
+  cursor: not-allowed;
+}
+
+.pay-side__bank:disabled:not(.pay-side__bank--on) {
+  opacity: 0.45;
+}

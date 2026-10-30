@@ -1,0 +1,2713 @@
+/**
+ * Review Hub — the triage queue.
+ *
+ * Built to the same system as pages/bills.css, which is the reference
+ * implementation in this app, and to the foundations in
+ * skills/apple-design-skill.md:
+ *
+ *   · Response   — feedback on pointer-down (`:active`), never only on release.
+ *   · Materials  — the card header and the undo strip are translucent layers
+ *                  rows scroll *under*, with a scroll-edge fade rather than a
+ *                  hard 1px divider.
+ *   · Typography — tracking is size-specific: negative on the display title,
+ *                  ~zero on body, positive on small-caps labels. Nothing below
+ *                  --fs-2xs.
+ *   · Restraint  — one accent per surface. Red is spent on the "needs you"
+ *                  count and nowhere else; row state rides on a leading rail
+ *                  instead of repainting the row, so an amount stays as
+ *                  readable hovered as it is at rest.
+ *
+ * Every colour, space and type value comes from tokens.css.
+ */
+
+.rh {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+
+  /* Unbounded, same as BillsPage's own .bp: the queue is a table now, so a
+     wide monitor gets a wider table rather than dead canvas on either side. */
+  padding: var(--sp-3) var(--sp-8) var(--sp-4);
+  overflow: hidden;
+  background: var(--canvas);
+  font-family: var(--font-sans);
+
+  /* Mirrors the easings in bills.css. Scoped here rather than :root because
+     that file only loads with the Bills page. */
+  --rh-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --rh-press: 100ms ease-out;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.rh__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-3);
+}
+
+.rh__titlerow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.rh__title {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+  letter-spacing: -0.024em;
+  color: var(--ink-900);
+}
+
+/* The one red on the page, so it keeps meaning "act on me". */
+.rh__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--r-full);
+  background: var(--danger-600);
+  color: var(--surface-0);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 10px rgb(185 28 28 / 22%);
+}
+
+/* The census, as a sentence, inline with the title — same one-row pattern as
+   BillsPage's "Bills [278] 346 bills" rather than a caption on its own line.
+   A controller still has to read their exposure in about four seconds, and
+   prose does that better than a row of stat tiles; it just no longer costs a
+   whole extra row to say it. */
+.rh__sub {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+}
+
+.rh__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 34px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+
+  /* Solid, not translucent: nothing scrolls under this button, so the
+     72%-white-over-canvas fill (a materials treatment meant for a bar rows
+     pass beneath) only cost it contrast here for no payoff — it read as
+     barely-there instead of as a pressable control. */
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--rh-ease),
+    border-color var(--dur-fast) var(--rh-ease),
+    transform var(--rh-press);
+}
+
+.rh__refresh:hover:not(:disabled) {
+  background: var(--surface-0);
+  border-color: var(--line-300);
+}
+
+/* Feedback on the press, not the release. */
+.rh__refresh:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.rh__refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes rh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rh__spin {
+  animation: rh-spin 0.8s linear infinite;
+}
+
+/* ── KPI strip ────────────────────────────────────────────────────────────
+   The tile is the Reports page's `.rp__kpi` — same border, radius, shadow,
+   hairline-plus-bloom accent and small-caps label — so the two pages read as
+   one product rather than as two people's ideas of a stat card.
+
+   What differs is where the colour lands. Reports tints the value because
+   each tile there *is* its metric. Here the value stays --ink-900 and the
+   tone is spent on the qualifier underneath: "₹4.2L blocked from payment" is
+   the line that changes what someone does next, and four coloured numbers in
+   a row would use up the page's accent budget before the red "needs you"
+   badge and the row rails below get any. */
+.rh__kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-2);
+}
+
+@media (width <= 1180px) {
+  .rh__kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (width <= 620px) {
+  .rh__kpis {
+    grid-template-columns: 1fr;
+  }
+}
+
+.rh__kpi {
+  position: relative;
+  overflow: hidden;
+  padding: var(--sp-3) var(--sp-5);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+}
+
+/* Tinted from the tile's own `color`, which the tone class sets. */
+.rh__kpi::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: linear-gradient(90deg, currentcolor, color-mix(in srgb, currentcolor 8%, transparent));
+}
+
+.rh__kpi::after {
+  content: "";
+  position: absolute;
+  top: -55%;
+  right: -12%;
+  width: 58%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, currentcolor 12%, transparent), transparent 70%);
+  pointer-events: none;
+}
+
+/* Small-caps labels want positive tracking — the opposite of display type. */
+.rh__kpi-lbl {
+  position: relative;
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-500);
+}
+
+/* The unit sits on the number's baseline rather than under it: "₹18,42,350"
+   and "48 items" are one statement, and stacking them reads as two. */
+.rh__kpi-line {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.rh__kpi-val {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.12;
+  letter-spacing: -0.03em;
+  color: var(--ink-900);
+  white-space: nowrap;
+}
+
+/* "37h" is one token, so the h rides inside the value at a smaller size —
+   not in the unit slot, which belongs to "this month". */
+.rh__kpi-suffix {
+  margin-left: 1px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+}
+
+.rh__kpi-unit {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  color: var(--ink-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The only place the tone's colour is spent as text. */
+.rh__kpi-sub {
+  position: relative;
+  margin-top: var(--sp-1);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-normal);
+  color: currentcolor;
+}
+
+.rh__kpi--skel {
+  height: 96px;
+  border-color: var(--line-100);
+  background: linear-gradient(90deg, var(--surface-1), var(--surface-2), var(--surface-1));
+  background-size: 200% 100%;
+  box-shadow: none;
+  animation: rh-shimmer 1.3s linear infinite;
+}
+
+.rh__kpi--skel::before,
+.rh__kpi--skel::after {
+  content: none;
+}
+
+@keyframes rh-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rh__kpi--skel {
+    animation: none;
+  }
+}
+
+/* Tones. The 600 step of each ramp — every one of these clears 4.5:1 on
+   --surface-0 at --fs-2xs, which --ink-300 and the 500 steps do not. */
+.rh-t--danger {
+  color: var(--danger-600);
+}
+
+.rh-t--warn {
+  color: var(--warn-700);
+}
+
+.rh-t--success {
+  color: var(--success-600);
+}
+
+.rh-t--brand {
+  color: var(--brand-600);
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+
+/* Tabs and the scope line share one row and one dividing rule, instead of the
+   scope line being a second full-width strip below the tabs. */
+.rh__tabsrow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--line-200);
+}
+
+.rh__tabs {
+  display: flex;
+  gap: 0;
+  flex-shrink: 0;
+}
+
+.rh__tab {
+  padding: var(--sp-2) var(--sp-4) 8px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--ink-500);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: color var(--dur-fast) var(--rh-ease);
+}
+
+.rh__tab:hover {
+  color: var(--ink-800);
+}
+
+.rh__tab:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+}
+
+.rh__tab[aria-pressed='true'] {
+  border-bottom-color: var(--ink-900);
+  color: var(--ink-900);
+}
+
+/* ── Scope line ─────────────────────────────────────────────────────────── */
+
+/* Sits at the tabs' own baseline, on the right of the shared row, rather than
+   in a full-width strip below them. */
+.rh__scope-inline {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+  padding-bottom: 10px;
+  font-size: var(--fs-sm);
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+.rh__scope-more {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  color: var(--brand-600);
+  cursor: pointer;
+}
+
+.rh__scope-more:hover {
+  color: var(--brand-700);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rh__scope-more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* The heading for a drilled-in kind. Sits inside the card, above the table, and
+   states the problem once — every row below then carries only what varies. */
+.rh__drill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--line-200);
+  background: var(--surface-1);
+}
+
+.rh__drill-title {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.005em;
+  color: var(--ink-900);
+}
+
+.rh__drill-sub {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-500);
+}
+
+.rh__t-subject {
+  font-weight: var(--fw-medium);
+  color: var(--ink-900);
+}
+
+.rh__t-detail {
+  color: var(--ink-600);
+}
+
+/* ── The card ───────────────────────────────────────────────────────────── */
+
+.rh__wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+
+  /* e-2, not the e-1 a card among many cards gets: this is the one surface on
+     the page, and at e-1 (6% shadow) it read as barely lifted off --canvas —
+     flat text on a page rather than a raised queue. */
+  box-shadow: var(--e-2);
+}
+
+/* ── Row (shared bits FindingDrawer/ClusterDrillIn still use) ─────────────── */
+
+.rh__count {
+  color: var(--ink-500);
+  font-weight: var(--fw-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.rh__meta {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 3px 0 0;
+  font-size: var(--fs-xs);
+  line-height: 1.4;
+  color: var(--ink-500);
+}
+
+.rh__sev {
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em;
+}
+
+.rh__sev--blocking {
+  color: var(--danger-700);
+}
+
+.rh__sev--high {
+  color: var(--warn-700);
+}
+
+.rh__sev--review {
+  color: var(--ink-500);
+}
+
+.rh__dot {
+  color: var(--ink-300);
+}
+
+.rh__entity {
+  position: relative;
+  z-index: 1;
+  color: var(--ink-600);
+  text-decoration: none;
+  border-bottom: 1px solid var(--line-200);
+}
+
+.rh__entity:hover {
+  color: var(--ink-900);
+  border-bottom-color: var(--ink-300);
+}
+
+.rh__overdue {
+  color: var(--warn-700);
+  font-weight: var(--fw-medium);
+}
+
+.rh__suspect {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--ink-600);
+}
+
+.rh__lock {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--ink-500);
+}
+
+/* ── Badges row ─────────────────────────────────────────────────────────────
+   Severity, confidence, overdue, lock — at most four, per the design brief's
+   "badge soup" anti-pattern. Entities and age stay plain text in .rh__meta
+   below, deliberately, so they never count against that budget. */
+.rh__badges {
+  grid-column: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 4px 0 0;
+}
+
+.rh__confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* The three-pip confidence meter beside a Suspected badge — how sure the agent
+   is about a guess it is still asking a human to judge. */
+.rh__pips {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.rh__pip {
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-full);
+  background: var(--line-300);
+}
+
+.rh__pip--on {
+  background: var(--ink-500);
+}
+
+/* An action that failed stays on the row that owns it, not just in a toast. */
+.rh__row-error {
+  grid-column: 1;
+  margin: 4px 0 0;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--danger-700);
+}
+
+.rh__act-group {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.rh__feedback {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.rh__feedback-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+  color: var(--ink-500);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--rh-ease), color var(--dur-fast) var(--rh-ease);
+}
+
+.rh__feedback-btn:hover:not(:disabled) {
+  border-color: var(--line-300);
+  color: var(--ink-800);
+}
+
+.rh__feedback-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.rh__feedback-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* ── Footer bits ────────────────────────────────────────────────────────── */
+
+.rh__more {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-4) 0;
+}
+
+.rh__pending {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line-100);
+  background: var(--brand-50);
+  padding: var(--sp-2) var(--sp-5);
+  color: var(--brand-700);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rh__pending:active {
+  transform: scale(0.995);
+}
+
+/* A persistent strip rather than a toast: at triage speed the row a user wants
+   back has already scrolled away, and a toast that has faded is no safety net.
+   Translucent, so the queue stays faintly readable beneath it. */
+.rh__undo {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(11 28 48 / 92%);
+  backdrop-filter: blur(14px) saturate(180%);
+  color: var(--surface-0);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+}
+
+.rh__undo-btn {
+  border: 1px solid rgb(255 255 255 / 30%);
+  border-radius: var(--r-full);
+  background: none;
+  padding: var(--sp-1) var(--sp-4);
+  color: var(--surface-0);
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--rh-ease), transform var(--rh-press);
+}
+
+.rh__undo-btn:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+.rh__undo-btn:active {
+  transform: scale(0.97);
+}
+
+.rh__undo-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--ink-900),
+    0 0 0 4px var(--surface-0);
+}
+
+/* The 30s countdown itself — a toast that has scrolled away is no safety net
+   at triage speed, so this stays pinned and keeps ticking in view. */
+.rh__undo-count {
+  font-variant-numeric: tabular-nums;
+  color: rgb(255 255 255 / 65%);
+}
+
+/* ── Bulk action bar ────────────────────────────────────────────────────────
+   Appears once a card is selected with `x`. Floating rather than inline so it
+   never reflows the queue underneath it. */
+.rh__bulkbar {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--line-200);
+  background: var(--surface-0);
+  box-shadow: var(--e-3);
+}
+
+.rh__bulkbar-count {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-800);
+}
+
+.rh__bulkbar-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+/* ── Dismiss dialog ─────────────────────────────────────────────────────────
+   Five fixed reasons, no free text — a small dialog rather than an inline
+   footer swap so it can be triggered the same way from the queue (`d`) and
+   from the drawer's "Not an issue". */
+.rh__dismiss-fs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.rh__dismiss-opt {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  font-size: var(--fs-sm);
+  color: var(--ink-800);
+  cursor: pointer;
+}
+
+.rh__dismiss-opt:has(input:checked) {
+  border-color: var(--brand-600);
+  background: var(--brand-50);
+}
+
+/* ── Keyboard shortcut sheet ────────────────────────────────────────────── */
+.rh__kbd-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin: 0;
+}
+
+.rh__kbd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.rh__kbd-row dt {
+  flex: none;
+}
+
+.rh__kbd-row dd {
+  margin: 0;
+  color: var(--ink-600);
+  font-size: var(--fs-sm);
+  text-align: right;
+}
+
+.rh__kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--line-300);
+  border-bottom-width: 2px;
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-800);
+}
+
+/* ── Drawer: fix preview and deep-link section ────────────────────────────
+   The plain-language after-state, always visible next to the button that
+   causes it — not only after the button has been clicked. */
+.rh__fix-preview {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+/* Step 5 of the drawer's fixed order — "or go to the source" — always below
+   the fix, never beside it, so reaching a deep link never looks like an
+   alternative to reading the evidence above it. */
+.rh__deeplinks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--line-100);
+}
+
+.rh__deeplinks-label {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.rh__deeplinks-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+/* ── States ─────────────────────────────────────────────────────────────── */
+
+.rh__state {
+  padding: var(--sp-10) var(--sp-6);
+  text-align: center;
+}
+
+.rh__empty-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-bottom: var(--sp-4);
+  border-radius: var(--r-full);
+  background: var(--success-50);
+  color: var(--success-600);
+}
+
+.rh__empty-title {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-display);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  color: var(--ink-900);
+}
+
+/* Evidence that a scan ran, and of value delivered. Without both, a zero state
+   reads as a failed fetch rather than an achievement. */
+.rh__empty-sub {
+  margin: 0 0 var(--sp-5);
+  font-size: var(--fs-sm);
+  color: var(--ink-500);
+}
+
+.rh__empty-stats {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-8);
+  font-size: var(--fs-sm);
+  color: var(--ink-600);
+}
+
+.rh__empty-stats b {
+  display: block;
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ink-900);
+}
+
+/* ── Drawer ─────────────────────────────────────────────────────────────── */
+
+/* A modal task, so it pairs with a dimming scrim and pushes the queue back.
+   Same scrim as the bill and vendor cards, so all three read as one surface. */
+.rh__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: rgb(11 28 48 / 46%);
+  backdrop-filter: blur(3px) saturate(120%);
+  animation: rh-fade var(--dur-base) var(--rh-ease);
+}
+
+@keyframes rh-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* A centred card, not a side sheet: it opens the way the bill and vendor cards
+   do — growing out of the clicked row (--rh-dx/--rh-dy, set from the click) —
+   so a finding and the bill it points at feel like the same gesture.
+   inset 0 + margin auto centres it without a transform, which the animation
+   needs to itself. */
+.rh__drawer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  width: min(640px, calc(100vw - 2 * var(--sp-6)));
+
+  /* As tall as its content, up to the screen; fit-content (not auto) so the
+     inset-0 box centres instead of stretching. */
+  height: fit-content;
+  max-height: calc(100dvh - 2 * var(--sp-6));
+  margin: auto;
+  border-radius: 16px;
+  background: var(--surface-0);
+  box-shadow: var(--e-4);
+  overflow: hidden;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  animation: rh-zoom-open 0.65s cubic-bezier(0.34, 1.06, 0.64, 1) forwards;
+}
+
+/* bm-zoom-open from bills.css, which this page does not load. Keep in step. */
+@keyframes rh-zoom-open {
+  0% {
+    opacity: 0.7;
+    transform: translate(var(--rh-dx, 0), var(--rh-dy, 0)) scale(0.028);
+    border-radius: 50%;
+  }
+
+  55% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.018);
+    border-radius: 20px;
+  }
+
+  75% {
+    transform: translate(0, 0) scale(0.992);
+    border-radius: 16px;
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+    border-radius: 16px;
+  }
+}
+
+/* Two panes when the finding carries its source page: the document on the left,
+   what we read off it on the right. Answering "does the invoice actually say
+   this?" without leaving the queue is the whole point of the wider sheet. */
+.rh__drawer--split {
+  width: min(1120px, calc(100vw - 2 * var(--sp-6)));
+
+  /* The document pane needs the full height to be readable. */
+  height: calc(100dvh - 2 * var(--sp-6));
+}
+
+.rh__pane {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+
+  /* Caps the column so the body scrolls inside a content-sized card. */
+  max-height: calc(100dvh - 2 * var(--sp-6));
+}
+
+.rh__doc {
+  display: flex;
+  flex: 1.05;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--line-200);
+  background: var(--surface-2);
+}
+
+.rh__doc-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+  background: rgb(255 255 255 / 72%);
+  backdrop-filter: blur(12px) saturate(160%);
+}
+
+.rh__doc-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-800);
+}
+
+/* Naming what to look for turns a wall of invoice into one glance — the
+   highlight box on the page itself is what actually delivers on that, this
+   is just the fallback label while the match is still being searched for. */
+.rh__doc-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+}
+
+.rh__doc-hint--miss {
+  color: var(--warn-700);
+}
+
+.rh__doc-body {
+  display: flex;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  padding: var(--sp-4);
+}
+
+/* react-pdf renders a canvas (the page image) with pdf.js's text layer
+   positioned on top of it; the wrapper just needs to size to the page. */
+.rh__doc-pdf .react-pdf__Page {
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  box-shadow: var(--e-2);
+}
+
+.rh__doc-pdf canvas {
+  display: block;
+}
+
+/* The value we told the user to look for, marked right where pdf.js's text
+   layer says it sits on the page — not just named in the header above it. */
+.rh__doc-highlight {
+  border-radius: 2px;
+  background: rgb(250 204 21 / 55%) !important;
+  box-shadow: 0 0 0 2px var(--warn-500);
+}
+
+.rh__doc-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  height: 100%;
+  padding: var(--sp-8) var(--sp-5);
+  color: var(--ink-500);
+  text-align: center;
+}
+
+/* A preview that is text rather than a page scrolls; the PDF frame never does,
+   it has its own viewer. */
+.rh__doc-body--scroll {
+  overflow-y: auto;
+}
+
+.rh__doc-content {
+  margin: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+}
+
+/* A page needs the width; a dozen fields do not, and a sheet stranded in the
+   middle of a 560px pane reads as a layout accident. */
+.rh__drawer--split-text {
+  width: min(920px, 100vw);
+}
+
+.rh__drawer--split-text .rh__doc {
+  flex: 0.85;
+}
+
+/* ── Preview buttons ──────────────────────────────────────────────────────────
+   A stalled bill raises three questions — who is sitting on it, what is this
+   bill, and does the paper say what we think it says — and each used to be
+   answered by leaving the hub. These answer them in place. They sit above the
+   evidence deliberately: looking closer is not a fix, and the fix stays below
+   the evidence where the drawer's vertical order puts it. */
+
+/* ── The correction form ──────────────────────────────────────────────────────
+   An action with fields is the user fixing what the finding is about before it
+   runs. It sits under the button that opened it, inside the drawer, because
+   leaving for the vendor screen to change one character is the trip this whole
+   surface exists to save. */
+.rh__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.rh__form-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.rh__form-label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-600);
+}
+
+.rh__form-input {
+  height: 34px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-300);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+  color: var(--ink-900);
+  font: inherit;
+  font-size: var(--fs-sm);
+
+  /* Account numbers and IFSCs are codes: monospace makes a transposed digit
+     visible, which is the mistake being corrected here. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.rh__form-input:focus-visible {
+  outline: none;
+  border-color: var(--brand-600);
+  box-shadow: var(--focus-ring);
+}
+
+.rh__form-input--bad {
+  border-color: var(--danger-500);
+}
+
+.rh__form-hint {
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.rh__form-hint--bad {
+  color: var(--danger-700);
+}
+
+.rh__form-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.rh__previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+
+.rh__preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 28px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+  color: var(--ink-600);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--rh-ease),
+    color var(--dur-fast) var(--rh-ease),
+    border-color var(--dur-fast) var(--rh-ease),
+    transform var(--rh-press);
+}
+
+.rh__preview-btn:hover {
+  border-color: var(--line-300);
+  color: var(--ink-800);
+}
+
+.rh__preview-btn:active {
+  transform: scale(0.97);
+}
+
+.rh__preview-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+/* The open one reads as a pressed toggle, not a second primary action — the
+   primary in this drawer is the fix. */
+.rh__preview-btn--on {
+  border-color: var(--brand-100);
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+.rh__drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+}
+
+.rh__drawer-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  color: var(--ink-900);
+}
+
+.rh__drawer-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-5);
+}
+
+.rh__section {
+  margin-bottom: var(--sp-5);
+}
+
+/* The one line of prose in the drawer. Reads as a caption to the title, not as
+   a paragraph the user has to work through. */
+.rh__lede {
+  margin: 0 0 var(--sp-5);
+  font-size: var(--fs-md);
+  line-height: var(--lh-normal);
+  color: var(--ink-700);
+}
+
+/* Step 4 of the drawer: the fix. */
+.rh__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--sp-2) var(--sp-4);
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+
+.rh__fix-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+}
+
+/* Provenance as a footnote: it matters when someone asks where a finding came
+   from, and never before that. */
+.rh__origin {
+  margin: 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-100);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+}
+
+.rh__origin-more {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--brand-600);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rh__origin-more:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+.rh__prose {
+  margin: 0;
+  font-size: var(--fs-md);
+  line-height: var(--lh-relaxed);
+  color: var(--ink-700);
+}
+
+.rh__drawer-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line-200);
+  background: var(--surface-1);
+}
+
+/* Pushes the quieter footer actions to the far edge, so the decision
+   (pay / resolve) and the deferrals (snooze / dismiss) read as two groups. */
+.rh__foot-spacer {
+  flex: 1 1 auto;
+}
+
+/* ── Rolled-up card: one line per payment / FX item ─────────────────────── */
+
+.rh__rl {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+}
+
+.rh__rl-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.rh__rl-line + .rh__rl-line {
+  border-top: 1px solid var(--line-200);
+}
+
+.rh__rl-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.rh__rl-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+
+.rh__rl-label {
+  overflow: hidden;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.rh__rl-amount {
+  flex-shrink: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.rh__rl-sub {
+  margin: 2px 0 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.rh__rl-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-xs);
+  color: var(--danger-700);
+}
+
+.rh__rl-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.rh__rl-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--sp-2);
+}
+
+.rh__rl-loading {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-5);
+}
+
+@media (width <= 620px) {
+  .rh__rl-line {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ── Evidence: character diff ───────────────────────────────────────────── */
+
+.rh__cd-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+.rh__cd-side {
+  padding: var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+}
+
+.rh__cd-side--bad {
+  border-color: var(--danger-100);
+  background: var(--danger-50);
+}
+
+.rh__cd-side--good {
+  border-color: var(--success-100);
+  background: var(--success-50);
+}
+
+.rh__cd-label {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-600);
+}
+
+.rh__cd-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  line-height: 1.3;
+  letter-spacing: 0.04em;
+  color: var(--ink-800);
+  word-break: break-all;
+}
+
+/* The differing characters. Colour is never the only signal — they are also
+   bolder and underlined, so this survives greyscale and colour-blindness. */
+.rh__cd-ch {
+  font-weight: var(--fw-bold);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+.rh__cd-ch--bad {
+  background: var(--danger-100);
+  color: var(--danger-700);
+  text-decoration-color: var(--danger-600);
+}
+
+.rh__cd-ch--good {
+  background: var(--success-100);
+  color: var(--success-700);
+  text-decoration-color: var(--success-600);
+}
+
+.rh__cd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin-top: var(--sp-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+}
+
+.rh__cd-badge--good {
+  color: var(--success-700);
+}
+
+.rh__cd-badge--bad {
+  color: var(--danger-700);
+}
+
+.rh__cd-count {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-600);
+}
+
+.rh__cd-count strong {
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+}
+
+/* The remaining facts, kept compact — the codes above are the finding. */
+.rh__cd-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 8rem) 1fr 1fr;
+  gap: var(--sp-1) var(--sp-3);
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-100);
+  font-size: var(--fs-xs);
+}
+
+.rh__cd-facts dt {
+  color: var(--ink-500);
+}
+
+.rh__cd-facts dd {
+  margin: 0;
+  color: var(--ink-700);
+}
+
+/* ── Evidence ───────────────────────────────────────────────────────────── */
+
+.rh__diff {
+  display: grid;
+  grid-template-columns: minmax(0, 7.5rem) 1fr 1fr;
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--line-200);
+}
+
+.rh__diff-h {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-600);
+}
+
+.rh__diff-c {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-0);
+  font-size: var(--fs-sm);
+  color: var(--ink-800);
+  word-break: break-word;
+}
+
+.rh__diff-l {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-600);
+}
+
+.rh__mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-sm);
+  letter-spacing: 0.01em;
+}
+
+.rh__tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+}
+
+.rh__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.rh__table th {
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-2);
+  text-align: left;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-600);
+  white-space: nowrap;
+}
+
+.rh__table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--line-100);
+  color: var(--ink-800);
+}
+
+.rh__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 9rem) minmax(0, 1fr);
+  gap: 0 var(--sp-4);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.rh__fields dt,
+.rh__fields dd {
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line-100);
+  font-size: var(--fs-sm);
+}
+
+.rh__fields dt {
+  color: var(--ink-500);
+}
+
+.rh__fields dd {
+  margin: 0;
+  color: var(--ink-800);
+  font-weight: var(--fw-medium);
+  text-align: right;
+  word-break: break-word;
+}
+
+/* The sheet ends on content, not on a rule. */
+.rh__fields > div:last-child dt,
+.rh__fields > div:last-child dd {
+  border-bottom: 0;
+}
+
+.rh__steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.rh__step {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-sm);
+}
+
+.rh__step-mark {
+  flex: none;
+  width: 1rem;
+  text-align: center;
+  color: var(--ink-300);
+}
+
+.rh__step--done .rh__step-mark {
+  color: var(--success-600);
+}
+
+.rh__step--current .rh__step-mark {
+  color: var(--brand-600);
+}
+
+.rh__step--blocked .rh__step-mark {
+  color: var(--danger-600);
+}
+
+.rh__step--current .rh__step-label {
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.rh__step-label {
+  color: var(--ink-700);
+}
+
+.rh__step-actor {
+  color: var(--ink-500);
+}
+
+/* When the step happened, right-aligned so a column of them scans vertically. */
+.rh__step-at {
+  margin-left: auto;
+  color: var(--ink-500);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* What the approver actually said, on its own line under the step. */
+.rh__step-note {
+  flex-basis: 100%;
+  padding-left: calc(1rem + var(--sp-3));
+  color: var(--ink-600);
+  font-size: var(--fs-xs);
+}
+
+.rh__raw {
+  max-height: 18rem;
+  margin: 0;
+  padding: var(--sp-3);
+  overflow: auto;
+  border-radius: var(--r-md);
+  background: var(--surface-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-700);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rh__note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+}
+
+/* ── Inline strip, for embedding on a bill or vendor ─────────────────────── */
+
+.rh-strip {
+  overflow: hidden;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+}
+
+.rh-strip__h {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--line-200);
+  background: var(--surface-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-600);
+}
+
+.rh-strip__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-top: 1px solid var(--line-100);
+  font-size: var(--fs-sm);
+  color: var(--ink-800);
+}
+
+.rh-strip__row:first-of-type {
+  border-top: 0;
+}
+
+/* ── Motion, print, narrow ──────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .rh__tab,
+  .rh__refresh,
+  .rh__undo-btn,
+  .rh__feedback-btn {
+    transition: none;
+  }
+
+  .rh__scrim,
+  .rh__drawer {
+    animation: none;
+  }
+
+  .rh__refresh:active,
+  .rh__undo-btn:active {
+    transform: none;
+  }
+
+  .rh__spin {
+    animation: none;
+  }
+}
+
+@media print {
+  .rh__drawer,
+  .rh__scrim,
+  .rh__undo,
+  .rh__refresh {
+    display: none !important;
+  }
+}
+
+@media (width <= 1040px) {
+  /* No room for two panes — the document drops below the finding rather than
+     squeezing both into an unreadable width. */
+  .rh__drawer--split {
+    width: min(640px, calc(100vw - 2 * var(--sp-6)));
+    flex-direction: column-reverse;
+  }
+
+  .rh__doc {
+    flex: none;
+    height: 38vh;
+    border-right: 0;
+    border-bottom: 1px solid var(--line-200);
+  }
+}
+
+@media (width <= 720px) {
+  .rh {
+    padding: var(--sp-4) var(--sp-4) var(--sp-3);
+  }
+
+  /* Phone gutter for the finding card. */
+  .rh__drawer,
+  .rh__drawer--split {
+    width: calc(100vw - 2 * var(--sp-4));
+    max-height: calc(100dvh - 2 * var(--sp-4));
+  }
+
+  .rh__drawer--split {
+    height: calc(100dvh - 2 * var(--sp-4));
+  }
+
+  .rh__pane {
+    max-height: calc(100dvh - 2 * var(--sp-4));
+  }
+}
+
+
+/* ── The change a confirmation asks you to agree to ──────────────────────── */
+
+/* Shown inside ConfirmDialog. The user has already looked at this diff in the
+   drawer, so the confirmation shows the same thing rather than describing it
+   again — recognition, not re-reading. */
+.rh__change {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin: var(--sp-3) 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.rh__change-label {
+  flex: none;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-600);
+}
+
+.rh__change-codes {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-md);
+  letter-spacing: 0.04em;
+}
+
+.rh__change-from {
+  color: var(--danger-700);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+
+.rh__change-to {
+  font-weight: var(--fw-semibold);
+  color: var(--success-700);
+}
+
+.rh__change-arrow {
+  color: var(--ink-400);
+}
+
+/* ── The cluster escape hatch, as a link ──────────────────────────────────
+   The drawer's "N others like this" sentence, made actionable — see
+   ClusterDrillIn.tsx. Styled as a quiet outlined row rather than a button, so
+   it reads as "more about this", not as the fix itself. */
+
+
+
+/* ── Cluster drill-in — design brief artboard 5 ───────────────────────────
+   Lives in the same .rh__wrap slot the type-drill (FindingTable) occupies,
+   so it inherits that container's border, radius and scroll behaviour. */
+.rh__cluster {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.rh__cluster-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: 0;
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--warn-100);
+  background: var(--warn-50);
+  color: var(--warn-700);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+.rh__cluster-banner svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.rh__cluster-table {
+  width: 100%;
+}
+
+.rh__cluster-table th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--surface-2);
+}
+
+.rh__cluster-row td {
+  vertical-align: middle;
+}
+
+.rh__cluster-row:hover td {
+  background: var(--surface-1);
+}
+
+.rh__cluster-row--selected td {
+  background: var(--brand-50);
+}
+
+.rh__cluster-open {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: var(--fw-medium);
+  color: var(--ink-900);
+  text-align: left;
+  cursor: pointer;
+}
+
+.rh__cluster-open:hover {
+  color: var(--brand-700);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rh__cluster-open:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* ── Browse — design brief artboard 8 ─────────────────────────────────────
+   The full, unfiltered table every open finding lives in. Same materials as
+   BillsPage's own table (a sticky, translucent head rows scroll under) so it
+   reads as one system rather than a second table convention. */
+.rh--browse {
+  max-width: 1400px;
+}
+
+.rh__browse-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.rh__browse-filterbar {
+  flex-shrink: 0;
+  padding: 0 2px var(--sp-3);
+}
+
+/* Wide content scrolls inside its own container — the page itself never
+   scrolls horizontally. */
+.rh__browse-tablewrap {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.rh__browse-table {
+  width: 100%;
+  min-width: 880px;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+.rh__browse-table th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  padding: var(--sp-3) var(--sp-4);
+
+  /* Solid, not a backdrop blur: blurring the rows scrolling beneath a sticky
+     header has to be redone every frame, and on a high-DPI screen the browser
+     fell behind and flashed white while the table scrolled. */
+  background: rgb(248 250 252);
+  text-align: left;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-600);
+}
+
+.rh__browse-table td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-100);
+  vertical-align: middle;
+  color: var(--ink-700);
+}
+
+.rh__browse-row {
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--rh-ease);
+}
+
+.rh__browse-row:hover td {
+  background: var(--surface-1);
+}
+
+.rh__browse-row--checked td {
+  background: var(--brand-50);
+}
+
+.rh__browse-row--checked:hover td {
+  background: var(--brand-100);
+}
+
+.rh__browse-th-check,
+.rh__browse-td-check {
+  width: 36px;
+  padding: 0 var(--sp-1) 0 var(--sp-2);
+  text-align: center;
+}
+
+.rh__browse-title {
+  max-width: 320px;
+  overflow: hidden;
+  color: var(--ink-900);
+  font-weight: var(--fw-medium);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rh__browse-lane {
+  text-transform: capitalize;
+  color: var(--ink-500);
+}
+
+/* ── Mobile, 390×844 — design brief artboard 10 ───────────────────────────
+   Triage on a phone is a real use case: checking whether anything is
+   blocking before boarding a flight. The queue itself is now a table (see
+   the Browse section above) and keeps its own horizontal scroll rather than
+   reflowing columns, same as Bills; this tier covers everything else on the
+   page a thumb has to reach. */
+@media (width <= 480px) {
+  .rh {
+    padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  }
+
+  .rh__header {
+    align-items: flex-start;
+  }
+
+  /* Title, badge and the census sentence share one row on a full-width
+     screen; on a phone the sentence wraps to its own line under them rather
+     than truncating or forcing horizontal scroll. */
+  .rh__titlerow {
+    flex-wrap: wrap;
+    row-gap: 2px;
+  }
+
+  .rh__refresh {
+    font-size: var(--fs-xs);
+    padding: 0 var(--sp-3);
+  }
+
+
+
+
+
+
+
+  /* Tabs and the scope line wrap to two lines rather than forcing the row
+     to scroll horizontally or the scope text to truncate. */
+  .rh__tabsrow {
+    flex-wrap: wrap;
+    row-gap: var(--sp-1);
+  }
+
+  .rh__act-group {
+    flex-wrap: wrap;
+  }
+
+  /* Full-width, stacked buttons in the drawer footer and the fix step — a
+     row of three small buttons is the first thing that becomes unusable
+     one-handed on a 390px screen. */
+  .rh__drawer-foot {
+    flex-wrap: wrap;
+  }
+
+  .rh__drawer-foot .u-btn {
+    flex: 1 1 auto;
+  }
+
+  .rh__drawer-head {
+    padding: var(--sp-4);
+  }
+
+  .rh__drawer-body {
+    padding: var(--sp-4);
+  }
+
+  .rh__actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rh__fix-item .u-btn {
+    width: 100%;
+  }
+
+  .rh__bulkbar,
+  .rh__undo {
+    flex-wrap: wrap;
+    row-gap: var(--sp-2);
+  }
+
+  .rh__bulkbar-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .rh__bulkbar-actions .u-btn {
+    flex: 1 1 auto;
+  }
+
+  /* The browse table keeps its own horizontal scroll rather than trying to
+     reflow columns — the point of Browse is the sheet, and a sheet that
+     starts hiding columns on a phone is no longer the escape hatch it
+     promised to be back on the queue. */
+  .rh--browse {
+    padding: var(--sp-3);
+  }
+}
+
+/* ── The flat queue ───────────────────────────────────────────────────────
+   One row per finding, on top of the .rh__browse-table system above. Only
+   what the new columns need is below; the row, head, checkbox and hover
+   states are inherited so this table and Browse's stay the same table.
+
+   The colour rule for these three columns: TYPE is categorical, STATUS and
+   PRIORITY are semantic. Type gets --cat-1..8, the brand-neutral ramp that
+   means nothing in particular, precisely because "Recon" is not more urgent
+   than "Payment". Red is spent only where it means act-on-me — P0 and a
+   blocked row — which is the same restraint the badge at the top of the page
+   is protecting. */
+
+.rh__queue-table {
+  min-width: 1080px;
+}
+
+/* ── Sortable headers ──────────────────────────────────────────────────── */
+.rh__sort-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+/* A right-aligned column's glyph belongs on the left of its label, or the
+   number below stops lining up with the word above it. */
+.rh__queue-table th[style*="right"] .rh__sort-btn {
+  flex-direction: row-reverse;
+}
+
+/* Always present, not hover-revealed: a sort control nobody can see is a
+   sort nobody uses. It just stays quiet until it is the live one. */
+.rh__sort-icon {
+  flex-shrink: 0;
+  color: var(--ink-300);
+  transition: color var(--dur-fast) var(--rh-ease);
+}
+
+.rh__sort-icon--on {
+  color: var(--brand-600);
+}
+
+.u-xl-th:hover .rh__sort-icon {
+  color: var(--brand-500);
+}
+
+/* ── Type ──────────────────────────────────────────────────────────────── */
+.rh__type {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--sp-2);
+  border: 1px solid color-mix(in srgb, currentcolor 26%, transparent);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, currentcolor 9%, var(--surface-0));
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--cat-1);
+}
+
+.rh__type--c1 { color: var(--cat-1); }
+.rh__type--c2 { color: var(--cat-2); }
+.rh__type--c3 { color: var(--cat-3); }
+.rh__type--c4 { color: var(--cat-4); }
+.rh__type--c5 { color: var(--cat-5); }
+.rh__type--c6 { color: var(--cat-6); }
+.rh__type--c7 { color: var(--cat-7); }
+.rh__type--c8 { color: var(--cat-8); }
+
+/* A family the closed spine has not got a colour for yet. Grey, not a
+   ninth colour: an unknown type should look unknown. */
+.rh__type--c0 { color: var(--ink-500); }
+
+/* ── Type filter: the same tags, as toggles ──────────────────────────── */
+.rh__typefilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+
+/* .rh__type supplies the shape and the colour; this makes it a button. */
+.rh__typechip {
+  gap: var(--sp-1);
+  height: 30px;
+  padding: 0 var(--sp-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: background var(--dur-base), border-color var(--dur-base), opacity var(--dur-base);
+}
+
+.rh__typechip:hover {
+  background: color-mix(in srgb, currentcolor 16%, var(--surface-0));
+}
+
+.rh__typechip[aria-pressed="true"] {
+  border-color: currentcolor;
+  background: color-mix(in srgb, currentcolor 20%, var(--surface-0));
+}
+
+/* With a selection made, the others step back so it reads at a glance. */
+.rh__typefilter--some .rh__typechip[aria-pressed="false"] {
+  opacity: 0.6;
+}
+
+.rh__typefilter--some .rh__typechip[aria-pressed="false"]:hover {
+  opacity: 1;
+}
+
+.rh__typechip-n {
+  font-weight: var(--fw-medium);
+  opacity: 0.75;
+}
+
+/* ── Vendor ────────────────────────────────────────────────────────────── */
+.rh__who {
+  max-width: 260px;
+}
+
+.rh__who-name {
+  color: var(--ink-900);
+  font-weight: var(--fw-semibold);
+  text-decoration: none;
+}
+
+a.rh__who-name:hover {
+  color: var(--brand-600);
+  text-decoration: underline;
+}
+
+/* The reference is context for the name, not a second name — mono so an
+   invoice number reads as an identifier, and quiet so it never competes. */
+.rh__who-ref {
+  margin-left: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+  white-space: nowrap;
+}
+
+/* ── Finding ───────────────────────────────────────────────────────────── */
+.rh__finding-text {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Can see it, cannot fix it. The row is dimmed rather than hidden — an
+   approver still has to know about a GST problem on the bill in front of
+   them — and the lock in the title says why, so the dimming is never the
+   only cue. */
+.rh__browse-row--locked td {
+  color: var(--ink-500);
+}
+
+.rh__browse-row--locked .rh__browse-title,
+.rh__browse-row--locked .rh__who-name {
+  color: var(--ink-600);
+  font-weight: var(--fw-normal);
+}
+
+/* ── Status ────────────────────────────────────────────────────────────── */
+.rh__state {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 24px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  color: var(--ink-700);
+}
+
+.rh__state--blocked {
+  background: var(--surface-2);
+  color: var(--ink-500);
+}
+
+/* The one state that is waiting on a person rather than describing a fact. */
+.rh__state--pending {
+  background: var(--warn-50);
+  color: var(--warn-700);
+}
+
+.rh__state--muted {
+  background: transparent;
+  color: var(--ink-500);
+}
+
+.rh__state-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: currentcolor;
+}
+
+/* A passed deadline is not a status, so it sits under one rather than
+   replacing it. */
+.rh__state-due {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--fs-2xs);
+  color: var(--warn-700);
+  white-space: nowrap;
+}
+
+/* ── Priority ──────────────────────────────────────────────────────────── */
+.rh__pri {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 22px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--line-300);
+  border-radius: var(--r-sm);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--ink-600);
+}
+
+/* Filled, not outlined: P0 is the only value in this column that should
+   pull the eye across a full page of rows. */
+.rh__pri--p0 {
+  border-color: var(--danger-600);
+  background: var(--danger-600);
+  color: var(--surface-0);
+}
+
+.rh__pri--p1 {
+  border-color: color-mix(in srgb, var(--warn-600) 45%, transparent);
+  background: var(--warn-50);
+  color: var(--warn-700);
+}
+
+.rh__age {
+  white-space: nowrap;
+  color: var(--ink-500);
+}
+
+/* ── Pager ─────────────────────────────────────────────────────────────── */
+
+/* ── Proposed corrections ─────────────────────────────────────────────────
+   The one evidence kind that is itself the decision. Each row puts what the
+   bill would become on top, in ink, and what it says today under it, struck
+   through and quiet — the eye should land on the change, with the thing being
+   changed still legible beneath it.
+
+   Ticked rows take a brand tint rather than green: green here would read as
+   "already done", and nothing is done until Apply. */
+
+.rh__prop {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.rh__prop-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.rh__prop-grouphead {
+  margin: 0;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--ink-500);
+}
+
+.rh__prop-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  transition:
+    border-color var(--dur-fast) var(--rh-ease),
+    background var(--dur-fast) var(--rh-ease);
+}
+
+.rh__prop-row--on {
+  border-color: var(--brand-400);
+  background: var(--brand-50);
+}
+
+.rh__prop-row--done {
+  border-color: var(--success-600);
+  background: var(--success-50);
+}
+
+/* A real checkbox would be 13px of hit area in a row this tall. */
+.rh__prop-tick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  border: 1.5px solid var(--line-300);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+  color: var(--surface-0);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--rh-ease),
+    border-color var(--dur-fast) var(--rh-ease);
+}
+
+.rh__prop-row--on .rh__prop-tick {
+  border-color: var(--brand-600);
+  background: var(--brand-600);
+}
+
+.rh__prop-row--done .rh__prop-tick {
+  border-color: var(--success-600);
+  background: var(--success-600);
+}
+
+.rh__prop-tick:disabled {
+  cursor: default;
+}
+
+.rh__prop-tick:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.rh__prop-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.rh__prop-label {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ink-500);
+}
+
+.rh__prop-to {
+  margin: 0;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  line-height: var(--lh-tight);
+  color: var(--ink-900);
+  overflow-wrap: anywhere;
+}
+
+.rh__prop-from {
+  margin: 2px 0 0;
+  font-size: var(--fs-sm);
+  color: var(--ink-500);
+  overflow-wrap: anywhere;
+}
+
+.rh__prop-from--empty {
+  font-style: italic;
+}
+
+.rh__prop-why {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+}
+
+/* On the row, not in a footnote: "this fixes our books and not the credit" is
+   the whole reason a GST row needs reading twice. */
+.rh__prop-caveat {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--warn-50);
+  font-size: var(--fs-2xs);
+  line-height: var(--lh-normal);
+  color: var(--warn-700);
+}
+
+.rh__prop-caveat svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.rh__prop-done {
+  flex-shrink: 0;
+  align-self: center;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--success-600);
+}
+
+.rh__prop-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--line-100);
+}
+
+.rh__prop-count {
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rh__prop-row,
+  .rh__prop-tick {
+    transition: none;
+  }
+}
+
+/* ── Activity: every change made from Review ─────────────────────────── */
+.rh__act {
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  overflow: hidden;
+}
+
+.rh__act-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.rh__act-table th {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+  background: var(--surface-1);
+  color: var(--ink-500);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.rh__act-table td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+  color: var(--ink-700);
+  vertical-align: top;
+}
+
+.rh__act-table tr:last-child td {
+  border-bottom: 0;
+}
+
+.rh__act-when {
+  white-space: nowrap;
+  color: var(--ink-500);
+}
+
+.rh__act-who,
+.rh__act-what,
+.rh__act-entity {
+  display: block;
+  color: var(--ink-900);
+  font-weight: var(--fw-medium);
+}
+
+.rh__act-role,
+.rh__act-finding {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink-500);
+  font-size: var(--fs-xs);
+  text-transform: capitalize;
+}
+
+.rh__act-finding {
+  text-transform: none;
+}
+
+.rh__act-changes {
+  display: grid;
+  gap: 2px;
+  margin: var(--sp-1) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-xs);
+}
+
+.rh__act-changes li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-1);
+  color: var(--ink-400);
+}
+
+.rh__act-field {
+  min-width: 110px;
+  color: var(--ink-500);
+}
+
+.rh__act-before {
+  color: var(--danger-700);
+  text-decoration: line-through;
+}
+
+.rh__act-after {
+  color: var(--success-700);
+  font-weight: var(--fw-semibold);
+}
+
+.rh__act-failed {
+  display: block;
+  margin-top: 2px;
+  color: var(--danger-700);
+  font-size: var(--fs-xs);
+}
+
+.rh__act-row--failed .rh__act-what {
+  color: var(--ink-500);
+}
+
+.rh__act-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border-top: 1px solid var(--line-200);
+  color: var(--ink-500);
+  font-size: var(--fs-sm);
+}
+
+.rh__act-loading,
+.rh__act-empty {
+  padding: var(--sp-8) var(--sp-4);
+  color: var(--ink-500);
+  text-align: center;
+}

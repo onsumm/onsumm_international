@@ -1,0 +1,41 @@
+asyncpg==0.29.0
+python-dotenv==1.0.1
+pydantic==2.7.1
+
+# OCR engine (UploadOcrWorker)
+openai>=1.58.1
+pymupdf>=1.24.0
+Pillow>=11.0.0
+
+# Structured file parsing (CSV/XLSX uploads)
+openpyxl>=3.1.0
+
+# Tally Prime XML sync
+requests>=2.31.0
+lxml>=5.2.0
+
+# Sandbox.co.in KYB / GST verification
+httpx>=0.27.0
+
+# OAuth email token encryption (Fernet) + JWT/bcrypt auth
+cryptography>=43.0.0
+PyJWT>=2.9.0
+bcrypt>=4.2.0
+
+# FastAPI upload server (backend_ocr/)
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.12
+psycopg2-binary==2.9.10
+
+# Document storage in S3 (app/core/object_store.py). Off unless S3_BUCKET is
+# set; credentials come from the instance role or AWS_* env vars.
+boto3>=1.35.0
+
+# Metrics exposed at /metrics (app/core/observability.py). Gated on
+# METRICS_TOKEN; the endpoint 503s when that is unset rather than serving openly.
+prometheus-client>=0.20.0
+
+# Testing
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

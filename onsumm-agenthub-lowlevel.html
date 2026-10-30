@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Onsumm · Agent Hub & Knowledge Graph — Low-Level Architecture</title>
+<style>
+  :root{
+    --bg:#060A14; --bg2:#0A1120; --panel:#0E1728; --panel2:#132038; --panelhi:#16263F;
+    --line:#1E2E48; --line2:#2B3F61;
+    --ink:#EAF2FF; --ink2:#9DB2D6; --ink3:#63799B;
+    --accent:#3B9BF0; --accent2:#63B4F7; --accentbg:rgba(59,155,240,.13);
+    --teal:#1FC4A3; --tealbg:rgba(31,196,163,.13);
+    --purple:#8E86F2; --purplebg:rgba(142,134,242,.14);
+    --coral:#F27A54; --coralbg:rgba(242,122,84,.13);
+    --amber:#F2B23B; --amberbg:rgba(242,178,59,.14);
+    --green:#3FBE6B; --greenbg:rgba(63,190,107,.13);
+    --pink:#EC6FA0; --pinkbg:rgba(236,111,160,.13);
+    --mono:'SFMono-Regular',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    --r:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html,body{background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-font-smoothing:antialiased;line-height:1.5;}
+  body{background:
+      radial-gradient(1000px 520px at 12% -10%,rgba(59,155,240,.15),transparent 60%),
+      radial-gradient(900px 560px at 94% 4%,rgba(142,134,242,.13),transparent 62%),
+      radial-gradient(760px 620px at 50% 120%,rgba(31,196,163,.09),transparent 60%),
+      var(--bg);min-height:100vh;}
+  .wrap{max-width:1240px;margin:0 auto;padding:32px 24px 80px;}
+
+  .brandline{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap;}
+  .logo{width:28px;height:28px;border-radius:8px;transform:rotate(45deg);background:linear-gradient(135deg,var(--accent2),#1568C8);box-shadow:0 0 20px rgba(59,155,240,.55);}
+  .brandtxt{font-weight:700;font-size:19px;letter-spacing:-.01em;}
+  .brandtag{font-size:10.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--ink3);padding-left:12px;margin-left:2px;border-left:1px solid var(--line);}
+  .schemapill{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--teal);background:var(--tealbg);border:1px solid rgba(31,196,163,.3);padding:5px 11px;border-radius:20px;}
+
+  h1{font-size:28px;line-height:1.14;font-weight:800;letter-spacing:-.02em;max-width:920px;}
+  h1 .g{background:linear-gradient(100deg,var(--accent2),var(--teal));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;}
+  .sub{margin-top:11px;color:var(--ink2);font-size:14.5px;max-width:820px;}
+
+  /* view tabs */
+  .tabs{display:flex;gap:8px;margin:22px 0 6px;flex-wrap:wrap;}
+  .tab{font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink2);background:var(--panel);border:1px solid var(--line);padding:9px 16px;border-radius:10px;cursor:pointer;display:flex;align-items:center;gap:8px;transition:all .15s;}
+  .tab svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  .tab:hover{border-color:var(--line2);color:var(--ink);}
+  .tab.on{color:var(--ink);background:var(--panel2);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent);}
+
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 6px;}
+  .btn{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13.5px;font-weight:600;color:var(--ink);background:var(--panel2);border:1px solid var(--line2);padding:9px 15px;border-radius:9px;cursor:pointer;transition:all .15s;}
+  .btn:hover{border-color:var(--accent);background:var(--panelhi);}
+  .btn.primary{background:linear-gradient(135deg,var(--accent),#1568C8);border-color:transparent;box-shadow:0 5px 18px rgba(59,155,240,.35);}
+  .btn.primary:hover{filter:brightness(1.08);}
+  .btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .stepbadge{font-family:var(--mono);font-size:11.5px;color:var(--accent2);background:var(--accentbg);border:1px solid rgba(59,155,240,.3);padding:5px 10px;border-radius:20px;min-width:84px;text-align:center;}
+  .flownote{margin:4px 0 18px;font-size:13.5px;color:var(--ink2);min-height:20px;}
+  .flownote b{color:var(--ink);font-weight:600;}
+  .flownote code{font-family:var(--mono);font-size:12px;color:var(--accent2);background:var(--accentbg);padding:1px 6px;border-radius:5px;}
+
+  .view{display:none;} .view.on{display:block;}
+
+  /* ===== PIPELINE VIEW ===== */
+  .stage{margin-bottom:8px;}
+  .shead{display:flex;align-items:baseline;gap:9px;margin:0 0 9px;}
+  .snum{font-family:var(--mono);font-size:11px;color:var(--accent2);font-weight:600;}
+  .stitle{font-size:12px;font-weight:600;letter-spacing:.02em;color:var(--ink2);}
+  .shint{font-size:11.5px;color:var(--ink3);}
+
+  .lane{display:grid;gap:12px;}
+  .l1{grid-template-columns:1fr;} .l2{grid-template-columns:1fr 1fr;} .l3{grid-template-columns:repeat(3,1fr);} .l4{grid-template-columns:repeat(4,1fr);}
+
+  .card{position:relative;text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:13px 14px;overflow:hidden;transition:transform .13s,border-color .15s,box-shadow .15s,background .15s;}
+  .card:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:0 10px 24px rgba(0,0,0,.4);}
+  .card .edge{position:absolute;left:0;top:0;bottom:0;width:3px;opacity:0;transition:opacity .2s;background:var(--accent);}
+  .card.active{border-color:var(--accent);background:var(--panel2);box-shadow:0 0 0 1px var(--accent),0 12px 26px rgba(59,155,240,.2);}
+  .card.active .edge{opacity:1;}
+  .card.lit{border-color:var(--accent2);box-shadow:0 0 0 1px rgba(99,180,247,.5),0 0 22px rgba(59,155,240,.32);}
+  .card .top{display:flex;align-items:center;gap:9px;}
+  .card .ico{width:29px;height:29px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--accentbg);flex:0 0 29px;}
+  .card .ico svg{width:16px;height:16px;fill:none;stroke:var(--accent2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .card .nt{font-size:13.5px;font-weight:600;letter-spacing:-.01em;}
+  .card .ns{font-size:11px;color:var(--ink2);margin-top:2px;line-height:1.35;}
+  .tbls{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
+  .tbl{font-family:var(--mono);font-size:10px;color:var(--accent2);background:var(--accentbg);border:1px solid rgba(59,155,240,.24);padding:2px 6px;border-radius:5px;}
+
+  .v-teal .ico{background:var(--tealbg);} .v-teal .ico svg{stroke:var(--teal);} .v-teal .edge{background:var(--teal);} .v-teal .tbl{color:var(--teal);background:var(--tealbg);border-color:rgba(31,196,163,.24);}
+  .v-purple .ico{background:var(--purplebg);} .v-purple .ico svg{stroke:var(--purple);} .v-purple .edge{background:var(--purple);} .v-purple .tbl{color:var(--purple);background:var(--purplebg);border-color:rgba(142,134,242,.24);}
+  .v-coral .ico{background:var(--coralbg);} .v-coral .ico svg{stroke:var(--coral);} .v-coral .edge{background:var(--coral);} .v-coral .tbl{color:var(--coral);background:var(--coralbg);border-color:rgba(242,122,84,.24);}
+  .v-amber .ico{background:var(--amberbg);} .v-amber .ico svg{stroke:var(--amber);} .v-amber .edge{background:var(--amber);} .v-amber .tbl{color:#F5C86A;background:var(--amberbg);border-color:rgba(242,178,59,.24);}
+  .v-green .ico{background:var(--greenbg);} .v-green .ico svg{stroke:var(--green);} .v-green .edge{background:var(--green);} .v-green .tbl{color:var(--green);background:var(--greenbg);border-color:rgba(63,190,107,.24);}
+  .v-pink .ico{background:var(--pinkbg);} .v-pink .ico svg{stroke:var(--pink);} .v-pink .edge{background:var(--pink);} .v-pink .tbl{color:var(--pink);background:var(--pinkbg);border-color:rgba(236,111,160,.24);}
+
+  .conn{display:flex;justify-content:center;height:26px;position:relative;}
+  .conn:before{content:"";width:1.5px;height:100%;background:linear-gradient(var(--line2),var(--line));}
+  .conn.flowing:before{background:linear-gradient(var(--accent2),var(--accent));box-shadow:0 0 9px rgba(59,155,240,.6);}
+  .conn .cap{position:absolute;bottom:-1px;left:50%;transform:translateX(-50%) rotate(45deg);width:6px;height:6px;border-right:1.5px solid var(--line2);border-bottom:1.5px solid var(--line2);}
+  .conn.flowing .cap{border-color:var(--accent);}
+
+  .gate{background:linear-gradient(135deg,rgba(242,178,59,.15),rgba(242,122,84,.1));border-color:rgba(242,178,59,.4);}
+  .gate .ico{background:rgba(242,178,59,.2);} .gate .ico svg{stroke:var(--amber);}
+  .gate .nt{color:#FBD98A;} .gate.active{box-shadow:0 0 0 1px var(--amber),0 12px 26px rgba(242,178,59,.24);}
+  .gate .edge{background:var(--amber);}
+
+  /* side rails */
+  .rail{margin-top:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .railcard{background:var(--panel);border:1px dashed var(--line2);border-radius:var(--r);padding:13px 15px;}
+  .railcard .rh{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;color:var(--ink);}
+  .railcard .rh svg{width:15px;height:15px;fill:none;stroke:var(--purple);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .railcard p{font-size:11.5px;color:var(--ink2);margin-top:6px;line-height:1.5;}
+  .railcard .tbls{margin-top:8px;}
+
+  /* ===== GRAPH VIEW ===== */
+  .graphgrid{display:grid;grid-template-columns:1.5fr 1fr;gap:16px;align-items:start;}
+  @media(max-width:900px){.graphgrid{grid-template-columns:1fr;}}
+  .canvaswrap{background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:6px;position:relative;overflow:hidden;}
+  svg.gcanvas{display:block;width:100%;height:auto;}
+  .gnode{cursor:pointer;}
+  .gnode circle{transition:stroke-width .15s,filter .15s;}
+  .gnode:hover circle{stroke-width:2.4;}
+  .gside{display:flex;flex-direction:column;gap:12px;}
+  .schemaBox{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;}
+  .schemaBox h4{font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;}
+  .schemaBox h4 .dot{width:9px;height:9px;border-radius:50%;}
+  .schemaBox .cols{margin-top:10px;display:flex;flex-direction:column;gap:0;}
+  .colrow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);}
+  .colrow:last-child{border-bottom:none;}
+  .colname{font-family:var(--mono);font-size:11.5px;color:var(--ink);}
+  .coltype{font-family:var(--mono);font-size:10.5px;color:var(--ink3);}
+  .colname .k{color:var(--amber);font-size:9px;border:1px solid rgba(242,178,59,.4);border-radius:4px;padding:0 4px;margin-left:5px;vertical-align:1px;}
+  .colname .v{color:var(--teal);font-size:9px;border:1px solid rgba(31,196,163,.4);border-radius:4px;padding:0 4px;margin-left:5px;vertical-align:1px;}
+  .legendrow{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;}
+  .lg{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink3);}
+  .lg .sw{width:10px;height:10px;border-radius:50%;}
+  .edgekey{font-family:var(--mono);font-size:10.5px;color:var(--ink3);margin-top:4px;line-height:1.7;}
+  .edgekey b{color:var(--accent2);font-weight:400;}
+
+  /* detail panel (shared) */
+  .detail{margin-top:22px;background:var(--panel);border:1px solid var(--line2);border-radius:16px;padding:18px 20px;min-height:150px;}
+  .detail .dh{display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
+  .detail .dico{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--accentbg);}
+  .detail .dico svg{width:19px;height:19px;fill:none;stroke:var(--accent2);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .detail h3{font-size:18px;font-weight:700;letter-spacing:-.01em;}
+  .detail .role{font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--accent2);background:var(--accentbg);border:1px solid rgba(59,155,240,.3);padding:3px 9px;border-radius:20px;}
+  .detail p{margin-top:11px;color:var(--ink2);font-size:14px;line-height:1.65;max-width:900px;}
+  .detail p b{color:var(--ink);font-weight:600;}
+  .detail p code{font-family:var(--mono);font-size:12.5px;color:var(--accent2);background:var(--accentbg);padding:1px 6px;border-radius:5px;}
+  .detail .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:15px;}
+  @media(max-width:760px){.detail .grid2{grid-template-columns:1fr;}}
+  .detail .blk h5{font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-bottom:7px;}
+  .detail .cap{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;}
+  .detail .cap svg{width:14px;height:14px;flex:0 0 14px;margin-top:2px;fill:none;stroke:var(--teal);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round;}
+  .detail .cap span{font-size:12.5px;color:var(--ink2);line-height:1.4;}
+  .detail .schematag{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--bg2);border:1px solid var(--line2);padding:4px 9px;border-radius:6px;margin:3px 5px 0 0;}
+  .detail .schematag .arw{color:var(--ink3);}
+
+  .foot{margin-top:26px;padding-top:16px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink3);display:flex;flex-wrap:wrap;gap:14px;}
+  .foot b{color:var(--ink2);font-weight:600;}
+
+  @media(max-width:820px){.l4{grid-template-columns:1fr 1fr;}.l3{grid-template-columns:1fr 1fr;}.rail{grid-template-columns:1fr;}h1{font-size:23px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="brandline">
+    <span class="logo"></span><span class="brandtxt">Onsumm</span>
+    <span class="brandtag">Agent Hub · Knowledge Graph</span>
+    <span class="schemapill">PostgreSQL · AWS RDS · pgvector</span>
+  </div>
+
+  <h1>Low-level architecture — the <span class="g">agent hub &amp; knowledge graph</span>, mapped to real tables.</h1>
+  <p class="sub">Every stage below is grounded in the live schema: OCR ingestion, a graph of <code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">fact_graph_nodes</code>/<code style="font-family:var(--mono);font-size:12px;color:var(--accent2)">edges</code>, Nova usage reconciliation, TDS state, a human OTP gate, and a hash-chained audit log. Click any block for its columns &amp; flow — or trace one invoice end-to-end.</p>
+
+  <div class="tabs">
+    <button class="tab on" id="tabPipe" onclick="setView('pipe')"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Agent hub pipeline</button>
+    <button class="tab" id="tabGraph" onclick="setView('graph')"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="17" r="2.5"/><path d="M8 7l8 .5M7 8l4 7M16 9l-3 6"/></svg>Knowledge graph</button>
+  </div>
+
+  <!-- ============ PIPELINE VIEW ============ -->
+  <div class="view on" id="viewPipe">
+    <div class="controls">
+      <button class="btn primary" id="playBtn" onclick="playFlow()"><svg viewBox="0 0 24 24"><polygon id="playTri" points="6 4 20 12 6 20 6 4" fill="currentColor" stroke="none"/></svg><span id="playLbl">Trace one invoice</span></button>
+      <button class="btn" onclick="resetFlow()"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Reset</button>
+      <span class="stepbadge" id="stepPos">idle</span>
+    </div>
+    <p class="flownote" id="flowNote">Click any block to inspect its tables — or press <b>Trace one invoice</b> to watch a bill move stage by stage.</p>
+
+    <!-- 01 INGESTION -->
+    <div class="stage">
+      <div class="shead"><span class="snum">01</span><span class="stitle">Ingestion &amp; capture</span><span class="shint">raw docs + email → OCR → draft</span></div>
+      <div class="lane l3">
+        <button class="card" data-k="upload"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg></span><div><div class="nt">Upload &amp; webhooks</div><div class="ns">PDF · image · API · webhook</div></div></div><div class="tbls"><span class="tbl">raw_invoice_uploads</span><span class="tbl">raw_api_payloads</span><span class="tbl">raw_webhook_events</span></div><span class="edge"></span></button>
+        <button class="card v-teal" data-k="ocr"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5"/></svg></span><div><div class="nt">OCR engines</div><div class="ns">PaddleOCR → Servam → merged</div></div></div><div class="tbls"><span class="tbl">raw_ocr_results</span><span class="tbl">raw_ingestion_errors</span></div><span class="edge"></span></button>
+        <button class="card v-teal" data-k="email"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg></span><div><div class="nt">Email agent</div><div class="ns">Gmail watch · thread-aware</div></div></div><div class="tbls"><span class="tbl">agent_draft_bills</span><span class="tbl">agent_email_events</span><span class="tbl">agent_settings</span></div><span class="edge"></span></button>
+      </div>
+    </div>
+
+    <div class="conn" data-c="c1"><span class="cap"></span></div>
+
+    <!-- 02 GRAPH -->
+    <div class="stage">
+      <div class="shead"><span class="snum">02</span><span class="stitle">Knowledge graph — the brain's memory</span><span class="shint">every entity + fact becomes a node</span></div>
+      <div class="lane l1">
+        <button class="card v-purple" data-k="graph"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="7" r="2.4"/><circle cx="12" cy="17" r="2.4"/><path d="M8 7l8 .5M7.4 8l4 7M16 9l-3 6"/></svg></span><div><div class="nt">Onsumm Context Graph</div><div class="ns">Nodes carry pgvector embeddings (HNSW); edges are weighted subject–relation–object triples. Agents reason over this, never raw tables.</div></div></div><div class="tbls"><span class="tbl">fact_graph_nodes</span><span class="tbl">fact_graph_edges</span><span class="tbl">+ vector(embedding)</span></div><span class="edge"></span></button>
+      </div>
+    </div>
+
+    <div class="conn" data-c="c2"><span class="cap"></span></div>
+
+    <!-- 03 AGENT HUB -->
+    <div class="stage">
+      <div class="shead"><span class="snum">03</span><span class="stitle">Agent hub — reasoning &amp; judgment</span><span class="shint">grounded in graph facts</span></div>
+      <div class="lane l4">
+        <button class="card v-teal" data-k="recon"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M7 4v16M17 4v16M7 8h10M7 16h10"/></svg></span><div><div class="nt">Reconcile</div><div class="ns">Invoice vs Nova usage</div></div></div><div class="tbls"><span class="tbl">billing_reconciliation_runs</span><span class="tbl">billing_nova_usage_snapshots</span></div><span class="edge"></span></button>
+        <button class="card v-coral" data-k="anomaly"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></span><div><div class="nt">Anomaly &amp; risk</div><div class="ns">Discrepancies · risk buckets</div></div></div><div class="tbls"><span class="tbl">billing_reconciliation_discrepancies</span><span class="tbl">ai_anomalies</span><span class="tbl">ai_risk_scores</span></div><span class="edge"></span></button>
+        <button class="card v-teal" data-k="tax"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M19 5L5 19M6.5 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/></svg></span><div><div class="nt">Tax &amp; TDS</div><div class="ns">FY threshold · GST · COA</div></div></div><div class="tbls"><span class="tbl">vendor_tds_fy_state</span><span class="tbl">fact_tds_ledger</span><span class="tbl">coa_rules</span></div><span class="edge"></span></button>
+        <button class="card v-coral" data-k="dispute"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 4V5z"/><path d="M12 8v3M12 13h.01"/></svg></span><div><div class="nt">Dispute &amp; outreach</div><div class="ns">Evidence packet · vendor email</div></div></div><div class="tbls"><span class="tbl">vendor_outreach_log</span><span class="tbl">poc_email_messages</span></div><span class="edge"></span></button>
+      </div>
+    </div>
+
+    <div class="conn" data-c="c3"><span class="cap"></span></div>
+
+    <!-- 04 WORKFLOW / HITL -->
+    <div class="stage">
+      <div class="shead"><span class="snum">04</span><span class="stitle">Workflow &amp; human-in-the-loop</span><span class="shint">approval chain + money gate</span></div>
+      <div class="lane l2">
+        <button class="card v-purple" data-k="wf"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/></svg></span><div><div class="nt">Workflow engine</div><div class="ns">Tasks · nudges · escalations</div></div></div><div class="tbls"><span class="tbl">wf_tasks</span><span class="tbl">wf_nudges</span><span class="tbl">wf_escalations</span><span class="tbl">bill_approval_chain</span></div><span class="edge"></span></button>
+        <button class="card gate" data-k="gate"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3M12 14v3"/></svg></span><div><div class="nt">Money gate — OTP / MFA</div><div class="ns">No rupee moves without a named approver</div></div></div><div class="tbls"><span class="tbl">otp_code_hash</span><span class="tbl">disbursement_overrides</span></div><span class="edge"></span></button>
+      </div>
+    </div>
+
+    <div class="conn" data-c="c4"><span class="cap"></span></div>
+
+    <!-- 05 PAY + POST -->
+    <div class="stage">
+      <div class="shead"><span class="snum">05</span><span class="stitle">Disburse, post &amp; learn</span><span class="shint">IMPS payout → ERP write-back</span></div>
+      <div class="lane l3">
+        <button class="card v-green" data-k="pay"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><div><div class="nt">Disbursement</div><div class="ns">Bank RRN · verified-only</div></div></div><div class="tbls"><span class="tbl">fact_disbursements</span><span class="tbl">remitter_accounts</span></div><span class="edge"></span></button>
+        <button class="card v-green" data-k="post"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M15 13l3 3 3-3"/></svg></span><div><div class="nt">ERP write-back</div><div class="ns">Tally · Zoho · SAP sync</div></div></div><div class="tbls"><span class="tbl">int_connections</span><span class="tbl">int_sync_log</span><span class="tbl">int_field_mappings</span></div><span class="edge"></span></button>
+        <button class="card v-purple" data-k="learn"><div class="top"><span class="ico"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/></svg></span><div><div class="nt">Learn loop</div><div class="ns">Outcomes re-embedded to graph</div></div></div><div class="tbls"><span class="tbl">fact_graph_nodes</span><span class="tbl">fact_payments</span></div><span class="edge"></span></button>
+      </div>
+    </div>
+
+    <!-- side rails -->
+    <div class="rail">
+      <button class="railcard card" data-k="audit" style="cursor:pointer;border-style:dashed;"><div class="rh"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>Trust &amp; audit — under every write</div><p>Every INSERT / UPDATE / DELETE is captured with before/after JSON and a correlation id — tamper-evident by design.</p><div class="tbls"><span class="tbl">wf_audit_log</span><span class="tbl">old_values_jsonb</span><span class="tbl">new_values_jsonb</span></div></button>
+      <button class="railcard card" data-k="tenant" style="cursor:pointer;border-style:dashed;"><div class="rh"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><path d="M13 17h7"/></svg>Multi-tenant isolation — on every table</div><p>Every row is scoped by <code style="font-family:var(--mono);font-size:11.5px;color:var(--accent2)">tenant_id</code>; RBAC and brand/cost-centre scoping keep entities cleanly separated.</p><div class="tbls"><span class="tbl">dim_tenants</span><span class="tbl">org_users</span><span class="tbl">org_user_access_levels</span></div></button>
+    </div>
+  </div>
+
+  <!-- ============ GRAPH VIEW ============ -->
+  <div class="view" id="viewGraph">
+    <div class="controls">
+      <button class="btn primary" id="hopBtn" onclick="hopTraverse()"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span id="hopLbl">Traverse from a bill</span></button>
+      <button class="btn" onclick="resetGraph()"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>Reset</button>
+      <span class="stepbadge" id="hopPos">idle</span>
+    </div>
+    <p class="flownote" id="graphNote">Click any node to see the table it points to via <code>ref_id</code> — or traverse the edges a reconciliation agent walks.</p>
+
+    <div class="graphgrid">
+      <div class="canvaswrap">
+        <svg class="gcanvas" viewBox="0 0 560 470" id="gcanvas" role="img">
+          <title>Knowledge graph node and edge structure</title>
+          <defs>
+            <marker id="ga" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></marker>
+          </defs>
+          <g id="edges" stroke-width="1.4" fill="none"></g>
+          <g id="edgelabels"></g>
+          <g id="gnodes"></g>
+        </svg>
+      </div>
+      <div class="gside">
+        <div class="schemaBox">
+          <h4><span class="dot" style="background:var(--accent)"></span>fact_graph_nodes</h4>
+          <div class="cols">
+            <div class="colrow"><span class="colname">node_id <span class="k">PK</span></span><span class="coltype">uuid</span></div>
+            <div class="colrow"><span class="colname">tenant_id</span><span class="coltype">uuid</span></div>
+            <div class="colrow"><span class="colname">node_type</span><span class="coltype">text</span></div>
+            <div class="colrow"><span class="colname">ref_id</span><span class="coltype">uuid → entity</span></div>
+            <div class="colrow"><span class="colname">label</span><span class="coltype">text</span></div>
+            <div class="colrow"><span class="colname">properties</span><span class="coltype">jsonb</span></div>
+            <div class="colrow"><span class="colname">embedding <span class="v">HNSW</span></span><span class="coltype">vector</span></div>
+            <div class="colrow"><span class="colname">content_hash</span><span class="coltype">text</span></div>
+          </div>
+        </div>
+        <div class="schemaBox">
+          <h4><span class="dot" style="background:var(--purple)"></span>fact_graph_edges</h4>
+          <div class="cols">
+            <div class="colrow"><span class="colname">edge_id <span class="k">PK</span></span><span class="coltype">uuid</span></div>
+            <div class="colrow"><span class="colname">src_node_id</span><span class="coltype">uuid → node</span></div>
+            <div class="colrow"><span class="colname">dst_node_id</span><span class="coltype">uuid → node</span></div>
+            <div class="colrow"><span class="colname">relation</span><span class="coltype">text</span></div>
+            <div class="colrow"><span class="colname">weight</span><span class="coltype">double</span></div>
+            <div class="colrow"><span class="colname">properties</span><span class="coltype">jsonb</span></div>
+          </div>
+          <div class="edgekey">uq triple: <b>(tenant, src, dst, relation)</b></div>
+        </div>
+        <div class="schemaBox">
+          <h4 style="margin-bottom:2px">Node types &amp; edges</h4>
+          <div class="legendrow" id="glegend"></div>
+          <div class="edgekey" id="gedgekey" style="margin-top:10px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- shared detail -->
+  <div class="detail" id="detail"></div>
+
+  <div class="foot">
+    <span><b>Grounded in:</b> live PostgreSQL schema (AWS RDS)</span>
+    <span><b>Vector search:</b> pgvector · HNSW · cosine</span>
+    <span><b>Isolation:</b> tenant_id on every table</span>
+    <span><b>Audit:</b> wf_audit_log (before/after JSONB)</span>
+  </div>
+</div>
+
+<script>
+(function(){
+  var check='<svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+  var ICON={
+    upload:'<path d="M12 15V3M8 7l4-4 4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/>',
+    ocr:'<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5"/>',
+    email:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
+    graph:'<circle cx="6" cy="6" r="2.4"/><circle cx="18" cy="7" r="2.4"/><circle cx="12" cy="17" r="2.4"/><path d="M8 7l8 .5M7.4 8l4 7M16 9l-3 6"/>',
+    recon:'<path d="M7 4v16M17 4v16M7 8h10M7 16h10"/>',
+    anomaly:'<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/>',
+    tax:'<path d="M19 5L5 19M6.5 8a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM17.5 19a1.5 1.5 0 100-3 1.5 1.5 0 000 3z"/>',
+    dispute:'<path d="M4 5h16v11H8l-4 4V5z"/><path d="M12 8v3M12 13h.01"/>',
+    wf:'<path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01"/>',
+    gate:'<rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 018 0v3M12 14v3"/>',
+    pay:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+    post:'<ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v12c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M15 13l3 3 3-3"/>',
+    learn:'<path d="M21 12a9 9 0 11-3-6.7M21 4v5h-5"/>',
+    audit:'<path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/>',
+    tenant:'<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><path d="M13 17h7"/>'
+  };
+  // detail content: d=desc, cap=[does], tables=[[table, note]]
+  var DATA={
+    upload:{t:"Upload & webhooks",r:"01 · ingest",d:"Three doors into the system. A user uploads a PDF/image, an ERP pushes a payload, or a payment gateway fires a webhook. Each lands in a raw staging table with a <b>status enum</b> and a retry counter, so nothing is lost and every failure is replayable.",
+      cap:["<code>upload_status</code>: RECEIVED → PREPROCESSING → OCR_* → DONE","Signature-verified webhooks only","Failures captured for replay"],
+      tables:[["raw_invoice_uploads","file, storage_path, status, ocr_engine_used"],["raw_api_payloads","source, entity_type, is_processed, retry_count"],["raw_webhook_events","is_signature_verified, correlation_id"],["raw_ingestion_errors","stage, validation_errors jsonb"]]},
+    ocr:{t:"OCR engines",r:"01 · ingest",d:"A two-engine cascade. <b>PaddleOCR</b> runs first; if confidence is low the <b>Servam</b> fallback runs, and results are merged. Per-page raw response and a confidence map are stored so downstream extraction can weigh fields by how sure the OCR was.",
+      cap:["<code>ocr_engine</code>: PADDLEOCR · SERVAM · MERGED","Per-page confidence_jsonb","Feeds structured fields to the draft"],
+      tables:[["raw_ocr_results","engine, page_number, raw_response_jsonb, confidence_jsonb"]]},
+    email:{t:"Email agent",r:"01 · ingest",d:"Watches a connected Gmail inbox and drafts a bill straight from a vendor's email + attachment. It is <b>thread-aware</b>: a follow-up correcting an amount updates the same draft (matched on <code>thread_id</code>) instead of creating a duplicate. Every action is logged idempotently by <code>message_gmail_id</code>.",
+      cap:["OCR payload attached to each draft","thread_id keys the correction-vs-duplicate logic","Toggle per tenant via agent_settings"],
+      tables:[["agent_draft_bills","thread_id, ocr_payload, analysis, suggestion, related_invoice"],["agent_email_events","action, draft_id, unique(message_gmail_id)"],["user_email_connections","access/refresh token, agent_last_scan_at"]]},
+    graph:{t:"Onsumm Context Graph",r:"02 · memory",d:"The heart of the brain. Every entity (invoice, bill, supplier, payment) and every derived fact becomes a <b>node</b> in <code>fact_graph_nodes</code>, carrying a <code>ref_id</code> back to its source row, a <code>jsonb</code> property bag, and a <b>pgvector embedding</b> indexed with HNSW for semantic search. Relationships are weighted <b>subject–relation–object triples</b> in <code>fact_graph_edges</code>, uniquely keyed so the same fact is never stored twice. Agents reason over this graph — grounded in verified nodes — rather than querying raw tables directly.",
+      cap:["Entity nodes dedupe on (tenant, node_type, ref_id)","Fact nodes dedupe on content_hash","HNSW cosine index for similarity recall","Edges carry weight + jsonb evidence"],
+      tables:[["fact_graph_nodes","node_type, ref_id, label, embedding vector, content_hash"],["fact_graph_edges","src → dst, relation, weight, unique triple"]]},
+    recon:{t:"Reconcile agent",r:"03 · judgment",d:"For usage-based vendors (e.g. Nova), it pulls the vendor's <b>own usage snapshot</b> and matches the invoice line-by-line: quantity, rate and cost against real billable operations. A run is created per (tenant, vendor, month) and produces a variance amount — the raw material for a dispute.",
+      cap:["<code>billing_reconciliation_status</code>: RUNNING → COMPLETED[_WITH_DISCREPANCIES]","Line-level qty × rate × cost check","One run per vendor per billing month"],
+      tables:[["billing_reconciliation_runs","total_invoice_amount vs total_nova_cost, variance_amount"],["billing_nova_usage_snapshots","billable_operations, cost_rupees, raw_response"],["billing_bill_reconciliation","per-invoice result jsonb"]]},
+    anomaly:{t:"Anomaly & risk agent",r:"03 · judgment",d:"Turns reconciliation output into <b>typed discrepancies</b> (rate mismatch, qty mismatch, month-over-month rate change, self-inconsistent snapshot…) each with a severity, and layers statistical anomaly detection and per-customer risk scoring on top — every score carries a <code>features_jsonb</code> and an <code>explanation_jsonb</code> so it's defensible.",
+      cap:["<code>billing_discrepancy_type</code>: RATE_MISMATCH, RATE_CHANGED_MOM…","<code>severity_level</code> + status lifecycle","Risk buckets: LOW → CRITICAL, explainable"],
+      tables:[["billing_reconciliation_discrepancies","type, severity, variance_pct/amount, status"],["ai_anomalies","anomaly_type, features_jsonb, is_resolved"],["ai_risk_scores","score, risk_bucket, explanation_jsonb"]]},
+    tax:{t:"Tax & TDS agent",r:"03 · accounting",d:"Applies <b>TDS at the FY level</b>: it tracks cumulative billed per supplier per section and knows the exact bill on which the threshold was crossed — triggering catch-up deduction. GST is computed per line, and each bill is auto-mapped to the right ledger via COA rules before any ERP sync.",
+      cap:["FY state: threshold_crossed_on_bill_id, catchup_pending","<code>tax_type</code>: GST/IGST/CGST/SGST/CESS","AI chart-of-accounts mapping"],
+      tables:[["vendor_tds_fy_state","cumulative_billed, threshold_crossed, catchup_*"],["fact_tds_ledger","per-bill TDS postings"],["coa_rules","ledger mapping rules"]]},
+    dispute:{t:"Dispute & outreach agent",r:"03 · action",d:"The recovery upgrade. When a discrepancy is confirmed, it assembles an <b>evidence packet</b> and drafts vendor outreach with the exact fields in question — tracked by <code>thread_id</code> and <code>message_id</code> so replies reconcile automatically. Detection becomes recovered money, not just a flag.",
+      cap:["Requested_fields array on each outreach","Thread + message id link replies back","Pending outreach indexed for follow-up"],
+      tables:[["vendor_outreach_log","requested_fields, thread_id, message_id, status"],["poc_email_messages","captured vendor correspondence"]]},
+    wf:{t:"Workflow engine",r:"04 · orchestration",d:"The task fabric that moves an entity through people. A discrepancy or a bill becomes a <b>wf_task</b> (approve / escalate / nudge) with a priority, assignee and due date; overdue tasks fire nudges across channels and escalate. The <b>approval chain</b> enforces who signs off before payment.",
+      cap:["<code>wf_task_type</code>: NUDGE · ESCALATE · APPROVE","<code>nudge_channel</code>: EMAIL/SMS/WHATSAPP/SLACK/IN_APP","Per-tenant chain config"],
+      tables:[["wf_tasks","task_type, entity_type, status, due_at, priority"],["wf_nudges","channel, template, status"],["wf_escalations","escalated_to, reason"],["bill_approval_chain","approver stages"]]},
+    gate:{t:"Money gate — OTP / MFA",r:"04 · human-in-the-loop",d:"The non-negotiable checkpoint. A disbursement is created in status <code>PENDING_OTP</code> with a <b>hashed OTP</b> and an expiry; nothing leaves the bank until a named human verifies it. Any manual override is itself recorded, so every rupee traces to a person and a reason.",
+      cap:["otp_code_hash + otp_expires_at + otp_attempts","Status gate: PENDING_OTP → COMPLETED","Overrides are logged, not silent"],
+      tables:[["fact_disbursements","status, otp_code_hash, otp_verified_at, initiated_by"],["disbursement_overrides","who, why, when"]]},
+    pay:{t:"Disbursement",r:"05 · action",d:"On approval, the payment is released via bank rails (default ICICI) and the <b>bank RRN / tran ref</b> is captured back onto the disbursement row. Remitter balance and beneficiary details are verified up front; the transaction is unique per (tenant, tran_ref_no).",
+      cap:["bank_rrn + bank_tran_ref_no captured","Remitter balance & IFSC checked","Unique tran_ref_no per tenant"],
+      tables:[["fact_disbursements","beneficiary_*, remitter_account_number, bank_rrn, status"],["remitter_accounts","account, ifsc, balance, provider"]]},
+    post:{t:"ERP write-back",r:"05 · sync",d:"Validated results post back to the ERP the tenant already runs — Tally, Zoho, QBO, Xero, SAP and more — through a connector layer with field mappings and a full sync log. Conflicts are resolved by policy (outbound-write / skip / log), so the books stay the source of truth.",
+      cap:["<code>data_source</code>: TALLY · ZOHO · SAP · …","<code>conflict_resolution</code>: OUTBOUND_WRITE/SKIP/LOG","<code>sync_job_status</code> tracked per run"],
+      tables:[["int_connections","status, provider, credentials ref"],["int_sync_log","job status, direction"],["int_field_mappings","source ↔ Onsumm field map"],["int_conflict_log","conflicts + resolution"]]},
+    learn:{t:"Learn loop",r:"05 · continuous learning",d:"Every settled outcome — a confirmed overcharge, a verified payment, a resolved discrepancy — is <b>re-embedded back into the graph</b> as new nodes and edges. Vendor risk profiles update and future reconciliations start smarter. Accuracy compounds cycle over cycle.",
+      cap:["Resolved exceptions become fact nodes","Payment outcomes update the graph","Recovery + accuracy compound"],
+      tables:[["fact_graph_nodes","new fact nodes + fresh embeddings"],["fact_payments","confirmed payment facts"]]},
+    audit:{t:"Trust & audit",r:"cross-cutting",d:"A single append-only ledger sits under every mutating write. Each row records the table, entity, action and a <b>before/after JSONB</b> snapshot with a correlation id — so any state can be reconstructed and every action carries someone's name. Audit-ready by default.",
+      cap:["<code>audit_action</code>: INSERT · UPDATE · DELETE","old_values_jsonb + new_values_jsonb","Indexed by (tenant, table, entity) and time"],
+      tables:[["wf_audit_log","table_name, entity_id, action, user_id, correlation_id"]]},
+    tenant:{t:"Multi-tenant isolation",r:"cross-cutting",d:"Every table carries <code>tenant_id</code>, and most unique keys are tenant-scoped, so one customer's data can never collide with another's. Org users, access levels and brand/cost-centre dimensions enforce role-based, project-scoped visibility on top.",
+      cap:["tenant_id on every row + tenant-scoped uniques","RBAC via org_user_access_levels","Brand / cost-centre scoping"],
+      tables:[["dim_tenants","plan_tier, config"],["org_users","roles"],["org_user_access_levels","scoped permissions"]]}
+  };
+
+  var FLOW=[
+    {k:"email",c:null,note:"A vendor emails a bill. The <b>email agent</b> drafts it into <code>agent_draft_bills</code> — thread-aware."},
+    {k:"ocr",c:null,note:"<b>OCR</b> (PaddleOCR → Servam) extracts fields into <code>raw_ocr_results</code> with a confidence map."},
+    {k:"graph",c:"c1",note:"The bill + its supplier become <b>nodes</b> in <code>fact_graph_nodes</code>, linked by weighted edges."},
+    {k:"recon",c:"c2",note:"<b>Reconcile</b> matches the invoice against <code>billing_nova_usage_snapshots</code> — variance found."},
+    {k:"anomaly",c:null,note:"A <code>RATE_MISMATCH</code> discrepancy is written with severity + an explainable risk score."},
+    {k:"dispute",c:null,note:"<b>Dispute agent</b> logs vendor outreach in <code>vendor_outreach_log</code> to recover ₹84K."},
+    {k:"tax",c:null,note:"On the clean portion, <b>TDS FY state</b> advances and GST + COA mapping are applied."},
+    {k:"wf",c:"c3",note:"A <code>wf_task</code> (APPROVE) routes through the <code>bill_approval_chain</code>."},
+    {k:"gate",c:null,note:"<b>Money gate</b>: disbursement sits at <code>PENDING_OTP</code> until a named approver verifies."},
+    {k:"pay",c:"c4",note:"IMPS payout fires; <code>bank_rrn</code> is captured back onto <code>fact_disbursements</code>."},
+    {k:"post",c:null,note:"Results sync to Tally/Zoho via <code>int_sync_log</code> — books updated."},
+    {k:"learn",c:null,note:"Outcome is re-embedded to the graph. Next cycle starts smarter. <b>Done.</b>"}
+  ];
+
+  // ---- shared detail render ----
+  var detail=document.getElementById('detail');
+  function renderDetail(k){
+    var d=DATA[k];if(!d)return;
+    var caps=d.cap.map(function(x){return '<div class="cap">'+check+'<span>'+x+'</span></div>';}).join('');
+    var tbls=d.tables.map(function(r){return '<div class="schematag">'+r[0]+' <span class="arw">·</span> '+r[1]+'</div>';}).join('');
+    detail.innerHTML=
+      '<div class="dh"><span class="dico"><svg viewBox="0 0 24 24">'+(ICON[k]||ICON.graph)+'</svg></span><h3>'+d.t+'</h3><span class="role">'+d.r+'</span></div>'+
+      '<p>'+d.d+'</p>'+
+      '<div class="grid2"><div class="blk"><h5>What it does</h5>'+caps+'</div>'+
+      '<div class="blk"><h5>Tables involved</h5>'+tbls+'</div></div>';
+  }
+
+  // ---- pipeline interactions ----
+  var cards=[].slice.call(document.querySelectorAll('#viewPipe [data-k]'));
+  var conns={}; [].slice.call(document.querySelectorAll('#viewPipe .conn')).forEach(function(c){conns[c.getAttribute('data-c')]=c;});
+  var flowNote=document.getElementById('flowNote'),stepPos=document.getElementById('stepPos');
+  var playBtn=document.getElementById('playBtn'),playLbl=document.getElementById('playLbl'),playTri=document.getElementById('playTri');
+  var pTimer=null,pStep=-1,pPlaying=false;
+  function pByKey(k){return cards.filter(function(c){return c.getAttribute('data-k')===k;});}
+  function pClr(cls){cards.forEach(function(c){c.classList.remove(cls);});}
+  function pClrConns(){Object.keys(conns).forEach(function(k){conns[k].classList.remove('flowing');});}
+  function pSelect(k){pClr('active');pByKey(k).forEach(function(c){c.classList.add('active');});renderDetail(k);}
+  cards.forEach(function(c){c.addEventListener('click',function(){if(pPlaying)pStop();pSelect(c.getAttribute('data-k'));});});
+  function pStop(){pPlaying=false;if(pTimer){clearTimeout(pTimer);pTimer=null;}pClrConns();playLbl.textContent='Trace one invoice';playTri.setAttribute('points','6 4 20 12 6 20 6 4');}
+  window.resetFlow=function(){pStop();pStep=-1;pClr('active');pClr('lit');pClrConns();stepPos.textContent='idle';flowNote.innerHTML='Click any block to inspect its tables — or press <b>Trace one invoice</b> to watch a bill move stage by stage.';pSelect('graph');};
+  function pAdvance(){
+    pStep++;pClrConns();
+    if(pStep>=FLOW.length){pStop();stepPos.textContent='complete';flowNote.innerHTML='<b>That’s the full path</b> — ingestion → graph → judgment → human gate → payout → ERP → learn. Every step wrote to real tables.';return;}
+    var f=FLOW[pStep];pClr('active');
+    pByKey(f.k).forEach(function(c){c.classList.add('active');c.classList.add('lit');});
+    if(f.c&&conns[f.c])conns[f.c].classList.add('flowing');
+    renderDetail(f.k);flowNote.innerHTML=f.note;stepPos.textContent='step '+(pStep+1)+' / '+FLOW.length;
+    pTimer=setTimeout(pAdvance,2000);
+  }
+  window.playFlow=function(){if(pPlaying){pStop();return;}pClr('lit');pStep=-1;pPlaying=true;playLbl.textContent='Pause';playTri.setAttribute('points','7 5 11 5 11 19 7 19 7 5');pAdvance();};
+
+  // ---- view switch ----
+  window.setView=function(v){
+    document.getElementById('viewPipe').classList.toggle('on',v==='pipe');
+    document.getElementById('viewGraph').classList.toggle('on',v==='graph');
+    document.getElementById('tabPipe').classList.toggle('on',v==='pipe');
+    document.getElementById('tabGraph').classList.toggle('on',v==='graph');
+    if(v==='graph'){renderDetail('graph');buildGraph();} else {renderDetail('graph');}
+  };
+
+  // ================= GRAPH CANVAS =================
+  var NODES=[
+    {id:'sup',type:'SUPPLIER',label:'Digitap',x:110,y:70,c:'#63B4F7'},
+    {id:'con',type:'CONTRACT',label:'Rate card',x:110,y:200,c:'#8E86F2'},
+    {id:'inv',type:'INVOICE',label:'Bill #1595',x:290,y:130,c:'#1FC4A3'},
+    {id:'usage',type:'USAGE',label:'Nova snapshot',x:290,y:280,c:'#F2B23B'},
+    {id:'disc',type:'DISCREPANCY',label:'Rate +₹84K',x:470,y:210,c:'#F27A54'},
+    {id:'pay',type:'PAYMENT',label:'IMPS · RRN',x:470,y:80,c:'#3FBE6B'},
+    {id:'appr',type:'APPROVER',label:'Rishit',x:290,y:400,c:'#EC6FA0'}
+  ];
+  var EDGES=[
+    {s:'sup',d:'inv',r:'billed'},
+    {s:'sup',d:'con',r:'has_contract'},
+    {s:'con',d:'inv',r:'prices'},
+    {s:'inv',d:'usage',r:'reconciled_with'},
+    {s:'usage',d:'disc',r:'reveals'},
+    {s:'inv',d:'disc',r:'has_discrepancy'},
+    {s:'inv',d:'pay',r:'settled_by'},
+    {s:'appr',d:'pay',r:'approved'}
+  ];
+  var NODEDETAIL={
+    SUPPLIER:{tbl:'dim_suppliers',ref:'supplier_id',note:'Vendor master. The node\u2019s <code>ref_id</code> points here; properties cache GSTIN, bank + risk.'},
+    CONTRACT:{tbl:'billing_vendor_accounts',ref:'vendor_account_id',note:'Rate card / account terms the invoice is priced against.'},
+    INVOICE:{tbl:'fact_invoices / billing_vendor_invoices',ref:'invoice_id',note:'The bill itself — the entity most edges converge on.'},
+    USAGE:{tbl:'billing_nova_usage_snapshots',ref:'snapshot_id',note:'Vendor\u2019s own usage ledger — the ground truth for reconciliation.'},
+    DISCREPANCY:{tbl:'billing_reconciliation_discrepancies',ref:'discrepancy_id',note:'A typed, severity-scored variance — the trigger for a dispute.'},
+    PAYMENT:{tbl:'fact_disbursements / fact_payments',ref:'disbursement_id',note:'The settlement, carrying the bank RRN once cleared.'},
+    APPROVER:{tbl:'org_users',ref:'user_id',note:'The named human who cleared the money gate with OTP.'}
+  };
+  function nodeAt(id){for(var i=0;i<NODES.length;i++)if(NODES[i].id===id)return NODES[i];}
+  var built=false;
+  function buildGraph(){
+    if(built)return;built=true;
+    var eG=document.getElementById('edges'),elG=document.getElementById('edgelabels'),nG=document.getElementById('gnodes');
+    EDGES.forEach(function(e,i){
+      var a=nodeAt(e.s),b=nodeAt(e.d);
+      var ln=document.createElementNS('http://www.w3.org/2000/svg','line');
+      ln.setAttribute('x1',a.x);ln.setAttribute('y1',a.y);ln.setAttribute('x2',b.x);ln.setAttribute('y2',b.y);
+      ln.setAttribute('stroke','#2B3F61');ln.setAttribute('marker-end','url(#ga)');ln.setAttribute('data-e',i);
+      eG.appendChild(ln);
+      var mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      var tx=document.createElementNS('http://www.w3.org/2000/svg','text');
+      tx.setAttribute('x',mx);tx.setAttribute('y',my-3);tx.setAttribute('text-anchor','middle');
+      tx.setAttribute('fill','#63799B');tx.setAttribute('font-size','9.5');tx.setAttribute('font-family','var(--mono)');
+      tx.setAttribute('data-el',i);tx.textContent=e.r;elG.appendChild(tx);
+    });
+    NODES.forEach(function(n){
+      var g=document.createElementNS('http://www.w3.org/2000/svg','g');
+      g.setAttribute('class','gnode');g.setAttribute('data-n',n.id);
+      var c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      c.setAttribute('cx',n.x);c.setAttribute('cy',n.y);c.setAttribute('r',26);
+      c.setAttribute('fill',n.c+'22');c.setAttribute('stroke',n.c);c.setAttribute('stroke-width',1.4);
+      g.appendChild(c);
+      var t1=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t1.setAttribute('x',n.x);t1.setAttribute('y',n.y-1);t1.setAttribute('text-anchor','middle');
+      t1.setAttribute('fill','#EAF2FF');t1.setAttribute('font-size','9');t1.setAttribute('font-weight','600');t1.textContent=n.type;
+      g.appendChild(t1);
+      var t2=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t2.setAttribute('x',n.x);t2.setAttribute('y',n.y+10);t2.setAttribute('text-anchor','middle');
+      t2.setAttribute('fill','#9DB2D6');t2.setAttribute('font-size','8');t2.textContent=n.label;
+      g.appendChild(t2);
+      g.addEventListener('click',function(){if(hopPlaying)hopStop();selectNode(n.id);});
+      nG.appendChild(g);
+    });
+    // legend
+    var seen={},lg='';
+    NODES.forEach(function(n){if(!seen[n.type]){seen[n.type]=1;lg+='<span class="lg"><span class="sw" style="background:'+n.c+'"></span>'+n.type+'</span>';}});
+    document.getElementById('glegend').innerHTML=lg;
+    document.getElementById('gedgekey').innerHTML=EDGES.map(function(e){return '<b>'+e.r+'</b>';}).join(' · ');
+  }
+  function selectNode(id){
+    var n=nodeAt(id);var det=NODEDETAIL[n.type];
+    document.querySelectorAll('.gnode circle').forEach(function(c){c.setAttribute('stroke-width',1.4);});
+    var g=document.querySelector('.gnode[data-n="'+id+'"] circle');if(g)g.setAttribute('stroke-width',3);
+    detail.innerHTML=
+      '<div class="dh"><span class="dico" style="background:'+n.c+'22"><svg viewBox="0 0 24 24" style="stroke:'+n.c+'"><circle cx="12" cy="12" r="8"/></svg></span>'+
+      '<h3>'+n.type+' node</h3><span class="role" style="color:'+n.c+';background:'+n.c+'22;border-color:'+n.c+'55">graph node</span></div>'+
+      '<p>'+det.note+'</p>'+
+      '<div class="grid2"><div class="blk"><h5>Points to (ref_id)</h5>'+
+      '<div class="schematag">'+det.tbl+' <span class="arw">·</span> '+det.ref+'</div></div>'+
+      '<div class="blk"><h5>Edges on this node</h5>'+
+      EDGES.filter(function(e){return e.s===id||e.d===id;}).map(function(e){
+        var other=e.s===id?e.d:e.s;var dir=e.s===id?'→':'←';
+        return '<div class="schematag">'+dir+' <b style="color:var(--accent2)">'+e.r+'</b> <span class="arw">·</span> '+nodeAt(other).type+'</div>';
+      }).join('')+'</div></div>';
+  }
+  // traverse animation
+  var hopBtn=document.getElementById('hopBtn'),hopLbl=document.getElementById('hopLbl'),hopPos=document.getElementById('hopPos'),graphNote=document.getElementById('graphNote');
+  var hopSeq=['inv','sup','con','usage','disc','pay','appr'];
+  var hopNotes={
+    inv:'Start at the <b>INVOICE</b> node — the anchor most edges touch.',
+    sup:'Walk <code>billed</code> back to the <b>SUPPLIER</b> to pull GSTIN + risk.',
+    con:'Hop to the <b>CONTRACT</b> via <code>has_contract</code> for the agreed rate.',
+    usage:'Follow <code>reconciled_with</code> to the <b>USAGE</b> snapshot — the ground truth.',
+    disc:'The mismatch surfaces a <b>DISCREPANCY</b> node via <code>reveals</code>.',
+    pay:'<code>settled_by</code> links the invoice to its <b>PAYMENT</b>.',
+    appr:'<code>approved</code> ties the payment to the <b>APPROVER</b> who held the gate.'
+  };
+  var hTimer=null,hIdx=-1,hopPlaying=false;
+  function hopStop(){hopPlaying=false;if(hTimer){clearTimeout(hTimer);hTimer=null;}hopLbl.textContent='Traverse from a bill';}
+  window.resetGraph=function(){hopStop();hIdx=-1;hopPos.textContent='idle';document.querySelectorAll('.gnode circle').forEach(function(c){c.setAttribute('stroke-width',1.4);});document.querySelectorAll('#edges line').forEach(function(l){l.setAttribute('stroke','#2B3F61');l.setAttribute('stroke-width',1.4);});graphNote.innerHTML='Click any node to see the table it points to via <code>ref_id</code> — or traverse the edges a reconciliation agent walks.';renderDetail('graph');};
+  function hopAdvance(){
+    hIdx++;
+    if(hIdx>=hopSeq.length){hopStop();hopPos.textContent='complete';graphNote.innerHTML='<b>That’s a graph walk</b> — the same traversal a reconcile agent runs to ground its judgment in verified nodes.';return;}
+    var id=hopSeq[hIdx];selectNode(id);
+    // light edges touching current
+    document.querySelectorAll('#edges line').forEach(function(l){l.setAttribute('stroke','#2B3F61');l.setAttribute('stroke-width',1.4);});
+    EDGES.forEach(function(e,i){if(e.s===id||e.d===id){var l=document.querySelector('#edges line[data-e="'+i+'"]');if(l){l.setAttribute('stroke','#63B4F7');l.setAttribute('stroke-width',2.2);}}});
+    graphNote.innerHTML=hopNotes[id];hopPos.textContent='hop '+(hIdx+1)+' / '+hopSeq.length;
+    hTimer=setTimeout(hopAdvance,1900);
+  }
+  window.hopTraverse=function(){if(hopPlaying){hopStop();return;}buildGraph();hIdx=-1;hopPlaying=true;hopLbl.textContent='Pause';hopAdvance();};
+
+  // init
+  renderDetail('graph');
+})();
+</script>
+</body>
+</html>

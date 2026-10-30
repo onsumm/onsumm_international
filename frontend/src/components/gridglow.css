@@ -1,0 +1,132 @@
+/**
+ * The quiet grid that catches light (GridGlow.tsx).
+ *
+ * Colour reasoning, since two earlier versions got this wrong:
+ *
+ *  - Value hierarchy first. The canvas is near-white and the rules are 1px at ~6%
+ *    ink, so the background sits *below* the white card in visual weight. The
+ *    previous mid-grey field with 3px white rules read as blueprint paper and
+ *    beat the content for attention, which is the one thing a background must
+ *    never do.
+ *
+ *  - Chroma follows intensity. Real light is nearly colourless when faint and
+ *    only saturates in its core, so --gg-l drives the blue's alpha on both the
+ *    rules and each cell's ring. Uniformly blue lines read as paint, not light.
+ *
+ *  - One hue, one story. A single azure (215°) does the lighting; nothing else on
+ *    this layer introduces a second accent to argue with the brand navy.
+ *
+ * Layers, none of them one element per cell except the last:
+ *   .gg        — near-white canvas, hairline rules.
+ *   .gg__wash  — a soft radial pool of light on the surface.
+ *   .gg__lit   — the same rules in azure, masked to the pointer.
+ *   .gg__cells — one stationary element per cell; JS animates transform/opacity.
+ */
+
+.gg {
+  --gg-azure: 37 99 235;      /* --info-600: the light's hue */
+  --gg-ink: 15 23 42;         /* --ink-900 channels, for the hairlines */
+  --gg-x: 50%;
+  --gg-y: 50%;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+
+  /* Decorative layer: must never eat a click meant for the page. */
+  pointer-events: none;
+  background-color: var(--surface-1);
+
+  /* Hairlines, not rules. Structure you find only when you look for it. */
+  background-image:
+    linear-gradient(to right, rgb(var(--gg-ink) / 6%) 0 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--gg-ink) / 6%) 0 1px, transparent 1px);
+  background-size: var(--gg-cell) var(--gg-cell);
+
+  /* Behind the page's own content, above the page background. */
+  z-index: 0;
+}
+
+/* Light spilling onto the surface itself — wide, weak, and the reason the effect
+   reads as a lamp in a room rather than a hover state on a grid. */
+.gg__wash {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease);
+  background: radial-gradient(
+    circle calc(var(--gg-reach) * 1.6) at var(--gg-x) var(--gg-y),
+    rgb(var(--gg-azure) / 7%) 0%,
+    rgb(var(--gg-azure) / 3%) 45%,
+    transparent 75%
+  );
+}
+
+/* The hairlines within reach, in azure. Masked so brightness is purely a
+   function of distance, with no cell where the effect stops. */
+.gg__lit {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease);
+  background-image:
+    linear-gradient(to right, rgb(var(--gg-azure) / 55%) 0 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--gg-azure) / 55%) 0 1px, transparent 1px);
+  background-size: var(--gg-cell) var(--gg-cell);
+
+  /* Zero derivative at both ends: no rim at the edge, no hotspot at the centre. */
+  mask-image: radial-gradient(
+    circle var(--gg-reach) at var(--gg-x) var(--gg-y),
+    rgb(0 0 0 / 100%) 0%,
+    rgb(0 0 0 / 62%) 30%,
+    rgb(0 0 0 / 22%) 58%,
+    transparent 100%
+  );
+}
+
+.gg[data-lit="on"] .gg__wash,
+.gg[data-lit="on"] .gg__lit {
+  opacity: 1;
+}
+
+/* ── Cells ────────────────────────────────────────────────────────────────────
+   One element per cell, stationary. The component writes transform and opacity
+   every frame from a JS-smoothed level, so nothing here transitions: a CSS
+   transition on a per-frame target restarts its own interpolation and wobbles.
+   Only composited properties are animated — no box-shadow interpolation, which
+   repaints and was the other half of the jank. */
+.gg__cells {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--gg-cols), var(--gg-cell));
+  grid-auto-rows: var(--gg-cell);
+}
+
+.gg__cell {
+  --gg-l: 0;
+
+  /* Overhangs its square by the hairline on every edge, so a tile that has
+     lifted *covers* the rules it came out of. Inset by 1px instead — as this was
+     — leaves the grid line running along the raised tile's face, which reads as a
+     hard straight border drawn across it. A lifted tile has no business showing
+     the grid beneath it. */
+  width: calc(100% + 1px);
+  height: calc(100% + 1px);
+  border-radius: var(--r-sm);
+  opacity: 0;
+  background: linear-gradient(
+    160deg,
+    rgb(255 255 255 / 97%) 0%,
+    rgb(255 255 255 / 82%) 100%
+  );
+
+  /* Depth from shadow alone. A 1px ring on the tile is indistinguishable from
+     the grid rule it is supposed to be replacing, so there is no border here —
+     the shadow is what says "this is above the surface". Static, revealed by
+     opacity, never interpolated. */
+  box-shadow:
+    0 1px 2px rgb(var(--gg-ink) / 5%),
+    0 10px 22px rgb(var(--gg-ink) / 10%);
+  will-change: transform, opacity;
+}

@@ -1,0 +1,47 @@
+dist
+coverage
+storybook-static
+node_modules
+package-lock.json
+*.tsbuildinfo
+public
+logo.svg
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Legacy formatting debt.
+#
+# 44 files predate Prettier. Reformatting them here would bury the Phase 0 diff
+# in whitespace and collide with anything in flight, so instead the formatter is
+# scoped to code this revamp has already touched, and each phase removes its
+# files from this list as it rewrites them. New files are formatted from birth.
+#
+# Progress: Phase 0 formats the routing, auth-file and tooling layers.
+# ─────────────────────────────────────────────────────────────────────────────
+src/**
+
+# Formatted (Phase 0)
+!src/App.tsx
+!src/main.tsx
+!src/setupTests.ts
+!src/index.css
+!src/routes/**
+!src/hooks/**
+!src/api/authedFiles.ts
+!src/api/authedFiles.test.ts
+
+# Formatted (Phase 1)
+!src/ui/**
+!src/styles/**
+!src/components/Sidebar.tsx
+!src/components/MobileNav.tsx
+!src/components/sidebar.css
+!src/components/shell.css
+
+# Formatted (answer-engine work, Sept 2026)
+!src/content/**
+!src/seo/**
+!src/landing/LandingApp.tsx
+!src/landing/prerender.test.tsx
+
+# Build artefact: the bundled SSR entry the prerenderer imports.
+prerender/.out

@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: onsumm-api
+    runtime: python
+    rootDir: backend_ocr
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_SSL
+        value: require
+      - key: TENANT_ID
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: AGENT_LATEST_VERSION
+        value: "1.0.0"
+      - key: AGENT_DOWNLOAD_URL
+        sync: false
+      - key: AGENT_DOWNLOAD_SHA256
+        sync: false

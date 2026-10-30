@@ -1,0 +1,23 @@
+[
+  {"type": "constructor", "inputs": [{"name": "initialAnchorer", "type": "address"}], "stateMutability": "nonpayable"},
+  {"type": "function", "name": "owner", "inputs": [], "outputs": [{"name": "", "type": "address"}], "stateMutability": "view"},
+  {"type": "function", "name": "anchorer", "inputs": [], "outputs": [{"name": "", "type": "address"}], "stateMutability": "view"},
+  {"type": "function", "name": "count", "inputs": [], "outputs": [{"name": "", "type": "uint256"}], "stateMutability": "view"},
+  {"type": "function", "name": "anchors", "inputs": [{"name": "", "type": "uint256"}],
+   "outputs": [{"name": "root", "type": "bytes32"}, {"name": "fromSeq", "type": "uint64"},
+               {"name": "toSeq", "type": "uint64"}, {"name": "timestamp", "type": "uint64"}], "stateMutability": "view"},
+  {"type": "function", "name": "setAnchorer", "inputs": [{"name": "next", "type": "address"}], "outputs": [], "stateMutability": "nonpayable"},
+  {"type": "function", "name": "anchor",
+   "inputs": [{"name": "root", "type": "bytes32"}, {"name": "fromSeq", "type": "uint64"}, {"name": "toSeq", "type": "uint64"}],
+   "outputs": [{"name": "id", "type": "uint256"}], "stateMutability": "nonpayable"},
+  {"type": "event", "name": "Anchored", "anonymous": false,
+   "inputs": [{"name": "id", "type": "uint256", "indexed": true}, {"name": "root", "type": "bytes32", "indexed": false},
+              {"name": "fromSeq", "type": "uint64", "indexed": false}, {"name": "toSeq", "type": "uint64", "indexed": false},
+              {"name": "timestamp", "type": "uint64", "indexed": false}]},
+  {"type": "event", "name": "AnchorerChanged", "anonymous": false,
+   "inputs": [{"name": "previous", "type": "address", "indexed": true}, {"name": "next", "type": "address", "indexed": true}]},
+  {"type": "error", "name": "NotOwner", "inputs": []},
+  {"type": "error", "name": "NotAnchorer", "inputs": []},
+  {"type": "error", "name": "EmptyRoot", "inputs": []},
+  {"type": "error", "name": "BadRange", "inputs": []}
+]

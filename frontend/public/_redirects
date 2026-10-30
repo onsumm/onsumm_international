@@ -1,0 +1,13 @@
+# SPA fallback: every non-asset path must serve index.html so client-side routes
+# (/bills, /settings, …) survive a hard refresh or a pasted deep link.
+# Consumed by Netlify-compatible hosts. Vercel uses vercel.json.
+# AWS Amplify needs the equivalent rule set in the console — see amplify.yml,
+# where the ordering matters and the rules in production are currently wrong.
+#
+# The four public marketing routes are prerendered to real files by
+# prerender/prerender.mjs (dist/product/index.html and friends). Netlify checks
+# the filesystem before applying a non-forced redirect, so those are served as
+# themselves and only the authenticated routes fall through to the rule below.
+# Do not add a `!` to it — that would force the rewrite and bury the
+# prerendered pages, which are the only version of the site an AI crawler reads.
+/*    /index.html   200

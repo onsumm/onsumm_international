@@ -1,0 +1,200 @@
+/* Full-screen bill PDF. The motion lives in BillPdfFullscreen.tsx (Web
+   Animations, since the start point is measured at runtime); this file is only
+   the resting layout. */
+
+.bpf {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3vh 4vw;
+}
+
+.bpf__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.42);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  opacity: 0;
+}
+
+.bpf__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(1080px, 100%);
+  height: 100%;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 30px 80px -20px rgba(15, 23, 42, 0.45), 0 0 0 1px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+  transform-origin: center center;
+  will-change: transform, opacity;
+}
+
+.bpf__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+.bpf__group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.bpf__sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 6px;
+  background: #e5e7eb;
+}
+
+.bpf__ctrl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+.bpf__ctrl:hover:not(:disabled) { background: #f3f4f6; color: #111827; }
+.bpf__ctrl:active:not(:disabled) { transform: scale(0.94); }
+.bpf__ctrl:disabled { opacity: 0.4; cursor: not-allowed; }
+.bpf__ctrl:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; }
+
+.bpf__page {
+  font-size: 13px;
+  color: #6b7280;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+.bpf__body {
+  flex: 1;
+  overflow: auto;
+  padding: 24px 32px 40px;
+  background: #f3f4f6;
+}
+.bpf__body .react-pdf__Page {
+  margin-inline: auto;
+  width: max-content;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.12);
+}
+
+/* ── Opening before the PDF is ready ─────────────────────────────────────
+   The panel flies out at once with a blank sheet (A4 proportions) standing in
+   for the page; the page fades in over it once its canvas has painted, and
+   the sheet fades out underneath. No spinner, no jump. */
+.bpf__stage {
+  position: relative;
+  margin-inline: auto;
+}
+
+.bpf__body .bpf__pdfpage {
+  opacity: 0;
+  transform: translateY(6px) scale(0.995);
+  transition:
+    opacity 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.bpf__body .bpf__pdfpage.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.bpf__sheet {
+  position: absolute;
+  inset: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  aspect-ratio: 1 / 1.414;
+  padding: 9% 10%;
+  background: #fff;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.12);
+  transition: opacity 0.35s ease 0.1s;
+}
+
+.bpf__sheet.is-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bpf__sheet i {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: linear-gradient(90deg, #eef1f6 0%, #f6f8fb 50%, #eef1f6 100%);
+  background-size: 200% 100%;
+  animation: bpf-shimmer 1.4s linear infinite;
+}
+
+.bpf__sheet i:nth-child(1) {
+  width: 38%;
+  height: 16px;
+  margin-bottom: 18px;
+}
+
+.bpf__sheet i:nth-child(2) {
+  width: 62%;
+}
+
+.bpf__sheet i:nth-child(3) {
+  width: 54%;
+}
+
+.bpf__sheet i:nth-child(4) {
+  width: 100%;
+  height: 90px;
+  margin-top: 22px;
+}
+
+.bpf__sheet i:nth-child(5) {
+  width: 100%;
+}
+
+.bpf__sheet i:nth-child(6) {
+  width: 72%;
+}
+
+.bpf__sheet.is-error {
+  align-items: center;
+  padding-top: 22%;
+}
+
+.bpf__sheet-msg {
+  color: #b42318;
+  font-size: 14px;
+}
+
+@keyframes bpf-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bpf__body .bpf__pdfpage,
+  .bpf__sheet {
+    transition: none;
+  }
+
+  .bpf__sheet i {
+    animation: none;
+  }
+}

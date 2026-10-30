@@ -1,0 +1,736 @@
+"""
+tally_agent_api.py — FastAPI router for the Tally Connector Agent
+
+Endpoints:
+  POST /api/tally/pair      — exchange one-time pairing token → api_key
+  POST /api/tally/ingest    — receive XML payload from agent, run parse + upsert
+  GET  /agent/version       — version manifest for agent self-update
+
+All agent→cloud communication is authenticated via Bearer api_key stored
+in int_connections.agent_api_key column.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import logging
+import os
+import secrets
+import sys
+
+from ..core.storage import PROJECT_ROOT
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from pathlib import Path
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Header, HTTPException, status
+from pydantic import BaseModel
+
+# ── tally2database helpers (same ones used by tally_read.py) ──────────────────
+_TALLY_DIR = str(PROJECT_ROOT / "tally2database")
+if _TALLY_DIR not in sys.path:
+    sys.path.insert(0, _TALLY_DIR)
+
+from tally_parser import parse_ledgers, parse_vouchers  # noqa: E402
+
+from ..config import DB_URL
+
+log = logging.getLogger("tally-agent-api")
+
+router = APIRouter()
+
+# ── DB helpers (sync psycopg2 — this app uses sync postgres) ──────────────────
+
+def _get_conn():
+    import psycopg2
+    import psycopg2.extras
+    conn = psycopg2.connect(DB_URL)
+    conn.autocommit = False
+    return conn
+
+
+# ── Schemas ────────────────────────────────────────────────────────────────────
+
+class PairRequest(BaseModel):
+    token: str
+    agent_version: str = "unknown"
+
+
+class PairResponse(BaseModel):
+    api_key: str
+    tenant_name: str
+
+
+class IngestRequest(BaseModel):
+    agent_version: str = "unknown"
+    ledgers_xml: str
+    vouchers_xml: str
+
+
+class IngestResponse(BaseModel):
+    status: str
+    invoices: int
+    bills: int
+    payments: int
+    ledgers: int
+    errors: int
+    # What the parser found before saving, so the agent can show parsed vs saved.
+    parsed: dict = {}
+    # First few row failures ("bill FAMS-036: IntegrityError: …") for the agent's UI.
+    error_samples: list[str] = []
+
+
+MAX_ERROR_SAMPLES = 25
+
+
+# ── Auth helper ────────────────────────────────────────────────────────────────
+
+def _require_agent(authorization: str = Header(...)) -> dict:
+    """
+    Validate Bearer api_key from agent.
+    Returns the int_connections row as a dict.
+    """
+    if not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing Bearer token")
+
+    api_key = authorization.removeprefix("Bearer ").strip()
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT connection_id, tenant_id, status
+                FROM int_connections
+                WHERE agent_api_key_hash = %s
+                  AND source = 'TALLY'
+                LIMIT 1
+                """,
+                (key_hash,),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        raise HTTPException(status_code=401, detail="Invalid or unknown agent key")
+
+    connection_id, tenant_id, conn_status = row
+    if conn_status == "REVOKED":
+        raise HTTPException(status_code=403, detail="Connection has been revoked")
+
+    return {"connection_id": str(connection_id), "tenant_id": str(tenant_id)}
+
+
+# ── Endpoints ──────────────────────────────────────────────────────────────────
+
+@router.get("/api/tally/connection")
+def get_tally_connection():
+    """Dashboard polls this to show current connection status + last sync time."""
+    from ..security.auth import require_tenant
+    tenant = require_tenant()  # tenant from JWT; client company_id ignored
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT connection_id, status, agent_version,
+                       last_sync_at, error_message, created_at
+                FROM int_connections
+                WHERE tenant_id = %s AND source = 'TALLY'
+                LIMIT 1
+                """,
+                (tenant,),
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        from fastapi import Response
+        raise HTTPException(status_code=404, detail="No Tally connection found")
+
+    connection_id, status, agent_version, last_sync_at, error_message, paired_at = row
+    return {
+        "connection_id":  str(connection_id),
+        "status":         status,
+        "agent_version":  agent_version,
+        "last_sync_at":   last_sync_at.isoformat() if last_sync_at else None,
+        "error_message":  error_message,
+        "paired_at":      paired_at.isoformat() if paired_at else None,
+    }
+
+
+@router.post("/api/tally/pair", response_model=PairResponse)
+def pair_agent(body: PairRequest):
+    """
+    Exchange one-time pairing token (generated by dashboard) for a permanent api_key.
+
+    The dashboard creates a row in int_connections with:
+      - status = 'PENDING'
+      - agent_pairing_token = <uuid>
+      - agent_pairing_expires_at = now() + 30 minutes
+
+    This endpoint:
+      1. Looks up the token
+      2. Generates an api_key, stores its SHA-256 hash
+      3. Marks connection ACTIVE, clears token
+    """
+    token = body.token.strip()
+    token_hint = f"{token[:6]}… ({len(token)} chars)"
+    log.info("Pair attempt: token=%s agent_version=%s", token_hint, body.agent_version)
+
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            # Look the token up without the source/status filter so a rejection
+            # can say exactly why, instead of one catch-all message.
+            cur.execute(
+                """
+                SELECT connection_id, tenant_id, agent_pairing_expires_at, source, status
+                FROM int_connections
+                WHERE agent_pairing_token = %s
+                LIMIT 1
+                """,
+                (token,),
+            )
+            row = cur.fetchone()
+
+        if not row:
+            log.warning("Pair rejected: token %s not found (never issued here, already used, "
+                        "or replaced by a newer token)", token_hint)
+            raise HTTPException(
+                status_code=400,
+                detail="Pairing token not recognised — it was already used, replaced by a newer token, "
+                       "or generated on a different Onsumm environment. Generate a new token and paste it.",
+            )
+
+        connection_id, tenant_id, expires_at, source, conn_status = row
+
+        if source != "TALLY":
+            log.warning("Pair rejected: token %s belongs to a %s connection %s", token_hint, source, connection_id)
+            raise HTTPException(status_code=400,
+                                detail=f"This token is for a {source} connection, not Tally.")
+
+        if conn_status not in ("PENDING", "ACTIVE"):
+            log.warning("Pair rejected: connection %s is %s (token %s)", connection_id, conn_status, token_hint)
+            raise HTTPException(status_code=400,
+                                detail=f"This Tally connection is {conn_status}. Generate a new token from the dashboard.")
+
+        if expires_at and expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)   # naive column → stored as UTC
+        if expires_at and datetime.now(timezone.utc) > expires_at:
+            log.warning("Pair rejected: token %s expired at %s (connection %s)", token_hint, expires_at, connection_id)
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pairing token expired at {expires_at:%d %b %Y %H:%M} UTC. Generate a new one from the dashboard.",
+            )
+
+        # Generate api_key — only the hash is stored, raw key is returned once
+        api_key = secrets.token_urlsafe(40)
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+        # Fetch tenant name for UI feedback
+        with conn.cursor() as cur:
+            cur.execute("SELECT company_name FROM dim_tenants WHERE tenant_id = %s", (str(tenant_id),))
+            tenant_row = cur.fetchone()
+            tenant_name = tenant_row[0] if tenant_row else str(tenant_id)
+
+            # Activate connection, store key hash, clear pairing token
+            cur.execute(
+                """
+                UPDATE int_connections
+                SET agent_api_key_hash     = %s,
+                    agent_pairing_token    = NULL,
+                    agent_version          = %s,
+                    status                 = 'ACTIVE',
+                    last_sync_at           = NULL,
+                    error_message          = NULL
+                WHERE connection_id = %s
+                """,
+                (key_hash, body.agent_version, str(connection_id)),
+            )
+            conn.commit()
+
+        log.info("Agent paired: connection=%s tenant=%s version=%s",
+                 connection_id, tenant_id, body.agent_version)
+        return PairResponse(api_key=api_key, tenant_name=tenant_name)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        conn.rollback()
+        log.exception("Pairing failed for token=%s", token_hint)
+        raise HTTPException(status_code=500, detail=f"Pairing failed on the server: {type(e).__name__}: {e}")
+    finally:
+        conn.close()
+
+
+@router.post("/api/tally/ingest", response_model=IngestResponse)
+def ingest_tally_data(body: IngestRequest, agent: dict = Depends(_require_agent)):
+    """
+    Receive ledger + voucher XML from the agent.
+    Parses and upserts into staging tables — same logic as tally_read.py
+    but driven by HTTP push instead of direct Tally polling.
+    """
+    tenant_id     = agent["tenant_id"]
+    connection_id = agent["connection_id"]
+
+    log.info("Ingest from agent: tenant=%s connection=%s version=%s xml_sizes=[%d, %d]",
+             tenant_id, connection_id, body.agent_version,
+             len(body.ledgers_xml), len(body.vouchers_xml))
+
+    # Parse
+    try:
+        ledgers = parse_ledgers(body.ledgers_xml)
+    except Exception as e:
+        log.error("Ledger parse failed: %s", e)
+        ledgers = []
+
+    try:
+        invoices, bills, payments = parse_vouchers(body.vouchers_xml)
+    except Exception as e:
+        log.error("Voucher parse failed: %s", e)
+        invoices, bills, payments = [], [], []
+
+    stats = {"ledgers": 0, "invoices": 0, "bills": 0, "payments": 0, "errors": 0}
+    parsed = {"ledgers": len(ledgers), "invoices": len(invoices),
+              "bills": len(bills), "payments": len(payments)}
+    error_samples: list[str] = []
+
+    def _row(cur, kind: str, ref, fn) -> bool:
+        """
+        Save one row inside a SAVEPOINT. Without it, the first failing row
+        aborts the whole Postgres transaction and every later row — and the
+        final heartbeat UPDATE — fails too, turning one bad voucher into a 500.
+        """
+        cur.execute("SAVEPOINT tally_row")
+        try:
+            fn()
+            cur.execute("RELEASE SAVEPOINT tally_row")
+            return True
+        except Exception as e:
+            cur.execute("ROLLBACK TO SAVEPOINT tally_row")
+            log.exception("%s upsert failed: %s", kind, ref)
+            stats["errors"] += 1
+            if len(error_samples) < MAX_ERROR_SAMPLES:
+                error_samples.append(f"{kind} {ref or '?'}: {type(e).__name__}: {str(e).strip()[:300]}")
+            return False
+
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            # Store raw payloads
+            ledger_payload_id  = _store_raw(cur, tenant_id, "LEDGER",  body.ledgers_xml)
+            voucher_payload_id = _store_raw(cur, tenant_id, "INVOICE", body.vouchers_xml)
+
+            # Upsert ledger accounts
+            for led in ledgers:
+                def _save_ledger(led=led):
+                    _upsert_ledger_account(cur, tenant_id, led)
+                    if led.get("_is_party"):
+                        _upsert_end_customer(cur, tenant_id, led)
+                if _row(cur, "ledger", led.get("account_name"), _save_ledger):
+                    stats["ledgers"] += 1
+
+            # Upsert invoices
+            for inv in invoices:
+                def _save_invoice(inv=inv):
+                    ec_id = _get_or_create_end_customer_simple(
+                        cur, tenant_id, inv.get("_party") or "Unknown", inv.get("_gstin_party")
+                    )
+                    _upsert_invoice(cur, tenant_id, voucher_payload_id, inv, ec_id)
+                if _row(cur, "invoice", inv.get("source_invoice_id"), _save_invoice):
+                    stats["invoices"] += 1
+
+            # Upsert bills
+            for bill in bills:
+                def _save_bill(bill=bill):
+                    sup_id = _get_or_create_supplier(
+                        cur, tenant_id, bill.get("_party") or "Unknown", bill.get("gstin_seller")
+                    )
+                    _upsert_bill(cur, tenant_id, voucher_payload_id, bill, sup_id)
+                if _row(cur, "bill", bill.get("source_bill_id"), _save_bill):
+                    stats["bills"] += 1
+
+            # Upsert payments
+            for pmt in payments:
+                def _save_payment(pmt=pmt):
+                    ec_id = _get_or_create_end_customer_simple(
+                        cur, tenant_id, pmt.get("_party") or "Unknown", None
+                    )
+                    _upsert_payment(cur, tenant_id, pmt, ec_id)
+                if _row(cur, "payment", pmt.get("source_payment_id"), _save_payment):
+                    stats["payments"] += 1
+
+            # Update connection heartbeat + agent version
+            cur.execute(
+                """
+                UPDATE int_connections
+                SET last_sync_at   = now(),
+                    agent_version  = %s,
+                    status         = 'ACTIVE',
+                    error_message  = NULL,
+                    consecutive_failures = 0
+                WHERE connection_id = %s
+                """,
+                (body.agent_version, connection_id),
+            )
+
+        conn.commit()
+        log.info("Ingest complete: saved=%s parsed=%s", stats, parsed)
+
+    except Exception as e:
+        conn.rollback()
+        log.exception("Ingest transaction failed for tenant=%s", tenant_id)
+        raise HTTPException(status_code=500, detail=f"Ingest failed on the server: {type(e).__name__}: {e}")
+    finally:
+        conn.close()
+
+    return IngestResponse(status="ok", parsed=parsed, error_samples=error_samples, **stats)
+
+
+_DEFAULT_AGENT_EXE = Path(__file__).resolve().parents[3] / "agent_dist" / "OnsummTallyAgent.exe"
+
+
+@router.get("/api/tally/agent/status")
+def agent_status(agent: dict = Depends(_require_agent)):
+    """
+    What the cloud holds for this agent's connection, for the agent's own
+    dashboard. Authenticated by the agent api_key (not a login token), so it
+    also proves the key is still valid.
+    """
+    tenant_id = agent["tenant_id"]
+    conn = _get_conn()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT c.status, c.agent_version, c.last_sync_at, c.error_message,
+                       c.created_at, t.company_name
+                FROM int_connections c
+                LEFT JOIN dim_tenants t ON t.tenant_id = c.tenant_id
+                WHERE c.connection_id = %s
+                """,
+                (agent["connection_id"],),
+            )
+            status_, version, last_sync_at, error_message, created_at, tenant_name = cur.fetchone()
+
+            counts = {}
+            for key, table in (("invoices", "stg_invoices"), ("bills", "stg_bills"),
+                               ("payments", "stg_payments"), ("ledgers", "dim_ledger_accounts")):
+                cur.execute(f"SELECT count(*) FROM {table} WHERE tenant_id = %s AND source = 'TALLY'",
+                            (tenant_id,))
+                counts[key] = cur.fetchone()[0]
+    finally:
+        conn.close()
+
+    return {
+        "tenant_id":         tenant_id,
+        "tenant_name":       tenant_name,
+        "connection_id":     agent["connection_id"],
+        "connection_status": status_,
+        "agent_version":     version,
+        "last_sync_at":      last_sync_at.isoformat() if last_sync_at else None,
+        "error_message":     error_message,
+        "created_at":        created_at.isoformat() if created_at else None,
+        "cloud_counts":      counts,
+    }
+
+
+@router.get("/agent/download")
+def agent_download():
+    """
+    Serve the Windows agent installer. The exe is built by the "Build Tally
+    Agent" GitHub workflow and copied to AGENT_EXE_PATH (default:
+    <repo>/agent_dist/OnsummTallyAgent.exe). Public — it holds no secrets;
+    pairing still needs a token generated in the app.
+    """
+    exe = Path(os.getenv("AGENT_EXE_PATH", str(_DEFAULT_AGENT_EXE)))
+    if not exe.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="The Tally Agent installer has not been published yet. Contact support@onsumm.ai.",
+        )
+    from fastapi.responses import FileResponse
+    return FileResponse(exe, media_type="application/octet-stream", filename="OnsummTallyAgent.exe")
+
+
+@router.get("/agent/version")
+def agent_version_manifest():
+    """
+    Version manifest polled by agents on startup for self-update.
+
+    Set AGENT_LATEST_VERSION and AGENT_DOWNLOAD_URL env vars when you
+    publish a new build. Agents compare against their bundled AGENT_VERSION
+    and self-update if behind.
+    """
+    latest   = os.getenv("AGENT_LATEST_VERSION", "1.0.0")
+    dl_url   = os.getenv("AGENT_DOWNLOAD_URL", "")
+    checksum = os.getenv("AGENT_DOWNLOAD_SHA256", "")
+
+    return {
+        "version":      latest,
+        "download_url": dl_url,
+        "sha256":       checksum,
+        "min_version":  os.getenv("AGENT_MIN_VERSION", "1.0.0"),
+        "release_notes": os.getenv("AGENT_RELEASE_NOTES", ""),
+    }
+
+
+# ── DB write helpers (sync psycopg2 versions of tally_read.py's asyncpg ones) ─
+
+def _store_raw(cur, tenant_id: str, entity_type: str, xml: str) -> str:
+    payload_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO raw_api_payloads
+            (payload_id, tenant_id, source, entity_type, raw_payload, received_at)
+        VALUES (%s, %s, 'TALLY', %s::entity_type, %s::jsonb, now())
+        """,
+        (payload_id, tenant_id, entity_type, json.dumps({"xml": xml})),
+    )
+    return payload_id
+
+
+def _upsert_ledger_account(cur, tenant_id: str, led: dict) -> None:
+    norm_type = _normalize_account_type(led.get("account_type", ""))
+    cur.execute(
+        """
+        INSERT INTO dim_ledger_accounts
+            (account_id, tenant_id, source_account_id, source, account_name, account_type, is_active)
+        VALUES (gen_random_uuid(), %s, %s, 'TALLY', %s, %s::account_type, true)
+        ON CONFLICT (tenant_id, source, source_account_id) DO UPDATE
+          SET account_name = EXCLUDED.account_name,
+              account_type = EXCLUDED.account_type,
+              is_active    = true
+        """,
+        (tenant_id, led["source_account_id"], led["account_name"], norm_type),
+    )
+
+
+def _upsert_end_customer(cur, tenant_id: str, led: dict) -> None:
+    _get_or_create_end_customer_simple(
+        cur, tenant_id,
+        led.get("company_name") or led["account_name"],
+        led.get("gstin"),
+    )
+
+
+def _get_or_create_end_customer_simple(
+    cur, tenant_id: str, name: str, gstin: str | None
+) -> str:
+    cur.execute(
+        """
+        SELECT end_customer_id FROM dim_end_customers
+        WHERE tenant_id = %s AND source = 'TALLY' AND source_customer_id = %s
+        LIMIT 1
+        """,
+        (tenant_id, name),
+    )
+    row = cur.fetchone()
+    if row:
+        if gstin:
+            cur.execute(
+                "UPDATE dim_end_customers SET gstin = %s WHERE end_customer_id = %s",
+                (gstin[:15], str(row[0])),
+            )
+        return str(row[0])
+
+    ec_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO dim_end_customers
+            (end_customer_id, tenant_id, source, source_customer_id, company_name, trade_name,
+             gstin, payment_terms_days, credit_limit, currency_code,
+             risk_score, risk_bucket, kyc_status, is_active)
+        VALUES (%s,%s,'TALLY',%s,%s,%s,%s, 30,0,'INR', 50.00,'MEDIUM','PENDING',true)
+        """,
+        (ec_id, tenant_id, name, name, name, gstin[:15] if gstin else None),
+    )
+    return ec_id
+
+
+def _get_or_create_supplier(
+    cur, tenant_id: str, name: str, gstin: str | None
+) -> str:
+    cur.execute(
+        """
+        SELECT supplier_id FROM dim_suppliers
+        WHERE tenant_id = %s AND source = 'TALLY' AND source_supplier_id = %s
+        LIMIT 1
+        """,
+        (tenant_id, name),
+    )
+    row = cur.fetchone()
+    if row:
+        return str(row[0])
+
+    sup_id = str(uuid.uuid4())
+    cur.execute(
+        """
+        INSERT INTO dim_suppliers
+            (supplier_id, tenant_id, source_supplier_id, source, name, gstn,
+             payment_terms_days, status, is_active)
+        VALUES (%s,%s,%s,'TALLY',%s,%s, 30,'ACTIVE',true)
+        """,
+        (sup_id, tenant_id, name, name, gstin[:15] if gstin else None),
+    )
+    return sup_id
+
+
+def _upsert_invoice(cur, tenant_id: str, payload_id: str, inv: dict, ec_id: str) -> None:
+    src_id = inv["source_invoice_id"]
+    cur.execute(
+        """
+        INSERT INTO stg_invoices
+            (stg_invoice_id, tenant_id, source, source_invoice_id, source_updated_at,
+             raw_payload_id, invoice_number, invoice_date, due_date, end_customer_id,
+             currency_code, subtotal, discount_amount, tax_amount, total_amount,
+             amount_paid, outstanding_amount, status, gstin_buyer,
+             validation_flag, sync_status, narration, created_at, updated_at)
+        VALUES (gen_random_uuid(),%s,'TALLY',%s,%s,
+                %s,%s,%s,%s,%s,
+                %s,%s,0,%s,%s,
+                0,%s,%s::invoice_status,%s,
+                'OK','PENDING',%s,now(),now())
+        ON CONFLICT (tenant_id, source, source_invoice_id) DO UPDATE SET
+            source_updated_at  = EXCLUDED.source_updated_at,
+            raw_payload_id     = EXCLUDED.raw_payload_id,
+            invoice_number     = EXCLUDED.invoice_number,
+            invoice_date       = EXCLUDED.invoice_date,
+            due_date           = EXCLUDED.due_date,
+            end_customer_id    = EXCLUDED.end_customer_id,
+            subtotal           = EXCLUDED.subtotal,
+            tax_amount         = EXCLUDED.tax_amount,
+            total_amount       = EXCLUDED.total_amount,
+            outstanding_amount = EXCLUDED.outstanding_amount,
+            status             = EXCLUDED.status,
+            gstin_buyer        = EXCLUDED.gstin_buyer,
+            narration          = EXCLUDED.narration,
+            sync_status        = 'PENDING',
+            updated_at         = now()
+        """,
+        (
+            tenant_id, src_id, _safe_date(inv.get("source_updated_at")),
+            payload_id, inv.get("invoice_number") or src_id,
+            _safe_date(inv.get("invoice_date")), inv.get("due_date"), ec_id,
+            inv.get("currency_code") or "INR",
+            _safe_float(inv.get("subtotal")), _safe_float(inv.get("tax_amount")),
+            _safe_float(inv.get("total_amount")), _safe_float(inv.get("total_amount")),
+            _normalize_invoice_status(inv.get("status")), inv.get("gstin_buyer"),
+            inv.get("narration"),
+        ),
+    )
+
+
+def _upsert_bill(cur, tenant_id: str, payload_id: str, bill: dict, sup_id: str) -> None:
+    src_id = bill["source_bill_id"]
+    cur.execute(
+        """
+        INSERT INTO stg_bills
+            (stg_bill_id, tenant_id, source, source_bill_id, source_updated_at,
+             raw_payload_id, bill_number, bill_date, due_date, supplier_id,
+             currency_code, subtotal, discount_amount, tax_amount, total_amount,
+             amount_paid, outstanding_amount, status, gstin_seller,
+             validation_flag, sync_status, created_at, updated_at)
+        VALUES (gen_random_uuid(),%s,'TALLY',%s,%s,
+                %s,%s,%s,%s,%s,
+                %s,%s,0,%s,%s,
+                0,%s,%s::invoice_status,%s,
+                'OK','PENDING',now(),now())
+        ON CONFLICT (tenant_id, source, source_bill_id) DO UPDATE SET
+            source_updated_at  = EXCLUDED.source_updated_at,
+            bill_number        = EXCLUDED.bill_number,
+            bill_date          = EXCLUDED.bill_date,
+            due_date           = EXCLUDED.due_date,
+            supplier_id        = EXCLUDED.supplier_id,
+            subtotal           = EXCLUDED.subtotal,
+            tax_amount         = EXCLUDED.tax_amount,
+            total_amount       = EXCLUDED.total_amount,
+            outstanding_amount = EXCLUDED.outstanding_amount,
+            status             = EXCLUDED.status,
+            gstin_seller       = EXCLUDED.gstin_seller,
+            sync_status        = 'PENDING',
+            updated_at         = now()
+        """,
+        (
+            tenant_id, src_id, _safe_date(bill.get("source_updated_at")),
+            payload_id, bill.get("bill_number") or src_id,
+            _safe_date(bill.get("bill_date")), bill.get("due_date"), sup_id,
+            bill.get("currency_code") or "INR",
+            _safe_float(bill.get("subtotal")), _safe_float(bill.get("tax_amount")),
+            _safe_float(bill.get("total_amount")), _safe_float(bill.get("total_amount")),
+            _normalize_invoice_status(bill.get("status")), bill.get("gstin_seller"),
+        ),
+    )
+
+
+def _upsert_payment(cur, tenant_id: str, pmt: dict, ec_id: str) -> None:
+    cur.execute(
+        """
+        INSERT INTO stg_payments
+            (stg_payment_id, tenant_id, source, source_payment_id, source_updated_at,
+             end_customer_id, payment_date, amount, currency_code, transaction_ref,
+             status, is_reconciled, sync_status, created_at)
+        VALUES (gen_random_uuid(),%s,'TALLY',%s,%s,
+                %s,%s,%s,%s,%s,
+                %s::payment_status,false,'PENDING',now())
+        ON CONFLICT (tenant_id, source, source_payment_id) DO UPDATE SET
+            source_updated_at = EXCLUDED.source_updated_at,
+            end_customer_id   = EXCLUDED.end_customer_id,
+            payment_date      = EXCLUDED.payment_date,
+            amount            = EXCLUDED.amount,
+            transaction_ref   = EXCLUDED.transaction_ref,
+            status            = EXCLUDED.status,
+            sync_status       = 'PENDING'
+        """,
+        (
+            tenant_id, pmt["source_payment_id"], _safe_date(pmt.get("source_updated_at")),
+            ec_id, _safe_date(pmt.get("payment_date")),
+            _safe_float(pmt.get("amount")),
+            pmt.get("currency_code") or "INR",
+            pmt.get("transaction_ref"),
+            _normalize_payment_status(pmt.get("status")),
+        ),
+    )
+
+
+# ── Value normalizers (mirrors tally_read.py) ──────────────────────────────────
+
+_VALID_ACCOUNT_TYPES  = {"ASSET", "LIABILITY", "INCOME", "EXPENSE", "EQUITY"}
+_VALID_INVOICE_STATUS = {"DRAFT", "SENT", "PARTIAL", "PAID", "OVERDUE", "VOID"}
+_VALID_PAYMENT_STATUS = {"PENDING", "CLEARED", "BOUNCED", "REFUNDED"}
+
+
+def _normalize_account_type(v: str) -> str:
+    m = {"BANK": "ASSET", "CASH": "ASSET", "REVENUE": "INCOME"}
+    c = m.get((v or "").upper(), (v or "").upper())
+    return c if c in _VALID_ACCOUNT_TYPES else "ASSET"
+
+
+def _normalize_invoice_status(v: str) -> str:
+    c = (v or "").upper()
+    return c if c in _VALID_INVOICE_STATUS else "DRAFT"
+
+
+def _normalize_payment_status(v: str) -> str:
+    m = {"COMPLETED": "CLEARED", "PROCESSING": "PENDING", "INITIATED": "PENDING"}
+    c = m.get((v or "").upper(), (v or "").upper())
+    return c if c in _VALID_PAYMENT_STATUS else "PENDING"
+
+
+def _safe_float(v) -> float:
+    try:
+        return float(v or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _safe_date(v):
+    if isinstance(v, date):
+        return v
+    return date.today()

@@ -1,0 +1,81 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# MANUAL STEP REQUIRED — rewrite rules (console/API only, NOT this file)
+#
+# Amplify reads rewrite rules from the console/API. Nothing you add here will
+# create one. Two separate things are wrong with the rules in production today.
+#
+# 1. /sitemap.xml is being rewritten to index.html.
+#
+#    The rule's extension allow-list is (css|gif|ico|jpg|js|png|txt|svg|woff|
+#    woff2|ttf|map|json) — there is no `xml`. So robots.txt is served correctly
+#    and sitemap.xml is not:
+#
+#      curl -sI https://www.onsumm.ai/sitemap.xml   -> 200, content-type: text/html
+#
+#    Google, Bing and every AI crawler have therefore never read the sitemap;
+#    they get the SPA shell and a parse error. Add xml — and webp, avif and pdf
+#    while you are in there, or the same thing happens the day we ship one.
+#
+# 2. The catch-all now shadows the prerendered marketing pages.
+#
+#    `npm run build` writes real HTML for each public route — dist/index.html,
+#    dist/product/index.html, dist/pricing/index.html, dist/contact/index.html
+#    (see prerender/). The catch-all matches any extension-less path, so a
+#    request for /product would be rewritten to the ROOT index.html and every
+#    marketing URL would serve the home page. The three explicit rules below
+#    must come BEFORE it; Amplify evaluates custom rules in order.
+#
+#    Why this matters more than it looks: those files are the only thing the
+#    answer engines read. GPTBot, OAI-SearchBot, ClaudeBot, Claude-SearchBot
+#    and PerplexityBot do not run JavaScript, so whatever HTML Amplify hands
+#    back IS the page as far as they are concerned.
+#
+#   Amplify Console -> App settings -> Rewrites and redirects. In this order:
+#
+#     /product   ->  /product/index.html    200 (Rewrite)
+#     /pricing   ->  /pricing/index.html    200 (Rewrite)
+#     /contact   ->  /contact/index.html    200 (Rewrite)
+#     </^[^.]+$|\.(?!(css|gif|ico|jpg|js|png|txt|xml|svg|webp|avif|pdf|woff|woff2|ttf|map|json)$)([^.]+$)/>
+#                ->  /index.html            200 (Rewrite)
+#
+#   Or from a shell with the Amplify app id. --custom-rules REPLACES the whole
+#   list, so run `aws amplify get-app --app-id <APP_ID> --query app.customRules`
+#   first and re-send any existing rules alongside these:
+#
+#     aws amplify update-app --app-id <APP_ID> --custom-rules '[
+#       {"source":"/product","target":"/product/index.html","status":"200"},
+#       {"source":"/pricing","target":"/pricing/index.html","status":"200"},
+#       {"source":"/contact","target":"/contact/index.html","status":"200"},
+#       {"source":"</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|xml|svg|webp|avif|pdf|woff|woff2|ttf|map|json)$)([^.]+$)/>","target":"/index.html","status":"200"}
+#     ]'
+#
+#   Verify afterwards — all four must differ, and the sitemap must be XML:
+#
+#     for p in / /product /pricing /contact; do
+#       curl -s "https://www.onsumm.ai$p" | md5; done        # 4 distinct hashes
+#     curl -sI https://www.onsumm.ai/sitemap.xml | grep -i content-type
+#
+# Other hosts are already covered and need no console step:
+#   Vercel          -> vercel.json
+#   Netlify-style   -> public/_redirects
+#
+# NOTE: a second build spec exists at the repo root (monorepo format, appRoot:
+# frontend). Only one applies, decided by the app's configured root in Amplify.
+# Keep the two build commands in sync or delete whichever is unused.
+# ─────────────────────────────────────────────────────────────────────────────
+version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npm run build
+  artifacts:
+    baseDirectory: dist
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*

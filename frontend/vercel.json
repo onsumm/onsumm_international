@@ -1,0 +1,22 @@
+{
+  "$comment": [
+    "Vercel resolves the filesystem before applying `rewrites`, so the",
+    "prerendered marketing pages (dist/product/index.html and friends, written",
+    "by prerender/prerender.mjs) are served as themselves, and so are",
+    "robots.txt and sitemap.xml. The catch-all below only picks up the",
+    "authenticated client-side routes. The negative lookahead excludes them",
+    "explicitly anyway, because this is the one thing that must not regress:",
+    "those files are the entire site as far as GPTBot, ClaudeBot and",
+    "PerplexityBot are concerned, none of which run JavaScript."
+  ],
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://onsumm.onrender.com/api/:path*"
+    },
+    {
+      "source": "/((?!api/|product|pricing|contact|robots\\.txt|sitemap\\.xml|llms\\.txt).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

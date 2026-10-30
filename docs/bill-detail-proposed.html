@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bill Detail Proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Public+Sans:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  /* Design tokens, copied from frontend/src/styles/tokens.css */
+  :root {
+    --brand-900: #00234a; --brand-700: #003a70; --brand-600: #004080; --brand-500: #0b56a4; --brand-400: #3b82c4; --brand-100: #e6eefa; --brand-50: #f2f6fd;
+    --ink-900: #0b1c30; --ink-800: #1f2937; --ink-700: #374151; --ink-600: #4b5563; --ink-500: #5b6473; --ink-400: #67707e; --ink-300: #9ca3af;
+    --line-300: #d0d7e2; --line-200: #e2e8f0; --line-100: #eef2f7;
+    --surface-0: #fff; --surface-1: #f8fafc; --surface-2: #f1f5f9;
+    --success-700: #046c4e; --success-600: #047857; --success-500: #10b981; --success-100: #d1fae5; --success-50: #ecfdf5;
+    --warn-700: #92400e; --warn-600: #b45309; --warn-500: #f59e0b; --warn-100: #fef3c7; --warn-50: #fffbeb;
+    --danger-700: #991b1b; --danger-600: #b91c1c; --danger-500: #dc2626; --danger-100: #fee2e2; --danger-50: #fef2f2;
+    --info-700: #1d4ed8; --info-600: #2563eb; --info-500: #3b82f6; --info-100: #dbeafe; --info-50: #eff6ff;
+    --fs-2xs: 11px; --fs-xs: 12px; --fs-sm: 13px; --fs-md: 14px; --fs-lg: 16px; --fs-xl: 20px; --fs-2xl: 24px; --fs-3xl: 30px;
+    --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+    --font-sans: Inter, system-ui, -apple-system, sans-serif;
+    --font-display: "Public Sans", Inter, system-ui, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+    --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 20px; --sp-6: 24px; --sp-8: 32px;
+    --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --r-full: 999px;
+    --e-1: 0 1px 2px rgb(15 23 42 / 6%); --e-2: 0 2px 8px rgb(15 23 42 / 8%); --e-3: 0 8px 24px rgb(15 23 42 / 10%); --e-4: 0 20px 48px rgb(15 23 42 / 16%);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; font: var(--fs-md)/1.5 var(--font-sans); color: var(--ink-800); background: var(--surface-1); -webkit-font-smoothing: antialiased; overflow: hidden; }
+  button { font-family: inherit; }
+
+  /* ── The page behind (Bills list, blurred by the overlay) ── */
+  .app { position: fixed; inset: 0; display: grid; grid-template-columns: 220px 1fr; }
+  .app-nav { background: var(--surface-0); border-right: 1px solid var(--line-200); padding: 20px 14px; }
+  .app-nav i { display: block; height: 10px; border-radius: 5px; background: var(--surface-2); margin: 14px 6px; }
+  .app-main { padding: 28px 32px; }
+  .app-main i { display: block; height: 44px; border-radius: 8px; background: var(--surface-0); border: 1px solid var(--line-200); margin-bottom: 8px; }
+
+  /* ── Overlay + card: .bm__overlay / .bm__card ── */
+  .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; padding: 16px 24px 24px; background: rgb(11 28 48 / 46%); backdrop-filter: blur(3px) saturate(120%); }
+
+  /* Prototype switches (not part of the design) */
+  .proto { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0 auto 12px; max-width: 1400px; width: 100%; color: #fff; font-size: var(--fs-xs); }
+  .proto b { font-weight: 600; opacity: .9; }
+  .proto .seg { display: inline-flex; gap: 2px; padding: 2px; border-radius: 8px; background: rgb(255 255 255 / 14%); }
+  .proto .seg button { border: 0; background: none; color: #fff; opacity: .8; height: 24px; padding: 0 9px; border-radius: 6px; font-size: var(--fs-xs); font-weight: 500; cursor: pointer; }
+  .proto .seg button[aria-pressed="true"] { background: #fff; color: var(--ink-900); opacity: 1; }
+  .proto label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; opacity: .9; }
+
+  .card { display: flex; flex: 1; min-height: 0; width: 100%; max-width: 1400px; margin: 0 auto; border-radius: 16px; background: var(--surface-0); box-shadow: var(--e-4); overflow: hidden; }
+  .left { display: flex; flex: 0 0 58%; flex-direction: column; min-width: 0; border-right: 1px solid var(--line-200); }
+  .right { display: flex; flex: 1; flex-direction: column; min-width: 0; background: var(--surface-1); }
+
+  /* Header: .bm__hdr (unchanged, plus an honest GSTIN tag and copy) */
+  .hdr { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); flex-shrink: 0; padding: var(--sp-5) var(--sp-6) var(--sp-4); border-bottom: 1px solid var(--line-100); }
+  .badge { display: inline-block; padding: 3px 12px; border-radius: 12px; font-size: var(--fs-xs); font-weight: 700; background: var(--info-50); color: var(--info-700); margin-bottom: 5px; }
+  .vendor { font-size: var(--fs-lg); font-weight: var(--fw-semibold); line-height: 1.25; letter-spacing: -0.011em; color: var(--ink-900); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .vendor:hover { color: var(--brand-600); }
+  .vendor svg { color: var(--ink-300); }
+  .gstn { margin-top: var(--sp-1); display: flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--ink-500); }
+  .gtag { font-family: var(--font-sans); font-size: var(--fs-2xs); font-weight: var(--fw-semibold); padding: 1px 7px; border-radius: var(--r-full); }
+  .gtag--fmt { background: var(--surface-2); color: var(--ink-600); }
+  .gtag--ver { background: var(--success-50); color: var(--success-700); }
+  .copy { border: 0; background: none; padding: 2px; border-radius: var(--r-sm); color: var(--ink-300); display: inline-grid; cursor: pointer; }
+  .copy:hover { color: var(--ink-700); background: var(--surface-2); }
+  .hdr-act { display: flex; align-items: center; gap: 8px; }
+  .ebtn { display: inline-flex; align-items: center; gap: 5px; padding: var(--sp-2) var(--sp-4); border: 1px solid var(--line-200); border-radius: var(--r-md); background: var(--surface-1); font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--ink-600); cursor: pointer; }
+  .close { border: 0; background: none; padding: var(--sp-1); border-radius: var(--r-sm); color: var(--ink-500); display: flex; cursor: pointer; margin-top: 2px; }
+
+  .scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+
+  /* Approval stepper (as on the current screen) */
+  .stepper { display: flex; align-items: flex-start; padding: var(--sp-5) var(--sp-6) var(--sp-4); border-bottom: 1px solid var(--line-100); }
+  .step { display: flex; flex-direction: column; align-items: center; text-align: center; min-width: 96px; }
+  .dot { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; }
+  .dot--done { background: var(--success-600); color: #fff; }
+  .dot--cur { background: var(--info-600); }
+  .dot--todo { border: 2px solid var(--line-200); background: var(--surface-0); }
+  .sl { margin-top: 8px; font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-500); }
+  .sl--done { color: var(--success-600); } .sl--cur { color: var(--info-600); }
+  .sn { margin-top: 4px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-800); }
+  .sn--cur { color: var(--info-600); }
+  .sr { font-size: var(--fs-xs); color: var(--ink-500); }
+  .bar { flex: 1; height: 2px; margin-top: 12px; background: var(--line-200); }
+  .bar--done { background: var(--success-600); }
+  .stepper-foot { display: flex; justify-content: flex-end; padding: 0 var(--sp-6) var(--sp-3); border-bottom: 1px solid var(--line-100); margin-top: -8px; }
+  .lnk { border: 0; background: var(--info-50); color: var(--info-700); font-size: var(--fs-xs); font-weight: 600; padding: 5px 10px; border-radius: var(--r-md); cursor: pointer; }
+
+  /* ── Proposed details body: fixed, labelled sections ── */
+  .body { padding: var(--sp-5) var(--sp-6) var(--sp-6); }
+  .hero { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; }
+  .hero-lbl { width: 100%; font-size: var(--fs-2xs); font-weight: var(--fw-semibold); letter-spacing: .07em; text-transform: uppercase; color: var(--ink-500); }
+  .hero-v { font-family: var(--font-display); font-size: var(--fs-3xl); font-weight: var(--fw-bold); line-height: 1.1; letter-spacing: -0.028em; color: var(--ink-900); font-variant-numeric: tabular-nums; }
+  .hero-s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--fs-sm); color: var(--ink-500); }
+  .sep { color: var(--ink-300); }
+  .st { display: inline-flex; align-items: center; gap: 5px; font-weight: 500; color: var(--ink-700); }
+  .st i { width: 7px; height: 7px; border-radius: 50%; background: var(--ink-300); }
+  .st--bad { color: var(--danger-600); } .st--bad i { background: var(--danger-500); }
+  .st--ok { color: var(--success-700); } .st--ok i { background: var(--success-500); }
+  .st--warn { color: var(--warn-700); } .st--warn i { background: var(--warn-500); }
+  .hero-net { width: 100%; margin-top: 2px; font-size: var(--fs-sm); color: var(--ink-600); }
+  .hero-net b { color: var(--ink-900); font-variant-numeric: tabular-nums; }
+
+  /* Jump links: every section is one click away, in the same order every time. */
+  .jump { position: sticky; top: 0; z-index: 2; display: flex; gap: 4px; flex-wrap: wrap; padding: 8px var(--sp-6); background: rgb(255 255 255 / 92%); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line-100); }
+  .jump a { font-size: var(--fs-xs); font-weight: 500; color: var(--ink-600); text-decoration: none; padding: 3px 9px; border-radius: var(--r-full); }
+  .jump a:hover { background: var(--surface-2); color: var(--ink-900); }
+  .jump a.flag { color: var(--warn-700); }
+
+  .alert { margin-top: var(--sp-4); display: flex; gap: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--warn-50); box-shadow: inset 0 0 0 1px var(--warn-100); color: var(--warn-700); font-size: var(--fs-sm); }
+
+  /* A section: a clear title on its own line, then compact label-left rows. */
+  .sx { margin-top: var(--sp-5); scroll-margin-top: 48px; }
+  .sx-h { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line-200); }
+  .sx-t { font-size: var(--fs-xs); font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-900); }
+  .sx-a { font-size: var(--fs-xs); color: var(--ink-500); }
+  .kv { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 28px; }
+  .kv3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .row { display: flex; align-items: baseline; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line-100); font-size: var(--fs-sm); min-width: 0; }
+  .row .k { flex: 0 0 104px; color: var(--ink-500); }
+  .row .v { flex: 1; min-width: 0; color: var(--ink-900); font-weight: 500; overflow-wrap: anywhere; display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 6px; }
+  .kv3 .row { flex-direction: column; gap: 2px; }
+  .kv3 .row .k { flex: none; font-size: var(--fs-xs); }
+  .mono { font-family: var(--font-mono); font-size: var(--fs-xs); }
+  .hint { color: var(--ink-500); font-size: var(--fs-xs); font-weight: 400; }
+  .od { color: var(--danger-600); font-size: var(--fs-xs); font-weight: 600; }
+  .ok { color: var(--success-700); font-size: var(--fs-xs); font-weight: 600; }
+  .tag { font-size: var(--fs-2xs); font-weight: var(--fw-semibold); padding: 1px 7px; border-radius: var(--r-full); }
+  .tag--fmt { background: var(--surface-2); color: var(--ink-600); }
+  .tag--ver { background: var(--success-50); color: var(--success-700); }
+  .tag--warn { background: var(--warn-50); color: var(--warn-700); }
+
+  /* Breakdown tables: right-aligned, tabular, so each figure can be checked against the PDF. */
+  .bd { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+  .bd td { padding: 7px 0; border-bottom: 1px solid var(--line-100); }
+  .bd td.k { color: var(--ink-600); }
+  .bd td.k small { color: var(--ink-500); font-size: var(--fs-xs); margin-left: 6px; }
+  .bd td.r { color: var(--ink-500); font-size: var(--fs-xs); text-align: right; padding-right: 20px; white-space: nowrap; }
+  .bd td.v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-900); white-space: nowrap; }
+  .bd tr.na td { color: var(--ink-400); }
+  .bd tr.na td.v { color: var(--ink-400); }
+  .bd tr.sub td { font-weight: var(--fw-semibold); }
+  .bd tr.sub td.k { color: var(--ink-800); }
+  .bd tr.grand td { font-weight: var(--fw-bold); border-bottom: 0; border-top: 1.5px solid var(--ink-300); padding-top: 9px; }
+  .bd tr.grand td.k { color: var(--ink-900); }
+  .bd tr.minus td.v { color: var(--danger-600); }
+  .bd tr.paid td.v { color: var(--success-700); }
+  .chip { font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: var(--r-full); }
+  .chip--inter { background: var(--info-50); color: var(--info-700); }
+  .chip--intra { background: var(--success-50); color: var(--success-700); }
+  .none { margin-top: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-1); border: 1px dashed var(--line-300); font-size: var(--fs-sm); color: var(--ink-600); display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+  .none button { border: 1px solid var(--line-200); background: var(--surface-0); border-radius: var(--r-md); padding: 4px 10px; font-size: var(--fs-xs); font-weight: 600; color: var(--brand-600); cursor: pointer; }
+
+  /* Sections that stay as they are today, shown for context */
+  .sec { margin-top: var(--sp-6); }
+  .sec-h { padding: var(--sp-2) 0; border-bottom: 1px solid var(--line-200); font-size: var(--fs-2xs); font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-700); }
+  table.li { width: 100%; border-collapse: collapse; font-size: var(--fs-xs); margin-top: 6px; }
+  .li th { text-align: left; font-weight: 600; color: var(--ink-500); padding: 6px 6px; border-bottom: 1px solid var(--line-200); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .05em; }
+  .li td { padding: 8px 6px; border-bottom: 1px solid var(--line-100); color: var(--ink-800); }
+  .li .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .tds { margin-top: 8px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px; border-radius: var(--r-md); background: var(--surface-1); border: 1px solid var(--line-200); font-size: var(--fs-xs); }
+  .tds span { display: block; color: var(--ink-500); font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: .05em; }
+  .tds b { font-weight: 600; color: var(--ink-900); font-variant-numeric: tabular-nums; }
+  .att { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .att span { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line-200); border-radius: var(--r-md); font-size: var(--fs-xs); color: var(--ink-700); background: var(--surface-0); }
+  .att .add { color: var(--brand-600); border-style: dashed; font-weight: 600; }
+
+  /* Decision bar: .bm__actions */
+  .actions { flex-shrink: 0; padding: var(--sp-4) var(--sp-5); border-top: 1px solid var(--line-200); background: var(--surface-0); }
+  .comment { width: 100%; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--line-200); border-radius: var(--r-md); font: var(--fs-xs)/1.5 var(--font-sans); color: var(--ink-800); resize: none; outline: none; }
+  .comment:focus { border-color: var(--brand-400); box-shadow: 0 0 0 3px var(--brand-100); }
+  .btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: var(--sp-2) var(--sp-4); border: 0; border-radius: var(--r-md); font-size: var(--fs-xs); font-weight: var(--fw-semibold); cursor: pointer; white-space: nowrap; }
+  .btn--approve { flex: 1; background: var(--success-600); color: #fff; }
+  .btn--sendback { background: var(--danger-50); color: var(--danger-700); box-shadow: inset 0 0 0 1px var(--danger-100); }
+
+  /* PDF pane: .bm__pdfbar / .bm__pdfbody */
+  .pdfbar { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; padding: var(--sp-2) var(--sp-4); border-bottom: 1px solid var(--line-200); background: rgb(255 255 255 / 84%); }
+  .pctrls { display: flex; align-items: center; gap: 2px; }
+  .pctrl { display: flex; align-items: center; padding: 5px 7px; border: 0; border-radius: var(--r-sm); background: none; color: var(--ink-600); cursor: pointer; }
+  .pctrl:hover { background: var(--surface-2); }
+  .vsep { width: 1px; height: 16px; background: var(--line-200); margin: 0 4px; }
+  .pg { font-size: var(--fs-xs); color: var(--ink-500); }
+  .pdfbody { flex: 1; overflow: auto; padding: var(--sp-5); display: flex; justify-content: center; }
+
+  /* A stand-in invoice page */
+  .page { width: 100%; max-width: 520px; aspect-ratio: 1 / 1.414; background: #fff; box-shadow: var(--e-2); border: 1px solid var(--line-200); padding: 36px 34px; font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 10px; line-height: 1.45; overflow: hidden; }
+  .page h2 { margin: 0; font-size: 15px; letter-spacing: .02em; }
+  .page .muted { color: #555; }
+  .page .row { display: flex; justify-content: space-between; gap: 16px; margin-top: 16px; }
+  .page .box { border: 1px solid #ccc; padding: 8px 10px; flex: 1; }
+  .page table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .page th, .page td { border: 1px solid #ccc; padding: 5px 6px; text-align: left; }
+  .page td.n, .page th.n { text-align: right; }
+  .page .tot { margin-top: 10px; margin-left: auto; width: 55%; }
+  .page .tot div { display: flex; justify-content: space-between; padding: 3px 0; }
+  .page .tot .g { border-top: 1px solid #111; font-weight: 700; margin-top: 3px; padding-top: 5px; }
+  .page .title { text-align: center; font-weight: 700; font-size: 12px; letter-spacing: .1em; margin-top: 14px; }
+
+  @media (width <= 980px) {
+    .card { flex-direction: column; }
+    .left { flex: 1 1 auto; border-right: 0; }
+    .right { display: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="app" aria-hidden="true">
+    <div class="app-nav"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="app-main"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  </div>
+
+  <div class="overlay">
+    <div class="proto" aria-label="Prototype states">
+      <b>Prototype</b>
+      <span class="seg" data-key="pay">
+        <button data-v="unpaid" aria-pressed="true">Unpaid</button>
+        <button data-v="partial" aria-pressed="false">Part paid</button>
+        <button data-v="paid" aria-pressed="false">Paid in full</button>
+      </span>
+      <span class="seg" data-key="gst">
+        <button data-v="inter" aria-pressed="true">Inter-state</button>
+        <button data-v="intra" aria-pressed="false">Intra-state</button>
+      </span>
+      <label><input type="checkbox" data-key="overdue" checked> Overdue</label>
+      <label><input type="checkbox" data-key="tds"> TDS</label>
+      <label><input type="checkbox" data-key="verified"> GSTIN portal-verified</label>
+      <label><input type="checkbox" data-key="mismatch"> Billed to another GSTIN</label>
+    </div>
+
+    <div class="card" role="dialog" aria-label="Bill 26-27/9">
+      <div class="left">
+        <div class="hdr">
+          <div style="flex:1;min-width:0">
+            <span class="badge">Pending · Admin</span><br>
+            <a class="vendor" href="#" onclick="return false" title="Open vendor">FullStop Entertainment LLP
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M7 17 17 7M7 7h10v10"/></svg></a>
+            <div class="gstn" id="gstn"></div>
+          </div>
+          <div class="hdr-act">
+            <button class="ebtn" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>Edit</button>
+            <button class="ebtn" type="button"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>Export</button>
+            <button class="close" type="button" aria-label="Close"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+        </div>
+
+        <div class="scroll">
+          <div class="stepper">
+            <div class="step"><span class="dot dot--done"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M20 6 9 17l-5-5"/></svg></span><span class="sl sl--done">Submitted</span><span class="sn">Javed</span><span class="sr">Approver</span></div>
+            <div class="bar bar--done"></div>
+            <div class="step"><span class="dot dot--cur"></span><span class="sl sl--cur">Admin</span><span class="sn sn--cur">Naseem Ansari</span><span class="sr">Admin</span></div>
+            <div class="bar"></div>
+            <div class="step"><span class="dot dot--todo"></span><span class="sl">Done</span></div>
+          </div>
+          <div class="stepper-foot" style="padding-top:12px;margin-top:0"><button class="lnk" type="button">View activity (2)</button></div>
+
+          <nav class="jump" id="jump" aria-label="Sections"></nav>
+          <div class="body" id="body"></div>
+        </div>
+
+        <div class="actions">
+          <textarea class="comment" rows="2" placeholder="Optional note…"></textarea>
+          <div class="btns">
+            <button class="btn btn--approve" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>Approve</button>
+            <button class="btn btn--sendback" type="button"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 10 4 15l5 5"/><path d="M20 4v7a4 4 0 0 1-4 4H4"/></svg>Send Back</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="right">
+        <div class="pdfbar">
+          <div class="pctrls">
+            <button class="pctrl" type="button" aria-label="Full screen"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+            <span class="vsep"></span>
+            <button class="pctrl" type="button" aria-label="Zoom in"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></svg></button>
+            <button class="pctrl" type="button" aria-label="Zoom out"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3M8 11h6"/></svg></button>
+            <span class="vsep"></span>
+            <button class="pctrl" type="button" aria-label="Reset"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          </div>
+          <span class="pg">Page 1 of 1</span>
+          <span style="width:60px"></span>
+        </div>
+        <div class="pdfbody">
+          <div class="page" aria-label="Invoice PDF (stand-in)">
+            <h2>FULLSTOP ENTERTAINMENT LLP</h2>
+            <div class="muted">Unit 4, Andheri (W), Mumbai, Maharashtra 400053<br>GSTIN: 27AADFF0493P1Z0 · accounts@fullstopent.in</div>
+            <div class="title">TAX INVOICE</div>
+            <div class="row">
+              <div class="box"><b>Billed to</b><br>AVINASH CAPITAL MARKETS PVT LTD<br>New Delhi, Delhi 110001<br>GSTIN: 07AACCA2775M1ZF</div>
+              <div class="box"><b>Invoice no.</b> 26-27/9<br><b>Date</b> 13-04-2026<br><b>Terms</b> Due on receipt<br><b>Place of supply</b> Maharashtra (27)</div>
+            </div>
+            <table>
+              <thead><tr><th>#</th><th>Description</th><th>SAC</th><th class="n">Amount</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>Event production – Acme group annual meet</td><td>998596</td><td class="n">40,000.00</td></tr>
+                <tr><td>2</td><td>Artist coordination &amp; logistics</td><td>998596</td><td class="n">15,000.00</td></tr>
+              </tbody>
+            </table>
+            <div class="tot">
+              <div><span>Taxable value</span><span>55,000.00</span></div>
+              <div><span>IGST @ 18%</span><span>9,900.00</span></div>
+              <div class="g"><span>Total (₹)</span><span>64,900.00</span></div>
+            </div>
+            <p class="muted" style="margin-top:22px">Amount in words: Rupees Sixty Four Thousand Nine Hundred Only.<br>Bank: HDFC Bank · A/c 5020 0012 3456 · IFSC HDFC0001721</p>
+            <p style="margin-top:28px;text-align:right">For FullStop Entertainment LLP<br><br><br>Authorised signatory</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const S = { pay: 'unpaid', gst: 'inter', overdue: true, tds: false, verified: false, mismatch: false }
+  const TOTAL = 64900, SUB = 55000, TAX = 9900, PAID = 20000, TDS = 1100
+  const inr = n => '₹' + n.toLocaleString('en-IN', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 })
+  const COPY = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>'
+
+  function render() {
+    const paid = S.pay === 'paid' ? TOTAL : S.pay === 'partial' ? PAID : 0
+    const out = TOTAL - paid
+    const overdue = S.overdue && out > 0
+
+    // Header GSTIN: the tick says what was actually checked.
+    document.getElementById('gstn').innerHTML = `27AADFF0493P1Z0 ${S.verified
+      ? '<span class="gtag gtag--ver" title="Confirmed on the GST portal">Verified</span>'
+      : '<span class="gtag gtag--fmt" title="Check digit is valid. Not confirmed on the GST portal.">Format OK</span>'}
+      <button class="copy" type="button" aria-label="Copy GSTIN">${COPY}</button>`
+
+    const tdsAmt = S.tds ? TDS : 0
+    const net = TOTAL - tdsAmt
+    let heroLbl = 'Bill amount (incl. GST)', heroV = inr(TOTAL), status
+    if (S.pay === 'unpaid') status = '<span class="st"><i></i>Unpaid</span>'
+    else if (S.pay === 'partial') status = '<span class="st st--warn"><i></i>Part paid</span>'
+    else status = '<span class="st st--ok"><i></i>Paid in full</span>'
+    const od = overdue ? '<span class="sep">·</span><span class="st st--bad"><i></i>Overdue 195 days</span>' : ''
+    const heroNet = S.tds
+      ? `<div class="hero-net">Net payable after TDS <b>${inr(net)}</b>${paid ? ` · outstanding <b>${inr(Math.max(0, net - paid))}</b>` : ''}</div>`
+      : (paid && out > 0 ? `<div class="hero-net">Outstanding <b>${inr(out)}</b></div>` : '')
+
+    const sec = (id, title, aside, inner) => `<section class="sx" id="${id}"><div class="sx-h"><span class="sx-t">${title}</span>${aside ? `<span class="sx-a">${aside}</span>` : ''}</div>${inner}</section>`
+    const row = (k, v) => `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`
+
+    const gstTag = S.verified ? '<span class="tag tag--ver">Verified on GST portal</span>' : '<span class="tag tag--fmt" title="Check digit is valid. Not confirmed on the GST portal.">Format OK · not portal-verified</span>'
+
+    // Tax rows: the applicable type with its rate; the other type stated as not applicable, so both were visibly considered.
+    const taxRows = S.gst === 'inter'
+      ? `<tr><td class="k">IGST</td><td class="r">18%</td><td class="v">${inr(TAX)}</td></tr>
+         <tr class="na"><td class="k">CGST + SGST</td><td class="r">not applicable</td><td class="v">—</td></tr>`
+      : `<tr><td class="k">CGST</td><td class="r">9%</td><td class="v">${inr(TAX / 2)}</td></tr>
+         <tr><td class="k">SGST</td><td class="r">9%</td><td class="v">${inr(TAX / 2)}</td></tr>
+         <tr class="na"><td class="k">IGST</td><td class="r">not applicable</td><td class="v">—</td></tr>`
+
+    const tdsSec = S.tds
+      ? `<table class="bd">
+          <tr><td class="k">Section<small>Professional / technical services</small></td><td class="r"></td><td class="v">194J</td></tr>
+          <tr><td class="k">TDS base<small>taxable value, excl. GST</small></td><td class="r"></td><td class="v">${inr(SUB)}</td></tr>
+          <tr class="minus"><td class="k">TDS deducted</td><td class="r">2%</td><td class="v">−${inr(TDS)}</td></tr>
+          <tr class="grand"><td class="k">Net payable to vendor</td><td class="r"></td><td class="v">${inr(net)}</td></tr>
+        </table>`
+      : `<div class="none"><span><b>No TDS applied.</b> Vendor category: Event services. Check whether 194C/194J applies before approving.</span><button type="button">Apply TDS</button></div>`
+
+    const paySec = `<div class="kv">
+        ${row('Status', S.pay === 'unpaid' ? 'Unpaid' : S.pay === 'partial' ? '<span style="color:var(--warn-700)">Part paid</span>' : '<span style="color:var(--success-700)">Paid in full</span>')}
+        ${row('Due', `13 Apr 2026 ${overdue ? '<span class="od">195 days overdue</span>' : ''}`)}
+        ${row('Amount paid', paid ? `${inr(paid)} <span class="hint">2 May 2026</span>` : inr(0))}
+        ${row('Outstanding', `<b style="color:${out > 0 ? (overdue ? 'var(--danger-600)' : 'var(--ink-900)') : 'var(--success-700)'}">${inr(Math.max(0, net - paid))}</b>${S.tds ? '<span class="hint">after TDS</span>' : ''}`)}
+        ${paid ? row('Reference', '<span class="mono">UTR 41082265339921</span>') : ''}
+        ${paid ? row('Paid to', 'HDFC Bank ···· 3456') : ''}
+      </div>`
+
+    const flags = []
+    if (!S.tds) flags.push('tds')
+    document.getElementById('jump').innerHTML = [
+      ['s-bill', 'Bill'], ['s-vendor', 'Vendor'], ['s-buyer', 'Buyer'], ['s-amt', 'Amounts'],
+      ['s-tds', S.tds ? 'TDS' : 'TDS · none'], ['s-pay', 'Payment'], ['s-lines', 'Line items'], ['s-docs', 'Documents'],
+    ].map(([id, t]) => `<a href="#${id}"${id === 's-tds' && !S.tds ? ' class="flag"' : ''}>${t}</a>`).join('')
+
+    document.getElementById('body').innerHTML = `
+      <div class="hero">
+        <div class="hero-lbl">${heroLbl}</div>
+        <div class="hero-v">${heroV}</div>
+        <div class="hero-s">${status}${od}</div>
+        ${heroNet}
+      </div>
+      ${S.mismatch ? '<div class="alert" role="note">⚠︎ <span>Billed to <b>07AACCB9911K1ZQ</b>, not your GSTIN 07AACCA2775M1ZF. Check it’s addressed to the right entity before approving.</span></div>' : ''}
+
+      ${sec('s-bill', 'Bill', '', `<div class="kv">
+        ${row('Bill no.', `<span class="mono">26-27/9</span><button class="copy" type="button" aria-label="Copy bill number">${COPY}</button>`)}
+        ${row('Payment terms', 'Due on receipt')}
+        ${row('Bill date', '13 Apr 2026')}
+        ${row('Due date', `13 Apr 2026 ${overdue ? '<span class="od">195 days overdue</span>' : ''}`)}
+      </div>`)}
+
+      ${sec('s-vendor', 'Vendor', '', `<div class="kv">
+        ${row('Name', 'FullStop Entertainment LLP')}
+        ${row('Email', 'accounts@fullstopent.in')}
+        ${row('GSTIN', `<span class="mono">27AADFF0493P1Z0</span>${gstTag}`)}
+        ${row('PAN', '<span class="mono">AADFF0493P</span>')}
+        ${row('Pays to', 'HDFC Bank ···· 3456 <span class="ok">Verified</span>')}
+        ${row('Category', 'Event services')}
+      </div>`)}
+
+      ${sec('s-buyer', 'Buyer', S.mismatch ? '<span class="tag tag--warn">Not your GSTIN</span>' : '<span class="ok">Matches your GSTIN</span>', `<div class="kv kv3">
+        ${row('Name', 'Avinash Capital Markets Pvt Ltd')}
+        ${row('Brand', 'Acme group')}
+        ${row('GSTIN', `<span class="mono">${S.mismatch ? '07AACCB9911K1ZQ' : '07AACCA2775M1ZF'}</span>`)}
+      </div>`)}
+
+      ${sec('s-amt', 'Amount breakdown', `<span class="chip ${S.gst === 'inter' ? 'chip--inter">Inter-state' : 'chip--intra">Intra-state'}</span> · Place of supply ${S.gst === 'inter' ? 'Maharashtra (27)' : 'Delhi (07)'}`, `<table class="bd">
+        <tr><td class="k">Subtotal</td><td class="r"></td><td class="v">${inr(SUB)}</td></tr>
+        <tr><td class="k">Discount</td><td class="r"></td><td class="v">${inr(0)}</td></tr>
+        <tr class="sub"><td class="k">Taxable value</td><td class="r"></td><td class="v">${inr(SUB)}</td></tr>
+        ${taxRows}
+        <tr class="sub"><td class="k">Total GST</td><td class="r"></td><td class="v">${inr(TAX)}</td></tr>
+        <tr class="grand"><td class="k">Bill total</td><td class="r"></td><td class="v">${inr(TOTAL)}</td></tr>
+      </table>`)}
+
+      ${sec('s-tds', 'TDS', S.tds ? '194J · 2%' : '', tdsSec)}
+
+      ${sec('s-pay', 'Payment', '', paySec)}
+
+      ${sec('s-lines', 'Line items', '2 lines · matches subtotal', `<table class="li">
+        <thead><tr><th>#</th><th>Description</th><th>SAC</th><th class="n">Amount</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>Event production – Acme group annual meet</td><td>998596</td><td class="n">₹40,000.00</td></tr>
+          <tr><td>2</td><td>Artist coordination &amp; logistics</td><td>998596</td><td class="n">₹15,000.00</td></tr>
+        </tbody>
+      </table>`)}
+
+      ${sec('s-docs', 'Supporting documents', '', '<div class="att"><span>📄 Event_brief.pdf</span><span class="add">+ Attach files</span></div>')}`
+  }
+
+  document.querySelectorAll('.seg').forEach(seg => seg.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return
+    S[seg.dataset.key] = b.dataset.v
+    seg.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x === b)))
+    render()
+  }))
+  document.querySelectorAll('.proto input').forEach(c => c.addEventListener('change', () => { S[c.dataset.key] = c.checked; render() }))
+  render()
+</script>
+</body>
+</html>

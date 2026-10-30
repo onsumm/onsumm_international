@@ -1,0 +1,480 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>TDS Engine Verification Run</title>
+<style>
+  :root {
+    --paper:#f5f6fa; --paper-raised:#ffffff; --ink:#1c2430; --ink-soft:#5b6472;
+    --line:#dfe3ea; --accent:#2954a6; --accent-soft:#eaf0fb;
+    --pass:#1e7f4f; --pass-soft:#e5f3ec; --fail:#b3411e; --fail-soft:#f8e9e4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#12161d; --paper-raised:#181d26; --ink:#e7eaf0; --ink-soft:#93a0b4;
+      --line:#262d3a; --accent:#8fb2ff; --accent-soft:#1c2740;
+      --pass:#49c98a; --pass-soft:#173428; --fail:#e8836a; --fail-soft:#3a2119;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#12161d; --paper-raised:#181d26; --ink:#e7eaf0; --ink-soft:#93a0b4;
+    --line:#262d3a; --accent:#8fb2ff; --accent-soft:#1c2740;
+    --pass:#49c98a; --pass-soft:#173428; --fail:#e8836a; --fail-soft:#3a2119;
+  }
+  * { box-sizing:border-box; }
+  body {
+    background:var(--paper); color:var(--ink); margin:0; padding:48px 24px 80px;
+    font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .mono { font-family:ui-monospace,"SF Mono",Consolas,"Cascadia Mono",monospace;
+           font-variant-numeric:tabular-nums; font-size:12.5px; }
+  .sheet { max-width:900px; margin:0 auto; }
+  .eyebrow { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+              color:var(--accent); margin-bottom:10px; }
+  h1 { font-family:Georgia,"Iowan Old Style","Times New Roman",serif; font-size:30px;
+        font-weight:600; margin:0 0 8px; text-wrap:balance; }
+  .meta { color:var(--ink-soft); font-size:13px; margin-bottom:32px; }
+  .meta .mono { font-size:12.5px; }
+  .stamps { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:36px; }
+  .stamp { background:var(--paper-raised); border:1px solid var(--line); border-radius:10px;
+            padding:16px 18px; }
+  .stamp .n { font-family:Georgia,serif; font-size:28px; font-weight:600;
+               font-variant-numeric:tabular-nums; line-height:1; }
+  .stamp .l { font-size:11px; color:var(--ink-soft); text-transform:uppercase;
+               letter-spacing:.08em; margin-top:6px; }
+  .stamp.pass .n { color:var(--pass); } .stamp.fail .n { color:var(--fail); }
+  .verdict { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600;
+              padding:6px 14px; border-radius:999px; margin-bottom:36px;
+              background:var(--fail-soft);
+              color:var(--fail); }
+  .group { margin-bottom:22px; border:1px solid var(--line); border-radius:12px;
+            background:var(--paper-raised); overflow:hidden; }
+  .group-head { display:flex; align-items:baseline; justify-content:space-between;
+                 padding:14px 18px; border-bottom:1px solid var(--line); }
+  .group-head h2 { font-size:14.5px; font-weight:600; margin:0; text-wrap:balance; }
+  .tally { font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums;
+            padding:2px 9px; border-radius:999px; white-space:nowrap; margin-left:12px; }
+  .tally-pass { background:var(--pass-soft); color:var(--pass); }
+  .tally-fail { background:var(--fail-soft); color:var(--fail); }
+  .table-scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th { text-align:left; font-size:10.5px; text-transform:uppercase; letter-spacing:.06em;
+        color:var(--ink-soft); font-weight:600; padding:9px 18px; border-bottom:1px solid var(--line); }
+  td { padding:11px 18px; border-bottom:1px solid var(--line); font-size:13px; vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  .row-fail { background:var(--fail-soft); }
+  .col-status { width:64px; } .col-case { width:34%; } .col-val { width:23%; }
+  .pill { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 9px; border-radius:999px; }
+  .pill.pass { background:var(--pass-soft); color:var(--pass); }
+  .pill.fail { background:var(--fail-soft); color:var(--fail); }
+  .case-note { color:var(--ink-soft); font-size:11.5px; margin-top:4px; }
+  .signoff { margin-top:32px; padding:16px 20px; border:1px solid var(--line); border-radius:10px;
+              background:var(--accent-soft); font-size:13px; color:var(--ink); }
+  .signoff strong { color:var(--accent); }
+</style></head>
+<body>
+  <div class="sheet">
+    <div class="eyebrow">TDS Engine &middot; Verification Run</div>
+    <h1>TDS Test Report</h1>
+    <div class="meta">
+      Tenant <span class="mono">Demo2 Company Pvt Ltd &middot; d0e00000-0000-0000-0000-000000000002</span><br>
+      Run at 2026-10-01 23:56:17 against <span class="mono">utils/tds_engine.py</span>
+      and <span class="mono">backend_ocr/app/tds_api.py</span>
+    </div>
+
+    <div class="stamps">
+      <div class="stamp"><div class="n mono">34</div><div class="l">Cases run</div></div>
+      <div class="stamp pass"><div class="n mono">27</div><div class="l">Passed</div></div>
+      <div class="stamp fail"><div class="n mono">7</div><div class="l">Failed</div></div>
+    </div>
+
+    <div class="verdict">7 checks failed</div>
+
+    
+        <section class="group">
+          <header class="group-head">
+            <h2>AGGREGATE_FY (194A General, ₹10,000 threshold, 10%)</h2>
+            <span class="tally tally-pass">3 / 3</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #1 (₹8,000)</td>
+                <td class="col-val"><span class="mono">applicable=False base=None tds=None status=BELOW_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=False base=8000 tds=0 status=BELOW_THRESHOLD</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #2 (₹5,000)</td>
+                <td class="col-val"><span class="mono">applicable=True base=5000 tds=500 status=CROSSING</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=5000 tds=500 status=CROSSING</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #3 (₹3,000)</td>
+                <td class="col-val"><span class="mono">applicable=True base=3000 tds=300 status=ABOVE_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=3000 tds=300 status=ABOVE_THRESHOLD</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>DUAL (194C via 'Contractor - Company/Firm', ₹30,000/txn OR ₹1,00,000/FY, rate_override 2%)</h2>
+            <span class="tally tally-pass">4 / 4</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #1 (₹35,000)<div class="case-note">per-bill crossing must NOT set the aggregate flag</div></td>
+                <td class="col-val"><span class="mono">applicable=True base=35000 tds=700 status=CROSSING</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=35000 tds=700 status=CROSSING</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #2 (₹20,000)</td>
+                <td class="col-val"><span class="mono">applicable=False base=None tds=None status=BELOW_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=False base=20000 tds=0 status=BELOW_THRESHOLD</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #3 (₹50,000)</td>
+                <td class="col-val"><span class="mono">applicable=True base=50000 tds=1000 status=CROSSING</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=50000 tds=1000 status=CROSSING</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #4 (₹10,000)</td>
+                <td class="col-val"><span class="mono">applicable=True base=10000 tds=200 status=ABOVE_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=10000 tds=200 status=ABOVE_THRESHOLD</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>EXCESS_OF (194Q, ₹50,00,000 threshold, 0.10%)</h2>
+            <span class="tally tally-pass">3 / 3</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #1 (₹4,500,000)</td>
+                <td class="col-val"><span class="mono">applicable=False base=None tds=None status=BELOW_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=False base=4500000 tds=0 status=BELOW_THRESHOLD</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #2 (₹1,000,000)<div class="case-note">TDS must apply only to the amount exceeding the threshold</div></td>
+                <td class="col-val"><span class="mono">applicable=True base=500000 tds=500 status=EXCESS_OF</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=500000.00 tds=500 status=EXCESS_OF</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #3 (₹2,000,000)</td>
+                <td class="col-val"><span class="mono">applicable=True base=2000000 tds=2000 status=EXCESS_OF</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=2000000.00 tds=2000 status=EXCESS_OF</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>PER_MONTH (194I(b) Rent, ₹50,000/month, 10%)</h2>
+            <span class="tally tally-pass">3 / 3</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #1 Jul (₹30,000)</td>
+                <td class="col-val"><span class="mono">applicable=False status=BELOW_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=False status=BELOW_THRESHOLD</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #2 Jul (₹25,000)</td>
+                <td class="col-val"><span class="mono">applicable=True base=25000 tds=2500 status=CROSSING</span></td>
+                <td class="col-val"><span class="mono">applicable=True base=25000 tds=2500 status=CROSSING</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill #3 Aug, new month (₹10,000)<div class="case-note">monthly counter must reset for a new calendar month</div></td>
+                <td class="col-val"><span class="mono">applicable=False status=BELOW_THRESHOLD</span></td>
+                <td class="col-val"><span class="mono">applicable=False status=BELOW_THRESHOLD</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>PAN-missing penalty rate</h2>
+            <span class="tally tally-pass">1 / 1</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">vendor with no PAN, not verified (₹50,000 bill, above 194C per-txn threshold)</td>
+                <td class="col-val"><span class="mono">rate=20% rate_source=NO_PAN_PENALTY tds=10000</span></td>
+                <td class="col-val"><span class="mono">rate=20.00% rate_source=NO_PAN_PENALTY tds=10000</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Backdate guard (>90 days old, admin has NOT force-processed)</h2>
+            <span class="tally tally-pass">1 / 1</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">bill dated 2026-03-15 (200 days old)</td>
+                <td class="col-val"><span class="mono">applicable=False status=REVIEW_REQUIRED</span></td>
+                <td class="col-val"><span class="mono">applicable=False status=REVIEW_REQUIRED</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Base-amount math: GROSS vs GST_EXCLUSIVE</h2>
+            <span class="tally tally-pass">2 / 2</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">GROSS section (subtotal=1,00,000 tax=18,000 total=1,18,000)</td>
+                <td class="col-val"><span class="mono">base_amount=118000</span></td>
+                <td class="col-val"><span class="mono">base_amount=118000</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">GST_EXCLUSIVE section (subtotal=1,00,000 tax=18,000 total=1,18,000)</td>
+                <td class="col-val"><span class="mono">base_amount=100000</span></td>
+                <td class="col-val"><span class="mono">base_amount=100000</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Misconfiguration guards (must refuse, not silently withhold zero)</h2>
+            <span class="tally tally-fail">1 / 4</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">DUAL with threshold_amount_2 unset: small bill does not deduct</td>
+                <td class="col-val"><span class="mono">applicable=False</span></td>
+                <td class="col-val"><span class="mono">applicable=True tds=100</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">DUAL with threshold_amount_2 unset: per-txn leg still fires</td>
+                <td class="col-val"><span class="mono">applicable=True tds=800</span></td>
+                <td class="col-val"><span class="mono">applicable=True tds=800</span></td>
+              </tr>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">unrecognised threshold_type is NA with a reason</td>
+                <td class="col-val"><span class="mono">applicable=False, reason names the bad value</span></td>
+                <td class="col-val"><span class="mono">applicable=True reason='rate=10.00% base=0 mode=cumulative'</span></td>
+              </tr>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">unrecognised tds_mode is NA with a reason</td>
+                <td class="col-val"><span class="mono">applicable=False, reason names the bad value</span></td>
+                <td class="col-val"><span class="mono">applicable=True reason='rate=10.00% base=0 mode=bogus_mode'</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Zero taxable base (OCR missed the pre-GST line)</h2>
+            <span class="tally tally-fail">0 / 1</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">missing taxable is derived as total − GST, not treated as zero</td>
+                <td class="col-val"><span class="mono">base=64439 tds=1289</span></td>
+                <td class="col-val"><span class="mono">base=0 tds=0</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Aggregate-threshold arrears</h2>
+            <span class="tally tally-fail">1 / 3</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">AGGREGATE_FY: untaxed prior ₹30,000 becomes ₹3,000 of arrears</td>
+                <td class="col-val"><span class="mono">tds=3000 arrears=3000</span></td>
+                <td class="col-val"><span class="mono">tds=3000 arrears=0</span></td>
+              </tr>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">arrears are booked once, not re-added on the next bill</td>
+                <td class="col-val"><span class="mono">arrears unchanged at 3000</span></td>
+                <td class="col-val"><span class="mono">arrears=0</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">DUAL: a prior bill already taxed per-txn is NOT charged as arrears</td>
+                <td class="col-val"><span class="mono">arrears=0</span></td>
+                <td class="col-val"><span class="mono">tds=1400 arrears=0</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Fiscal-year bounds across start months</h2>
+            <span class="tally tally-fail">3 / 4</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">fy_start_month=4, date=2026-06-01</td>
+                <td class="col-val"><span class="mono">2026-04-01..2027-03-31</span></td>
+                <td class="col-val"><span class="mono">2026-04-01..2027-03-31</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">fy_start_month=4, date=2026-02-01</td>
+                <td class="col-val"><span class="mono">2025-04-01..2026-03-31</span></td>
+                <td class="col-val"><span class="mono">2025-04-01..2026-03-31</span></td>
+              </tr>
+              <tr class="row-fail">
+                <td class="col-status"><span class="pill fail">Fail</span></td>
+                <td class="col-case">fy_start_month=1, date=2026-06-01</td>
+                <td class="col-val"><span class="mono">2026-01-01..2026-12-31</span></td>
+                <td class="col-val"><span class="mono">raised IllegalMonthError: bad month number 0; must be 1-12</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">fy_start_month=12, date=2026-12-01</td>
+                <td class="col-val"><span class="mono">2026-12-01..2027-11-30</span></td>
+                <td class="col-val"><span class="mono">2026-12-01..2027-11-30</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Double-count regression (Add-Override no longer re-inflates FY state)</h2>
+            <span class="tally tally-pass">3 / 3</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">POST vendor-overrides succeeds<div class="case-note">{"override_id":"db3e59c1-f62a-4745-aad3-935c8713a67d","bills_reset":1}</div></td>
+                <td class="col-val"><span class="mono">201</span></td>
+                <td class="col-val"><span class="mono">201</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">vendor_tds_fy_state wiped after override save (was pre-seeded with stale cumulative_billed)</td>
+                <td class="col-val"><span class="mono">0 rows</span></td>
+                <td class="col-val"><span class="mono">0 rows</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">pre-existing CALCULATED bill reset to PENDING for reprocessing</td>
+                <td class="col-val"><span class="mono">PENDING</span></td>
+                <td class="col-val"><span class="mono">PENDING</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="group">
+          <header class="group-head">
+            <h2>Security fix: cross-tenant TDS section rejection</h2>
+            <span class="tally tally-pass">2 / 2</span>
+          </header>
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th class="col-status">Result</th><th class="col-case">Case</th><th class="col-val">Expected</th><th class="col-val">Actual</th></tr>
+              </thead>
+              <tbody>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">override pointing at tenant 003's section is rejected<div class="case-note">{"detail":"TDS section does not belong to this tenant","request_id":"8d173216ab3a4db7"}</div></td>
+                <td class="col-val"><span class="mono">400</span></td>
+                <td class="col-val"><span class="mono">400</span></td>
+              </tr>
+              <tr class="">
+                <td class="col-status"><span class="pill pass">Pass</span></td>
+                <td class="col-case">override pointing at tenant 002's own section still succeeds (no false positive)<div class="case-note">{"override_id":"1f7b96d9-a4df-427e-9ea6-961f149906d7","bills_reset":0}</div></td>
+                <td class="col-val"><span class="mono">201</span></td>
+                <td class="col-val"><span class="mono">201</span></td>
+              </tr></tbody>
+            </table>
+          </div>
+        </section>
+
+    <div class="signoff"><strong>Cleanup —</strong> Every row this run created — suppliers, sections, overrides, bills — was removed and independently re-verified as gone.</div>
+  </div>
+</body></html>

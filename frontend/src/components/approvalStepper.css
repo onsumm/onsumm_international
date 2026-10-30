@@ -1,0 +1,183 @@
+/* The approval stepper, moved out of bills.css with the component it styles.
+   Class names keep their bm__ prefix: they are the component's own now, and
+   renaming them would have made the move a rewrite instead of a move. */
+
+/* ── Approval stepper ───────────────────────────────────────────────────
+   Answers "where is this bill and who has it". Nothing here drops below the
+   11px floor any more — the old 8px role line was decoration, not text. */
+
+.bm__stepper-wrap {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--line-100);
+}
+
+.bm__stepper {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  padding: var(--sp-3) var(--sp-5) var(--sp-2);
+}
+
+.bm__step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.bm__step-lbl {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--ink-500);
+}
+
+.bm__step-lbl--active {
+  color: var(--info-700);
+}
+
+.bm__step-lbl--back {
+  color: var(--danger-600);
+}
+
+.bm__step-lbl--done {
+  color: var(--success-600);
+}
+
+.bm__step-actor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  margin-top: 1px;
+  max-width: 96px;
+}
+
+.bm__step-actor-name,
+.bm__step-actor-role {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bm__step-actor-name {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+}
+
+.bm__step-actor-role {
+  font-size: var(--fs-2xs);
+  text-transform: capitalize;
+  color: var(--ink-500);
+}
+
+.bm__dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--line-200);
+  border-radius: 50%;
+  background: var(--surface-0);
+}
+
+.bm__dot--ok {
+  border-color: var(--success-600);
+  background: var(--success-600);
+  color: var(--surface-0);
+}
+
+.bm__dot--active {
+  border-color: var(--info-600);
+  background: var(--info-600);
+  animation: bm-pulse-dot 1.8s var(--bp-ease) infinite;
+}
+
+.bm__dot--back {
+  border-color: var(--danger-500);
+  background: var(--danger-50);
+  color: var(--danger-600);
+}
+
+.bm__dot--idle {
+  border-color: var(--line-200);
+  background: var(--surface-1);
+}
+
+/* A slow, low-amplitude breath. Anything faster reads as an error state. */
+@keyframes bm-pulse-dot {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 32%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 5px rgb(37 99 235 / 0%);
+  }
+}
+
+.bm__connector {
+  flex: 1;
+  min-width: 12px;
+  height: 2px;
+  align-self: flex-start;
+  margin-top: 11px;
+  background: var(--line-200);
+}
+
+.bm__connector--done {
+  background: var(--success-600);
+}
+
+/* Striped where the bill went backwards and came forward again. */
+.bm__connector--revised {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--success-600) 0,
+    var(--success-600) 6px,
+    var(--warn-500) 6px,
+    var(--warn-500) 10px
+  );
+}
+
+.bm__view-chain {
+  align-self: flex-end;
+  margin: 0 var(--sp-5) var(--sp-2);
+  padding: 3px var(--sp-3);
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--info-50);
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--info-700);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__view-chain:hover {
+  background: var(--info-100);
+}
+
+.bm__view-chain:active {
+  transform: scale(0.96);
+}
+
+/* The active dot breathes; that is decoration, and decoration is opt-out. */
+@media (prefers-reduced-motion: reduce) {
+  .bm__dot--active {
+    animation: none;
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "lendix-docs-mcp",
+  "version": "1.0.0",
+  "description": "MCP server exposing Lendix Nova documentation (https://docs.lendix.ai/nova) as search/read tools",
+  "type": "module",
+  "main": "index.js",
+  "bin": {
+    "lendix-docs-mcp": "index.js"
+  },
+  "scripts": {
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "playwright": "^1.48.0"
+  }
+}

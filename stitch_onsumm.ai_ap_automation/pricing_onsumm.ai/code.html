@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pricing | Onsumm.Ai</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Public+Sans:wght@600;700&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": {
+                      "on-surface-variant": "#424750",
+                      "success-emerald": "#10B981",
+                      "on-tertiary-fixed": "#1c1b1b",
+                      "outline": "#737781",
+                      "error-container": "#ffdad6",
+                      "tertiary-container": "#414141",
+                      "warning-amber": "#F59E0B",
+                      "error-crimson": "#DC2626",
+                      "on-secondary-fixed": "#002020",
+                      "invoice-blue": "#004080",
+                      "primary-container": "#004080",
+                      "surface-container": "#e5eeff",
+                      "on-secondary-fixed-variant": "#004f50",
+                      "on-tertiary": "#ffffff",
+                      "primary-fixed": "#d6e3ff",
+                      "surface-container-low": "#eff4ff",
+                      "tertiary": "#2b2b2b",
+                      "secondary-container": "#79f2f4",
+                      "on-error": "#ffffff",
+                      "surface": "#f8f9ff",
+                      "inverse-primary": "#a9c7ff",
+                      "error": "#ba1a1a",
+                      "inverse-on-surface": "#eaf1ff",
+                      "tertiary-fixed-dim": "#c8c6c5",
+                      "background-surface": "#F8FAFC",
+                      "surface-tint": "#305ea0",
+                      "on-error-container": "#93000a",
+                      "inverse-surface": "#213145",
+                      "tertiary-fixed": "#e5e2e1",
+                      "on-surface": "#0b1c30",
+                      "on-primary": "#ffffff",
+                      "primary-fixed-dim": "#a9c7ff",
+                      "surface-bright": "#f8f9ff",
+                      "primary": "#002a58",
+                      "on-background": "#0b1c30",
+                      "on-secondary": "#ffffff",
+                      "on-tertiary-fixed-variant": "#474746",
+                      "background": "#f8f9ff",
+                      "on-primary-fixed": "#001b3d",
+                      "surface-container-high": "#dce9ff",
+                      "outline-variant": "#c3c6d2",
+                      "on-secondary-container": "#006e6f",
+                      "secondary": "#00696b",
+                      "on-tertiary-container": "#afadac",
+                      "on-primary-fixed-variant": "#0e4686",
+                      "surface-container-lowest": "#ffffff",
+                      "secondary-fixed": "#7cf5f7",
+                      "surface-container-highest": "#d3e4fe",
+                      "surface-variant": "#d3e4fe",
+                      "secondary-fixed-dim": "#5cd8da",
+                      "surface-dim": "#cbdbf5",
+                      "on-surface": "#0b1c30"
+              },
+              "borderRadius": {
+                      "DEFAULT": "0.125rem",
+                      "lg": "0.25rem",
+                      "xl": "0.5rem",
+                      "full": "0.75rem"
+              },
+              "spacing": {
+                      "md": "16px",
+                      "xl": "40px",
+                      "base": "4px",
+                      "sm": "8px",
+                      "xs": "4px",
+                      "container-max": "1440px",
+                      "lg": "24px",
+                      "gutter": "24px"
+              },
+              "fontFamily": {
+                      "body-sm": ["Inter"],
+                      "headline-lg": ["Public Sans"],
+                      "headline-sm": ["Public Sans"],
+                      "mono-data": ["Inter"],
+                      "headline-md": ["Public Sans"],
+                      "body-lg": ["Inter"],
+                      "body-md": ["Inter"],
+                      "label-md": ["Inter"],
+                      "display-lg": ["Public Sans"]
+              },
+              "fontSize": {
+                      "body-sm": ["12px", {"lineHeight": "18px", "fontWeight": "400"}],
+                      "headline-lg": ["32px", {"lineHeight": "40px", "fontWeight": "600"}],
+                      "headline-sm": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                      "mono-data": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                      "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                      "body-lg": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                      "body-md": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                      "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                      "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+              }
+            },
+          },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-tab { border-bottom-width: 2px; }
+        .pricing-card:hover { border-color: #002a58; }
+        .faq-transition { transition: max-height 0.3s ease-out, opacity 0.2s ease-out; }
+    </style>
+</head>
+<body class="bg-surface font-body-md text-on-surface antialiased">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant">
+<div class="max-w-container-max mx-auto px-gutter h-16 flex justify-between items-center">
+<div class="flex items-center gap-xl">
+<span class="font-headline-sm text-headline-sm font-bold text-primary">Onsumm.Ai</span>
+<div class="hidden md:flex gap-lg items-center">
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Product</a>
+<a class="font-body-md text-body-md text-primary font-bold border-b-2 border-primary" href="#">Pricing</a>
+<a class="font-body-md text-body-md text-on-surface-variant hover:text-primary transition-colors" href="#">Contact</a>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<button class="font-body-md text-body-md text-on-surface-variant px-md py-sm hover:bg-surface-container-low rounded-lg transition-all">Sign In</button>
+<button class="font-body-md text-body-md bg-primary text-on-primary px-lg py-sm rounded-lg hover:opacity-90 transition-all">Get Started</button>
+</div>
+</div>
+</nav>
+<main class="pt-32 pb-xl overflow-x-hidden">
+<!-- Hero Section -->
+<section class="max-w-container-max mx-auto px-gutter text-center mb-xl">
+<h1 class="font-display-lg text-display-lg text-primary mb-md">Scalable Finance Automation</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl mx-auto mb-xl">
+                Choose the plan that fits your transaction volume. All plans include our core AI extraction engine and secure cloud storage.
+            </p>
+<!-- Billing Toggle -->
+<div class="flex items-center justify-center gap-md mb-xl">
+<span class="font-label-md text-label-md text-primary" id="monthly-label">Monthly</span>
+<button class="relative w-12 h-6 bg-primary-container rounded-full transition-colors focus:outline-none" id="billing-toggle" onclick="toggleBilling()">
+<div class="absolute left-1 top-1 w-4 h-4 bg-on-primary rounded-full transition-all duration-300" id="toggle-knob"></div>
+</button>
+<span class="font-label-md text-label-md text-on-surface-variant flex items-center gap-xs" id="annual-label">
+                    Annual <span class="bg-success-emerald/10 text-success-emerald px-xs py-[2px] rounded text-[10px] font-bold">SAVE 20%</span>
+</span>
+</div>
+</section>
+<!-- Pricing Bento Grid -->
+<section class="max-w-container-max mx-auto px-gutter grid grid-cols-1 md:grid-cols-3 gap-lg mb-xl">
+<!-- Starter -->
+<div class="bg-surface-container-lowest border border-outline-variant p-xl rounded-xl flex flex-col transition-all duration-200 hover:border-primary">
+<div class="mb-lg">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-xs">Starter</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">For small teams starting automation.</p>
+</div>
+<div class="mb-xl">
+<div class="flex items-baseline gap-xs">
+<span class="font-display-lg text-display-lg text-primary">₹</span>
+<span class="font-display-lg text-display-lg text-primary" id="starter-price">4,999</span>
+<span class="font-body-md text-body-md text-on-surface-variant">/mo</span>
+</div>
+</div>
+<ul class="space-y-md mb-xl flex-grow">
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Up to 100 invoices/mo</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Basic AI extraction</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Tally sync</span>
+</li>
+<li class="flex items-center gap-sm text-on-surface-variant/40">
+<span class="material-symbols-outlined text-[20px]">cancel</span>
+<span class="font-body-md text-body-md line-through">GST compliance checks</span>
+</li>
+</ul>
+<button class="w-full py-md border border-primary text-primary font-bold rounded-lg hover:bg-primary-container transition-colors">Start Free Trial</button>
+</div>
+<!-- Growth (Most Popular) -->
+<div class="bg-surface-container-lowest border-2 border-primary p-xl rounded-xl flex flex-col relative shadow-[0px_4px_20px_rgba(0,42,88,0.08)]">
+<div class="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-on-primary px-md py-xs rounded-full font-label-md text-[10px] tracking-widest uppercase">
+                    Most Popular
+                </div>
+<div class="mb-lg">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-xs">Growth</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">For growing SMBs with high volume.</p>
+</div>
+<div class="mb-xl">
+<div class="flex items-baseline gap-xs">
+<span class="font-display-lg text-display-lg text-primary">₹</span>
+<span class="font-display-lg text-display-lg text-primary" id="growth-price">14,999</span>
+<span class="font-body-md text-body-md text-on-surface-variant">/mo</span>
+</div>
+</div>
+<ul class="space-y-md mb-xl flex-grow">
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md font-semibold text-primary">Up to 500 invoices/mo</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Advanced workflows</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">GST compliance checks</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Priority support</span>
+</li>
+</ul>
+<button class="w-full py-md bg-primary text-on-primary font-bold rounded-lg hover:opacity-90 transition-all">Get Started Now</button>
+</div>
+<!-- Enterprise -->
+<div class="bg-surface-container-lowest border border-outline-variant p-xl rounded-xl flex flex-col transition-all duration-200 hover:border-primary">
+<div class="mb-lg">
+<h3 class="font-headline-sm text-headline-sm text-on-surface mb-xs">Enterprise</h3>
+<p class="font-body-sm text-body-sm text-on-surface-variant">For mid-market &amp; large entities.</p>
+</div>
+<div class="mb-xl">
+<div class="flex items-baseline gap-xs">
+<span class="font-headline-lg text-headline-lg text-primary">Custom</span>
+</div>
+</div>
+<ul class="space-y-md mb-xl flex-grow">
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Unlimited invoices</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Custom ERP integrations</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Dedicated Account Manager</span>
+</li>
+<li class="flex items-center gap-sm">
+<span class="material-symbols-outlined text-success-emerald text-[20px]">check_circle</span>
+<span class="font-body-md text-body-md">Audit logs &amp; Security</span>
+</li>
+</ul>
+<button class="w-full py-md border border-on-surface-variant text-on-surface-variant font-bold rounded-lg hover:bg-surface-container-high transition-colors">Contact Sales</button>
+</div>
+</section>
+<!-- Feature Comparison (Atmospheric) -->
+<section class="bg-primary-container/20 py-xl mt-xl">
+<div class="max-w-container-max mx-auto px-gutter">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-xl items-center">
+<div>
+<h2 class="font-headline-lg text-headline-lg text-primary mb-md">Enterprise-Grade Security</h2>
+<p class="font-body-lg text-body-lg text-on-surface-variant mb-lg">We use bank-level encryption and automated compliance checks to ensure your financial data remains your most secure asset.</p>
+<div class="grid grid-cols-2 gap-md">
+<div class="flex items-start gap-sm">
+<span class="material-symbols-outlined text-primary">verified_user</span>
+<span class="font-label-md text-label-md">ISO 27001 Certified</span>
+</div>
+<div class="flex items-start gap-sm">
+<span class="material-symbols-outlined text-primary">lock</span>
+<span class="font-label-md text-label-md">AES-256 Encryption</span>
+</div>
+</div>
+</div>
+<div class="relative h-[400px] rounded-xl overflow-hidden shadow-xl">
+<img class="w-full h-full object-cover" data-alt="A futuristic and professional data center dashboard visualization with clean white interfaces, glowing blue data streams, and sophisticated charts. The lighting is crisp and modern, reflecting a high-end corporate fintech environment. The atmosphere is stable, reliable, and technologically advanced, echoing enterprise-grade security and financial precision." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC6q701t1OOHJQw6o25fUt9-eghMFnGVTvU_367gO4mJ_2wQmxi_7Ffah1nsGfq8umAipSbCmfdIXWZCuLROB31DU6SF_OFv5SwrnfdbQoyLDaCuQwR-iCRwc3wk5JyBpUEHGw0QF6A4ADyAU6DBFJ7fswu_8w-sstAVmcRiWtjtOLCC-y59Jms9PwxDFn1xKXzBm8Z_dUF-EGoo276D-_V-DTPNanR6x966OUFvW7Cq3a0HQky_a0KSaeCD70cHc4qokKQJh96SEU"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- FAQ Section -->
+<section class="max-w-container-max mx-auto px-gutter py-xl">
+<h2 class="font-headline-lg text-headline-lg text-primary text-center mb-xl">Frequently Asked Questions</h2>
+<div class="max-w-3xl mx-auto space-y-md">
+<!-- FAQ Item 1 -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest overflow-hidden">
+<button class="w-full px-lg py-md flex justify-between items-center text-left" onclick="toggleFaq(this)">
+<span class="font-body-lg text-body-lg font-semibold text-on-surface">Is it secure?</span>
+<span class="material-symbols-outlined transition-transform duration-200">expand_more</span>
+</button>
+<div class="faq-content max-h-0 opacity-0 overflow-hidden px-lg transition-all duration-300">
+<p class="pb-md font-body-md text-body-md text-on-surface-variant">Yes, Onsumm.Ai employs enterprise-grade AES-256 encryption for data at rest and TLS for data in transit. We follow strict SOC2 compliance standards and never share your data with third parties.</p>
+</div>
+</div>
+<!-- FAQ Item 2 -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest overflow-hidden">
+<button class="w-full px-lg py-md flex justify-between items-center text-left" onclick="toggleFaq(this)">
+<span class="font-body-lg text-body-lg font-semibold text-on-surface">Does it support Tally Prime?</span>
+<span class="material-symbols-outlined transition-transform duration-200">expand_more</span>
+</button>
+<div class="faq-content max-h-0 opacity-0 overflow-hidden px-lg transition-all duration-300">
+<p class="pb-md font-body-md text-body-md text-on-surface-variant">Absolutely. Onsumm.Ai has a native connector for Tally Prime and Tally ERP 9, allowing for seamless sync of extracted invoice data directly into your ledgers.</p>
+</div>
+</div>
+<!-- FAQ Item 3 -->
+<div class="border border-outline-variant rounded-lg bg-surface-container-lowest overflow-hidden">
+<button class="w-full px-lg py-md flex justify-between items-center text-left" onclick="toggleFaq(this)">
+<span class="font-body-lg text-body-lg font-semibold text-on-surface">How long does setup take?</span>
+<span class="material-symbols-outlined transition-transform duration-200">expand_more</span>
+</button>
+<div class="faq-content max-h-0 opacity-0 overflow-hidden px-lg transition-all duration-300">
+<p class="pb-md font-body-md text-body-md text-on-surface-variant">Most teams are up and running in under 15 minutes. The AI starts learning your specific invoice formats immediately, and Tally integration is a simple one-click process.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-highest border-t border-outline-variant py-xl">
+<div class="max-w-container-max mx-auto px-gutter grid grid-cols-2 md:grid-cols-4 gap-lg">
+<div class="col-span-2 md:col-span-1">
+<span class="font-headline-sm text-headline-sm font-bold text-on-surface">Onsumm.Ai</span>
+<p class="font-body-sm text-body-sm text-on-surface-variant mt-sm">Revolutionizing accounts payable with AI precision.</p>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary mb-md">Company</h4>
+<div class="flex flex-col gap-sm">
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:underline" href="#">Features</a>
+<a class="font-body-sm text-body-sm text-primary font-semibold hover:underline" href="#">Pricing</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:underline" href="#">FAQ</a>
+</div>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary mb-md">Support</h4>
+<div class="flex flex-col gap-sm">
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:underline" href="#">Contact</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:underline" href="#">Privacy Policy</a>
+<a class="font-body-sm text-body-sm text-on-surface-variant hover:underline" href="#">Terms of Service</a>
+</div>
+</div>
+<div>
+<h4 class="font-label-md text-label-md text-primary mb-md">Connect</h4>
+<div class="flex gap-md">
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">hub</span>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-primary transition-colors">alternate_email</span>
+</div>
+</div>
+</div>
+<div class="max-w-container-max mx-auto px-gutter mt-xl pt-lg border-t border-outline-variant">
+<p class="font-body-sm text-body-sm text-on-surface-variant text-center">© 2024 Onsumm.Ai. All rights reserved.</p>
+</div>
+</footer>
+<script>
+        let isAnnual = false;
+        const prices = {
+            starter: { monthly: 4999, annual: 3999 },
+            growth: { monthly: 14999, annual: 11999 }
+        };
+
+        function toggleBilling() {
+            isAnnual = !isAnnual;
+            const knob = document.getElementById('toggle-knob');
+            const monthlyLabel = document.getElementById('monthly-label');
+            const annualLabel = document.getElementById('annual-label');
+            const starterPrice = document.getElementById('starter-price');
+            const growthPrice = document.getElementById('growth-price');
+
+            if (isAnnual) {
+                knob.style.transform = 'translateX(24px)';
+                monthlyLabel.classList.remove('text-primary');
+                monthlyLabel.classList.add('text-on-surface-variant');
+                annualLabel.classList.remove('text-on-surface-variant');
+                annualLabel.classList.add('text-primary');
+                
+                // Update prices with animation
+                animateValue(starterPrice, prices.starter.monthly, prices.starter.annual, 400);
+                animateValue(growthPrice, prices.growth.monthly, prices.growth.annual, 400);
+            } else {
+                knob.style.transform = 'translateX(0)';
+                annualLabel.classList.remove('text-primary');
+                annualLabel.classList.add('text-on-surface-variant');
+                monthlyLabel.classList.remove('text-on-surface-variant');
+                monthlyLabel.classList.add('text-primary');
+
+                animateValue(starterPrice, prices.starter.annual, prices.starter.monthly, 400);
+                animateValue(growthPrice, prices.growth.annual, prices.growth.monthly, 400);
+            }
+        }
+
+        function animateValue(obj, start, end, duration) {
+            let startTimestamp = null;
+            const step = (timestamp) => {
+                if (!startTimestamp) startTimestamp = timestamp;
+                const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                const current = Math.floor(progress * (end - start) + start);
+                obj.innerHTML = current.toLocaleString();
+                if (progress < 1) {
+                    window.requestAnimationFrame(step);
+                }
+            };
+            window.requestAnimationFrame(step);
+        }
+
+        function toggleFaq(btn) {
+            const content = btn.nextElementSibling;
+            const icon = btn.querySelector('.material-symbols-outlined');
+            
+            if (content.style.maxHeight && content.style.maxHeight !== '0px') {
+                content.style.maxHeight = '0px';
+                content.style.opacity = '0';
+                icon.style.transform = 'rotate(0deg)';
+            } else {
+                // Close others
+                document.querySelectorAll('.faq-content').forEach(el => {
+                    el.style.maxHeight = '0px';
+                    el.style.opacity = '0';
+                });
+                document.querySelectorAll('.faq-item span.material-symbols-outlined').forEach(i => i.style.transform = 'rotate(0deg)');
+                
+                content.style.maxHeight = content.scrollHeight + 'px';
+                content.style.opacity = '1';
+                icon.style.transform = 'rotate(180deg)';
+            }
+        }
+    </script>
+</body></html>

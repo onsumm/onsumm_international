@@ -1,0 +1,32 @@
+; Nova Reconciliation Service — DEV instance (app-dev / branch uat2).
+;
+; Install:
+;   sudo cp ~/app-dev/services/nova_reconciliation/deploy/onsumm-nova-dev.service \
+;           /etc/systemd/system/onsumm-nova-dev.service
+;   sudo systemctl daemon-reload
+;   sudo systemctl enable --now onsumm-nova-dev
+;
+; Mirrors onsumm-api-dev: same user, same .env, same restart policy. Port 8102
+; (8002 is the dev API, 8100 is reserved for a future prod Nova instance).
+
+[Unit]
+Description=Onsumm Nova Reconciliation Service (dev)
+After=network.target
+; The service reads dim_tenants/fact_invoices from the same DB as the dev API,
+; but does not require it to be running.
+
+[Service]
+Type=simple
+User=ec2-user
+WorkingDirectory=/home/ec2-user/app-dev/services/nova_reconciliation
+; No EnvironmentFile= on purpose: app/config.py already load_dotenv()s
+; /home/ec2-user/app-dev/.env (repo root, three parents up), and systemd's
+; parser is stricter than dotenv's about quoting — pointing both at the same
+; file only adds a way for the unit to fail to start.
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/usr/bin/python3.11 -m uvicorn app.main:app --host 127.0.0.1 --port 8102
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

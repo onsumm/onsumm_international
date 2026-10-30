@@ -1,0 +1,101 @@
+{
+  "fetched_at": "2026-08-23T11:06:35.793593+00:00",
+  "vendor": "Signzy",
+  "brand": "Brightloans",
+  "tenant_id": "d0e00000-0000-0000-0000-000000000003",
+  "month": "2026-07",
+  "source": "GET https://api.lendix.ai/billing/monthly?vendor=Signzy&month=2026-07 (X-API-Key auth)",
+  "note": "Live sandbox response \u2014 confirmed to drift over wall-clock time between separate calls for the same vendor/month; this file is a snapshot as of fetched_at, not a stable ledger.",
+  "response": {
+    "success": true,
+    "data": {
+      "vendor": "Signzy",
+      "month": "2026-07",
+      "modules": [
+        {
+          "module": "aadhaar-ocr",
+          "apiCallCount": 99,
+          "billableOperations": 94,
+          "costPerOperationRupees": 0.79,
+          "totalCostRupees": 74.26
+        },
+        {
+          "module": "bank-aggregator",
+          "apiCallCount": 248848,
+          "billableOperations": 17851,
+          "costPerOperationRupees": 4,
+          "totalCostRupees": 71404
+        },
+        {
+          "module": "eKYC",
+          "apiCallCount": 794131,
+          "billableOperations": 271723,
+          "costPerOperationRupees": 1.0999999999999999,
+          "totalCostRupees": 298895.3
+        },
+        {
+          "module": "eSign",
+          "apiCallCount": 187385,
+          "billableOperations": 68270,
+          "costPerOperationRupees": 8,
+          "totalCostRupees": 546160
+        },
+        {
+          "module": "email-verification",
+          "apiCallCount": 728738,
+          "billableOperations": 707743,
+          "costPerOperationRupees": 0.49,
+          "totalCostRupees": 346794.07
+        },
+        {
+          "module": "facematch",
+          "apiCallCount": 135988,
+          "billableOperations": 135980,
+          "costPerOperationRupees": 0.5,
+          "totalCostRupees": 67990
+        },
+        {
+          "module": "image-liveliness",
+          "apiCallCount": 197543,
+          "billableOperations": 168930,
+          "costPerOperationRupees": 1.15,
+          "totalCostRupees": 194269.5
+        },
+        {
+          "module": "name-match",
+          "apiCallCount": 2143,
+          "billableOperations": 2143,
+          "costPerOperationRupees": 0.5,
+          "totalCostRupees": 1071.5
+        },
+        {
+          "module": "pan",
+          "apiCallCount": 554806,
+          "billableOperations": 547009,
+          "costPerOperationRupees": 0.7899999999999999,
+          "totalCostRupees": 432137.11
+        },
+        {
+          "module": "pan-ocr",
+          "apiCallCount": 436,
+          "billableOperations": 401,
+          "costPerOperationRupees": 0.79,
+          "totalCostRupees": 316.79
+        },
+        {
+          "module": "penny-drop",
+          "apiCallCount": 84974,
+          "billableOperations": 83151,
+          "costPerOperationRupees": 2.39,
+          "totalCostRupees": 198730.89
+        }
+      ],
+      "totals": {
+        "totalBillableOperations": 2003295,
+        "totalCostRupees": 2157843.4200000004
+      }
+    },
+    "timestamp": "2026-08-23T11:06:33.754Z",
+    "referenceId": "196817d3-854b-4d0a-b964-f0c355d2a1ff"
+  }
+}

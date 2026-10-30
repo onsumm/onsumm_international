@@ -1,0 +1,424 @@
+openapi: 3.0.3
+info:
+  title: Nova Reconciliation Service
+  description: |
+    Standalone service running a three-way check per canonical service, scoped through
+    entity/brand/cost-centre certification from `lendix/nova_vendor_mapping.json`:
+    (1) is this service even certified to be billed against this entity/cost-centre, and who
+    owns it; (2) does the vendor's actual invoice line match what Nova's own usage ledger
+    recorded; (3) is Nova's own billed rate within tolerance of the certified rate card, and is
+    Nova's own arithmetic (ops x rate = cost) internally consistent.
+
+    Full design and worked examples: `docs/NOVA_RECONCILIATION_LOGIC.md`.
+    Database schema: `docs/NOVA_RECONCILIATION_LOGIC.md#9-database-schema`.
+
+    This service does not call the Nova API itself, and does not extract invoice line items
+    itself — callers pass the raw Nova API response and the extracted invoice line items as the
+    request body of `POST /v1/reconcile`.
+  version: "3.0.0"
+servers:
+  - url: https://nova-reconciliation.internal.lendix.ai/v1
+    description: Production (placeholder — service is not yet deployed)
+
+tags:
+  - name: reconcile
+    description: Run and read ownership/rate reconciliation for one vendor bill
+  - name: dashboard
+    description: Aggregated views for the Nova dashboard
+
+paths:
+  /reconcile:
+    post:
+      tags: [reconcile]
+      summary: Reconcile one Nova API bill (and its invoice) against the vendor mapping
+      description: |
+        Runs the full algorithm from `NOVA_RECONCILIATION_LOGIC.md` §4: resolves every Nova module
+        and every invoice line to the same canonical-service key space, certifies each against the
+        tenant's (or, for Vimanotech, the tenant's and the owning Registered Entity's) rate card,
+        compares invoice quantity/amount against Nova's usage ledger, checks Nova's own billed rate
+        against the certified rate and its own internal arithmetic, and persists one
+        `nova_reconciliation_runs` row plus one `nova_reconciliation_lines` row per canonical
+        service touched by either side.
+      operationId: reconcileBill
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReconcileRequest'
+            example:
+              bill_id: BILL-2026-05-0042
+              tenant_id: 3894e068-a31d-444c-8000-fb5a562263a7
+              brand_or_cost_centre: Brightloans
+              vendor: Signzy
+              month: "2026-05"
+              nova_response:
+                success: true
+                data:
+                  vendor: Signzy
+                  month: "2026-05"
+                  modules:
+                    - module: eSign
+                      apiCallCount: 431
+                      billableOperations: 72
+                      costPerOperationRupees: 9.29
+                      totalCostRupees: 668.88
+                  totals:
+                    totalBillableOperations: 72
+                    totalCostRupees: 668.88
+                timestamp: "2026-07-08T10:47:58.800Z"
+                referenceId: 49d6164d-bcea-4cac-b244-d1184953a8d4
+              invoice_lines:
+                - line_item_id: L1
+                  description: eSign service charges
+                  quantity: 72
+                  rate: 9.29
+                  amount: 668.88
+                - line_item_id: L2
+                  description: Account Aggregator - Signzy
+                  quantity: 31
+                  rate: 4
+                  amount: 124
+      responses:
+        "200":
+          description: Reconciliation completed and persisted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileResult'
+        "400":
+          description: Malformed request (e.g. `month` not `YYYY-MM`, `nova_response` missing `data.modules`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: "`tenant_id` not found in `dim_tenants`, or has no matching entry in `nova_vendor_mapping.json`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /reconciliation:
+    get:
+      tags: [reconcile]
+      summary: Read the latest reconciliation result, by bill or by tenant/vendor/month
+      description: |
+        Returns the most recent `nova_reconciliation_runs` row (by `ingested_at`), with its lines.
+        Provide either `bill_id` (the dispatch view's natural key — call this after upload to show
+        a bill's mismatches) or all three of `tenant_id` + `vendor` + `month`.
+      operationId: getReconciliation
+      parameters:
+        - name: bill_id
+          in: query
+          required: false
+          schema: { type: string }
+          example: BILL-2026-05-0042
+        - name: tenant_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: vendor
+          in: query
+          required: false
+          schema: { type: string }
+          example: Signzy
+        - name: month
+          in: query
+          required: false
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+          example: "2026-05"
+      responses:
+        "200":
+          description: Latest run for this bill/key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReconcileResult'
+        "400":
+          description: Neither bill_id nor the full tenant_id+vendor+month combination was provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        "404":
+          description: No run has ever been ingested for this bill/key
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /dashboard/summary:
+    get:
+      tags: [dashboard]
+      summary: Aggregated reconciliation status for the Nova dashboard
+      description: |
+        Grouped by `owner_tenant_id` (not the billed/payer tenant) — a `COST_CENTRE_OWNED` line
+        shows up under the Registered Entity that actually owns it even when the bill was paid
+        under Vimanotech's vendor account.
+      operationId: getDashboardSummary
+      parameters:
+        - name: owner_tenant_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+        - name: period
+          in: query
+          required: false
+          description: "`YYYY-MM`; omit for the latest available month per vendor"
+          schema: { type: string, pattern: '^\d{4}-\d{2}$' }
+      responses:
+        "200":
+          description: Aggregated summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+
+components:
+  schemas:
+    ReconcileRequest:
+      type: object
+      required: [bill_id, tenant_id, brand_or_cost_centre, vendor, month, nova_response]
+      properties:
+        bill_id:
+          type: string
+          description: The uploaded bill this reconciliation run belongs to — the dispatch view's natural key. Every mismatch traces back to this.
+          example: BILL-2026-05-0042
+        tenant_id:
+          type: string
+          format: uuid
+          description: The tenant the Nova API pull was scoped to (the payer) — must exist in `dim_tenants`.
+        brand_or_cost_centre:
+          type: string
+          description: Which brand (RE) or cost centre (Vimanotech) this bill is scoped to. Not parsed from a filename — must be passed explicitly.
+          example: Brightloans
+        vendor:
+          type: string
+          example: Signzy
+        month:
+          type: string
+          pattern: '^\d{4}-\d{2}$'
+          example: "2026-05"
+        nova_response:
+          $ref: '#/components/schemas/NovaApiResponse'
+          description: The Nova pull for this tenant's own mapping scope (Phase 1). For a recurring vendor tenant (RE) this is the only Nova response ever needed.
+        invoice_lines:
+          type: array
+          default: []
+          description: The vendor's actual invoice, extracted upstream (OCR/upload/accounting sync — out of this service's boundary). Defaults to empty — every line then comes back MISSING_IN_INVOICE until the invoice side is supplied.
+          items:
+            $ref: '#/components/schemas/InvoiceLine'
+        extended_nova_response:
+          allOf:
+            - $ref: '#/components/schemas/NovaApiResponse'
+          nullable: true
+          description: |
+            Non-recurring vendor tenants (Non-RE) only, and only relevant once at least one bill
+            line item falls outside the tenant's own scope. The SECOND Nova pull, scoped to the
+            cost centre identified for those out-of-scope line items (Phase 2). Omit on the first
+            call — out-of-scope lines then come back `PENDING_EXTENDED_LOOKUP`, naming the cost
+            centre (`LineResult.cost_centre`) to call Nova again for; re-POST with this filled in
+            to complete them. Ignored for recurring vendor tenants (RE), which never have a Phase 2.
+
+    InvoiceLine:
+      type: object
+      description: One line item from the vendor's actual invoice — the other half of the three-way check alongside Nova's own usage ledger.
+      required: [line_item_id, description, quantity, rate, amount]
+      properties:
+        line_item_id:
+          type: string
+          description: The bill's own identifier for this row (from OCR/upload extraction) — required so every mismatch can be traced to one specific row on the dispatch view.
+          example: L1
+        description:
+          type: string
+          description: Free text as it appears on the invoice. Resolved to a canonical service the same way a Nova module slug is (§3) — not matched on exact text.
+          example: eSign service charges
+        quantity: { type: number }
+        rate: { type: number }
+        amount: { type: number }
+        allowed_variance:
+          type: number
+          nullable: true
+          description: |
+            Optional per-line override: when set, both quantity and amount are checked as an
+            ABSOLUTE |bill_value - nova_value| <= allowed_variance instead of the mapping policy's
+            percentage-of-Nova-value tolerance. "The configured allowed variance per line item."
+
+    NovaApiResponse:
+      type: object
+      description: Raw, unmodified Nova API output for `GET {NOVA_BILLING_BASE_URL}/billing/monthly?vendor=&month=`.
+      required: [success, data]
+      properties:
+        success: { type: boolean }
+        data:
+          type: object
+          required: [vendor, month, modules, totals]
+          properties:
+            vendor: { type: string }
+            month: { type: string }
+            modules:
+              type: array
+              items: { $ref: '#/components/schemas/NovaModule' }
+            totals:
+              type: object
+              properties:
+                totalBillableOperations: { type: number }
+                totalCostRupees: { type: number }
+        timestamp: { type: string, format: date-time }
+        referenceId: { type: string }
+
+    NovaModule:
+      type: object
+      required: [module, apiCallCount, billableOperations, costPerOperationRupees, totalCostRupees]
+      properties:
+        module:
+          type: string
+          description: Vendor-specific module slug, not a canonical service name — see `NOVA_RECONCILIATION_LOGIC.md` §3.
+          example: bank-aggregator
+        apiCallCount: { type: number }
+        billableOperations: { type: number }
+        costPerOperationRupees: { type: number }
+        totalCostRupees: { type: number }
+
+    ReconcileResult:
+      type: object
+      properties:
+        run:
+          $ref: '#/components/schemas/RunSummary'
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineResult'
+
+    RunSummary:
+      type: object
+      description: Mirrors `nova_reconciliation_runs` (`NOVA_RECONCILIATION_LOGIC.md` §9.2).
+      properties:
+        run_id: { type: string, format: uuid }
+        bill_id: { type: string, description: "The uploaded bill this run belongs to — the dispatch view's natural key." }
+        tenant_id: { type: string, format: uuid }
+        brand_or_cost_centre: { type: string }
+        cost_centre_id: { type: string, format: uuid, nullable: true, description: "Null for RE-scoped runs — REs have no dim_cost_centres row today." }
+        vendor: { type: string }
+        billing_month: { type: string }
+        nova_reference_id: { type: string, nullable: true }
+        rollup_status:
+          type: string
+          enum: [RED, YELLOW, GREEN]
+          description: Worst-state-wins across this run's lines — RED if any AMBIGUOUS/UNCERTIFIED/RATE_MISMATCH/QTY_MISMATCH/COST_MISMATCH/self-inconsistent line, YELLOW for UNRESOLVED_MODULE, PENDING_EXTENDED_LOOKUP, or MISSING_IN_INVOICE/EXTRA_IN_INVOICE only, GREEN otherwise.
+        total_lines: { type: integer }
+        certified_count: { type: integer }
+        uncertified_count: { type: integer }
+        ambiguous_count: { type: integer }
+        unresolved_module_count: { type: integer }
+        pending_extended_lookup_count: { type: integer, description: "Non-recurring (Non-RE) only — out-of-scope lines waiting on the Phase 2 Nova pull (extended_nova_response)." }
+        rate_mismatch_count: { type: integer }
+        qty_mismatch_count: { type: integer }
+        cost_mismatch_count: { type: integer }
+        missing_in_invoice_count: { type: integer, description: "Nova billed it; no invoice line matched." }
+        extra_in_invoice_count: { type: integer, description: "Invoice charges it; no Nova usage matched." }
+        self_inconsistent_count: { type: integer, description: "Nova's own ops x rate disagreed with its own reported cost." }
+        total_cost_rupees: { type: number, description: "Sum of Nova's totalCostRupees across lines." }
+        total_invoice_amount: { type: number, description: "Sum of invoice amounts across lines." }
+        variance_amount_rupees: { type: number, description: "total_invoice_amount - total_cost_rupees." }
+        ingested_at: { type: string, format: date-time }
+
+    LineResult:
+      type: object
+      description: Mirrors `nova_reconciliation_lines` (`NOVA_RECONCILIATION_LOGIC.md` §9.2). Every mismatch here carries a line item identifier, bill value, Nova value, variance, cost centre, and (via the run) service month.
+      properties:
+        line_id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid }
+        line_item_id: { type: string, nullable: true, description: "The bill's own row identifier. Null only when this line originates purely from an unmatched Nova module (MISSING_IN_INVOICE)." }
+        owner_tenant_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: The tenant this line is actually certified for. Differs from the run's `tenant_id` when `scope` is `COST_CENTRE_OWNED`. Null when certification never resolved an owner (e.g. an unresolved invoice-only line, or PENDING_EXTENDED_LOOKUP before the owning RE's tenant is known).
+        cost_centre: { type: string, nullable: true, description: "The brand/cost-centre this line was reconciled under. Null for RE-scoped lines (REs have no cost-centre key defined yet) and for lines that never resolved to a certified scope." }
+        service_month: { type: string, description: "Copied from the run's billing_month, so a mismatch record is self-contained without a join." }
+        module_slug: { type: string, nullable: true, description: "Null when this line originates only from an invoice line with no matching Nova module." }
+        invoice_description: { type: string, nullable: true, description: "Null when this line originates only from a Nova module with no matching invoice line." }
+        canonical_service: { type: string, nullable: true, description: "Null when certification_status is UNRESOLVED_MODULE." }
+        scope:
+          type: string
+          nullable: true
+          enum: [RE, NON_RE_SHARED_IT, COST_CENTRE_OWNED, AMBIGUOUS]
+        certification_status:
+          type: string
+          enum: [CERTIFIED, UNCERTIFIED, AMBIGUOUS, UNRESOLVED_MODULE, PENDING_EXTENDED_LOOKUP]
+          description: PENDING_EXTENDED_LOOKUP is Non-RE-only — this line is certified against the owning RE's catalog but the Phase 2 Nova pull for that cost centre hasn't been supplied yet.
+        match_status:
+          type: string
+          nullable: true
+          enum: [MATCHED, MISSING_IN_INVOICE, EXTRA_IN_INVOICE]
+        rate_status:
+          type: string
+          nullable: true
+          enum: [RATE_OK, RATE_MISMATCH, ZERO_VOLUME, NOT_AUTO_COMPARABLE]
+          description: Against the certified mapping rate. Null unless the line is CERTIFIED and there's a Nova module for it.
+        qty_status:
+          type: string
+          nullable: true
+          enum: [QTY_OK, QTY_MISMATCH]
+          description: "Bill value vs Nova value (billableOperations) — |bill - nova| <= allowed_variance, or the mapping's percentage tolerance if none was set on the line. Null unless CERTIFIED and match_status is MATCHED."
+        cost_status:
+          type: string
+          nullable: true
+          enum: [COST_OK, COST_MISMATCH]
+          description: Same rule as qty_status, against invoice amount vs Nova totalCostRupees.
+        nova_self_consistent:
+          type: boolean
+          nullable: true
+          description: "Nova's own billableOperations x costPerOperationRupees vs its own totalCostRupees. Null when there's no Nova module for this line."
+        billed_rate: { type: number, nullable: true, description: "Nova's costPerOperationRupees — the Nova value for the rate check." }
+        expected_rate: { type: number, nullable: true, description: "The certified vendor_rates[].rate, when auto-comparable." }
+        rate_variance_pct: { type: number, nullable: true }
+        qty_variance_pct: { type: number, nullable: true, description: "Null when allowed_variance (absolute) was used instead of a percentage." }
+        cost_variance_pct: { type: number, nullable: true, description: "Null when allowed_variance (absolute) was used instead of a percentage." }
+        billable_operations: { type: number, nullable: true, description: "Nova's billableOperations — the Nova value for the qty check." }
+        api_call_count: { type: number, nullable: true, description: "Nova's apiCallCount." }
+        total_cost_rupees: { type: number, nullable: true, description: "Nova's totalCostRupees — the Nova value for the cost check." }
+        invoice_qty: { type: number, nullable: true, description: "The bill value for the qty check." }
+        invoice_rate: { type: number, nullable: true }
+        invoice_amount: { type: number, nullable: true, description: "The bill value for the cost check." }
+        allowed_variance: { type: number, nullable: true, description: "Echoes the invoice line's per-line override, if one was set." }
+
+    DashboardSummary:
+      type: object
+      properties:
+        owner_tenant_id: { type: string, format: uuid }
+        period: { type: string }
+        totals:
+          type: object
+          properties:
+            certified: { type: integer }
+            uncertified: { type: integer }
+            ambiguous: { type: integer }
+            unresolved_module: { type: integer }
+            pending_extended_lookup: { type: integer, description: "Lines still waiting on a Phase 2 Nova pull." }
+            rate_ok: { type: integer }
+            rate_mismatch: { type: integer }
+            qty_mismatch: { type: integer }
+            cost_mismatch: { type: integer }
+            missing_in_invoice: { type: integer }
+            extra_in_invoice: { type: integer }
+            self_inconsistent: { type: integer }
+            variance_amount_rupees: { type: number, description: "Net variance across MATCHED lines only." }
+        by_vendor:
+          type: array
+          items:
+            type: object
+            properties:
+              vendor: { type: string }
+              month: { type: string }
+              rollup_status: { type: string, enum: [RED, YELLOW, GREEN] }
+              run_id: { type: string, format: uuid, description: "For drill-down via GET /reconciliation" }
+              bill_id: { type: string, description: "The bill this run belongs to — for linking straight to the dispatch view." }
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+        detail: { type: string }

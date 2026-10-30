@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Hub — Fleet Graph</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg-dots: #1e2230;
+    --surface: #171a24;
+    --surface-2: #1d2130;
+    --border: #2a2f42;
+    --border-strong: #3a4058;
+    --text: #e6ecf5;
+    --muted: #7c88a3;
+    --faint: #4a5470;
+
+    --t-foundation: #818cf8;
+    --t-ui:         #c084fc;
+    --t-agent:      #38bdf8;
+    --t-trigger:    #fbbf24;
+    --t-tool:       #34d399;
+    --t-gate:       #fb7185;
+    --t-data:       #22d3ee;
+    --t-integration:#a78bfa;
+    --t-guardrail:  #fb923c;
+
+    --src-reuse: #34d399;
+    --src-wrap:  #fbbf24;
+    --src-new:   #fb7185;
+
+    --shadow: 0 8px 24px rgba(0,0,0,.45);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+  }
+  html[data-theme="light"] {
+    --bg: #f6f8fc;
+    --bg-dots: #d9e0ee;
+    --surface: #ffffff;
+    --surface-2: #f2f5fa;
+    --border: #d5dced;
+    --border-strong: #b6c0d8;
+    --text: #131824;
+    --muted: #5b6784;
+    --faint: #97a2bb;
+    --t-foundation: #4f46e5;
+    --t-ui:         #9333ea;
+    --t-agent:      #0284c7;
+    --t-trigger:    #b45309;
+    --t-tool:       #059669;
+    --t-gate:       #e11d48;
+    --t-data:       #0891b2;
+    --t-integration:#7c3aed;
+    --t-guardrail:  #ea580c;
+    --src-reuse: #059669;
+    --src-wrap:  #b45309;
+    --src-new:   #e11d48;
+    --shadow: 0 6px 18px rgba(30,45,80,.12);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); font-size: 13px;
+    display: grid; grid-template-rows: auto 1fr; overflow: hidden;
+  }
+
+  /* ---------- toolbar ---------- */
+  header {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 9px 14px; background: var(--surface);
+    border-bottom: 1px solid var(--border); z-index: 30;
+  }
+  .brand { font-weight: 650; letter-spacing: -.01em; margin-right: 4px; white-space: nowrap; }
+  .brand span { color: var(--muted); font-weight: 450; }
+  select, input[type=search], button {
+    font-family: inherit; font-size: 12px; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 7px; padding: 6px 9px; outline: none;
+  }
+  select:focus, input:focus { border-color: var(--t-agent); }
+  button { cursor: pointer; }
+  button:hover { border-color: var(--border-strong); background: var(--bg-dots); }
+  input[type=search] { width: 190px; }
+  .spacer { flex: 1; }
+  .counts { color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+  .hint { color: var(--faint); font-size: 11px; white-space: nowrap; }
+
+  /* ---------- layout ---------- */
+  main { position: relative; overflow: hidden; }
+
+  #canvas {
+    position: absolute; inset: 0; overflow: hidden;
+    background-color: var(--bg);
+    background-image: radial-gradient(var(--bg-dots) 1.1px, transparent 1.1px);
+    background-size: 22px 22px;
+    cursor: grab;
+  }
+  #canvas.panning { cursor: grabbing; }
+  #world { position: absolute; top: 0; left: 0; transform-origin: 0 0; will-change: transform; }
+  #edges { position: absolute; overflow: visible; pointer-events: none; }
+  #nodes { position: absolute; top: 0; left: 0; }
+
+  /* ---------- nodes ---------- */
+  .node {
+    position: absolute; width: 214px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 3px solid var(--nc, var(--t-agent));
+    border-radius: 9px; padding: 8px 10px 9px;
+    box-shadow: var(--shadow); cursor: grab;
+    transition: opacity .12s, border-color .12s, transform .06s;
+    user-select: none;
+  }
+  .node:active { cursor: grabbing; }
+  .node:hover { border-color: var(--nc); }
+  .node.sel { border-color: var(--nc); box-shadow: 0 0 0 2px color-mix(in srgb, var(--nc) 45%, transparent), var(--shadow); }
+  .node.dim { opacity: .17; }
+  .node.hit { opacity: 1; }
+  .node.wide { width: 246px; }
+
+  .n-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .n-type {
+    font-family: var(--mono); font-size: 9px; letter-spacing: .09em;
+    text-transform: uppercase; color: var(--nc);
+  }
+  .n-badge {
+    margin-left: auto; font-family: var(--mono); font-size: 9px;
+    padding: 1px 5px; border-radius: 4px; letter-spacing: .04em;
+    border: 1px solid currentColor; opacity: .95;
+  }
+  .n-label { font-weight: 600; line-height: 1.28; letter-spacing: -.005em; }
+  .n-sub { color: var(--muted); font-size: 11px; line-height: 1.35; margin-top: 3px; }
+  .n-meta { display: flex; gap: 5px; margin-top: 6px; flex-wrap: wrap; }
+  .chip {
+    font-family: var(--mono); font-size: 9px; padding: 1px 5px;
+    border-radius: 4px; background: var(--surface-2); color: var(--muted);
+    border: 1px solid var(--border);
+  }
+  .chip.reuse { color: var(--src-reuse); border-color: color-mix(in srgb, var(--src-reuse) 45%, transparent); }
+  .chip.wrap  { color: var(--src-wrap);  border-color: color-mix(in srgb, var(--src-wrap) 45%, transparent); }
+  .chip.new   { color: var(--src-new);   border-color: color-mix(in srgb, var(--src-new) 45%, transparent); }
+
+  .port {
+    position: absolute; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--surface); border: 1.5px solid var(--nc); top: 50%;
+    margin-top: -4px;
+  }
+  .port.in  { left: -5px; }
+  .port.out { right: -5px; }
+
+  /* ---------- edges ---------- */
+  .edge { fill: none; stroke: var(--faint); stroke-width: 1.4; transition: opacity .12s, stroke .12s, stroke-width .12s; }
+  .edge.flow  { stroke: color-mix(in srgb, var(--t-agent) 55%, var(--faint)); }
+  .edge.dep   { stroke: color-mix(in srgb, var(--t-foundation) 55%, var(--faint)); stroke-dasharray: 5 4; }
+  .edge.data  { stroke: color-mix(in srgb, var(--t-data) 45%, var(--faint)); stroke-dasharray: 2 3; }
+  .edge.audit { stroke: color-mix(in srgb, var(--t-guardrail) 45%, var(--faint)); stroke-dasharray: 7 5; }
+  .edge.gate  { stroke: color-mix(in srgb, var(--t-gate) 65%, var(--faint)); stroke-width: 1.7; }
+  .edge.dim   { opacity: .07; }
+  .edge.hit   { opacity: 1; stroke-width: 2.2; }
+
+  /* ---------- panels ---------- */
+  aside {
+    position: absolute; top: 12px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 11px;
+    box-shadow: var(--shadow); z-index: 20; font-size: 12px;
+  }
+  #legend { left: 12px; width: 208px; padding: 11px 12px; }
+  #legend h4, #inspector h4 {
+    margin: 0 0 8px; font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted); font-weight: 600;
+  }
+  .lg-row {
+    display: flex; align-items: center; gap: 7px; padding: 3px 4px;
+    border-radius: 5px; cursor: pointer; line-height: 1.3;
+  }
+  .lg-row:hover { background: var(--surface-2); }
+  .lg-row.off { opacity: .34; }
+  .sw { width: 9px; height: 9px; border-radius: 2.5px; background: var(--c); flex: none; }
+  .lg-n { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--faint); }
+  .lg-sep { height: 1px; background: var(--border); margin: 9px 0 8px; }
+  .lg-line { display: flex; align-items: center; gap: 7px; padding: 2px 4px; color: var(--muted); }
+  .lg-line svg { flex: none; }
+
+  #inspector {
+    right: 12px; width: 316px; max-height: calc(100% - 24px);
+    overflow-y: auto; padding: 13px 14px; display: none;
+  }
+  #inspector.open { display: block; }
+  .ins-close {
+    float: right; background: none; border: none; color: var(--muted);
+    font-size: 16px; line-height: 1; padding: 0 2px; cursor: pointer;
+  }
+  .ins-type { font-family: var(--mono); font-size: 9.5px; letter-spacing: .09em; text-transform: uppercase; color: var(--ic); }
+  .ins-title { font-size: 16px; font-weight: 650; margin: 5px 0 3px; letter-spacing: -.015em; line-height: 1.2; }
+  .ins-sub { color: var(--muted); margin-bottom: 11px; line-height: 1.45; }
+  .ins-desc { line-height: 1.55; margin-bottom: 12px; }
+  .kv { display: grid; grid-template-columns: 86px 1fr; gap: 4px 8px; margin-bottom: 12px; }
+  .kv dt { color: var(--muted); font-size: 11px; }
+  .kv dd { margin: 0; font-size: 11.5px; }
+  .ins-sec { margin: 12px 0 5px; font-size: 10px; letter-spacing: .09em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .ins-list { margin: 0; padding: 0; list-style: none; }
+  .ins-list li {
+    padding: 4px 7px; border-radius: 5px; background: var(--surface-2);
+    margin-bottom: 3px; cursor: pointer; display: flex; gap: 6px; align-items: baseline;
+    line-height: 1.35;
+  }
+  .ins-list li:hover { background: var(--bg-dots); }
+  .ins-list .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--c); flex: none; margin-top: 5px; }
+  .ins-list code { font-family: var(--mono); font-size: 10.5px; }
+  .ins-btn {
+    display: block; width: 100%; text-align: center; margin-top: 10px;
+    padding: 7px; border-radius: 7px; background: var(--surface-2);
+    border: 1px solid var(--border); color: var(--text);
+    text-decoration: none; font-size: 12px; font-weight: 550;
+  }
+  .ins-btn:hover { border-color: var(--t-agent); color: var(--t-agent); }
+  code.ref { font-family: var(--mono); font-size: 10.5px; color: var(--muted); word-break: break-all; }
+
+  #empty {
+    position: absolute; inset: 0; display: grid; place-content: center;
+    text-align: center; color: var(--faint); pointer-events: none; z-index: 5;
+  }
+  #empty.hide { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">Agent Hub <span>· fleet graph</span></div>
+
+  <select id="view" title="Which graph to show"></select>
+  <input type="search" id="search" placeholder="Search nodes…  ( / )">
+
+  <button id="fit"    title="Fit graph to window (F)">Fit</button>
+  <button id="relayout" title="Discard dragged positions for this view">Reset layout</button>
+  <button id="theme"  title="Toggle light / dark">◐</button>
+
+  <div class="spacer"></div>
+  <div class="counts" id="counts"></div>
+  <div class="hint">drag nodes · drag bg to pan · scroll to zoom · dbl-click an agent to drill in</div>
+</header>
+
+<main>
+  <div id="canvas">
+    <div id="world">
+      <svg id="edges"><g id="edges-g"></g></svg>
+      <div id="nodes"></div>
+    </div>
+  </div>
+
+  <aside id="legend">
+    <h4>Node types — click to filter</h4>
+    <div id="lg-types"></div>
+    <div class="lg-sep"></div>
+    <h4>Tool source</h4>
+    <div class="lg-line"><span class="chip reuse">reuse</span> call shipped code as-is</div>
+    <div class="lg-line"><span class="chip wrap">wrap</span> logic exists, needs a tool</div>
+    <div class="lg-line"><span class="chip new">new</span> build from scratch</div>
+    <div class="lg-sep"></div>
+    <h4>Edge kinds</h4>
+    <div class="lg-line"><svg width="26" height="8"><path d="M0,4 H26" class="edge flow"/></svg> flow / invoke</div>
+    <div class="lg-line"><svg width="26" height="8"><path d="M0,4 H26" class="edge dep"/></svg> delegates / depends</div>
+    <div class="lg-line"><svg width="26" height="8"><path d="M0,4 H26" class="edge data"/></svg> reads / writes</div>
+    <div class="lg-line"><svg width="26" height="8"><path d="M0,4 H26" class="edge gate"/></svg> approval gate</div>
+    <div class="lg-line"><svg width="26" height="8"><path d="M0,4 H26" class="edge audit"/></svg> audit trail</div>
+  </aside>
+
+  <aside id="inspector"></aside>
+  <div id="empty" class="hide">No nodes match this filter.</div>
+</main>
+
+<script>
+"use strict";
+
+/* ============================================================================
+   DATA
+   Sourced from docs/agents/*.md and docs/PRD_AGENT_HUB.md.
+   Tool `src` values mirror the specs: reuse | wrap | new.
+   ==========================================================================*/
+
+const TYPES = {
+  foundation:  { label: "Foundation",  color: "var(--t-foundation)" },
+  ui:          { label: "Hub UI",      color: "var(--t-ui)" },
+  agent:       { label: "Agent",       color: "var(--t-agent)" },
+  trigger:     { label: "Trigger",     color: "var(--t-trigger)" },
+  tool:        { label: "Tool",        color: "var(--t-tool)" },
+  gate:        { label: "Gate",        color: "var(--t-gate)" },
+  guardrail:   { label: "Guardrail",   color: "var(--t-guardrail)" },
+  data:        { label: "Data store",  color: "var(--t-data)" },
+  integration: { label: "Integration", color: "var(--t-integration)" },
+};
+
+// ---- integrations (global, shared across agents) ---------------------------
+const INTEGRATIONS = [
+  { id: "sandbox",   label: "Sandbox.co.in",    sub: "KYB + GST public APIs",      badge: "LIVE",    ref: "backend_ocr/app/sandbox_kyb.py" },
+  { id: "nova",      label: "Nova usage API",   sub: "platform consumption data",  badge: "LIVE",    ref: "backend_ocr/app/billing_api.py" },
+  { id: "tally",     label: "Tally connector",  sub: "pairing-token auth, XML",    badge: "LIVE",    ref: "backend_ocr/app/tally_agent_api.py" },
+  { id: "openai",    label: "OpenAI",           sub: "GPT-4o vision · 4o-mini",    badge: "LIVE",    ref: "utils/ocr_engine.py" },
+  { id: "gmail",     label: "Gmail OAuth",      sub: "read + send; App Password",  badge: "FRAGILE", ref: "backend_ocr/app/email_oauth.py" },
+  { id: "imps",      label: "IMPS rails",       sub: "demo mock, OTP-gated",       badge: "MOCK",    ref: "backend_ocr/app/disbursement_api.py" },
+  { id: "gstportal", label: "GST portal",       sub: "OTP session; human-only",    badge: "PLANNED", ref: "docs/Sandbox_GST_COMPLIANCE_INTERGRATION.md" },
+  { id: "ses",       label: "SES / SendGrid",   sub: "gates fleet auto-send",      badge: "PLANNED", ref: "docs/agents/COMMUNICATION_AGENT.md" },
+];
+
+// ---- foundation + Hub UI (Phase 0) ----------------------------------------
+const FOUNDATION = [
+  { id: "f:runtime",   type: "foundation", col: 1, label: "Agent Runtime",    sub: "executes runs, enforces autonomy, emits audit", badge: "PHASE 0",
+    desc: "The execution core. Every agent is invoked through it, and it is what guarantees no run exists without an audit record. Nothing else in the fleet ships before this." },
+  { id: "f:api",       type: "foundation", col: 1, label: "agents_api.py",    sub: "/api/agents · run, runs, approvals, audit", badge: "PHASE 0",
+    desc: "New FastAPI router. Reuses existing JWT tenant resolution; long runs return run_id + 202 and execute async.", ref: "PRD_AGENT_HUB.md §15" },
+  { id: "f:autonomy",  type: "guardrail",  col: 1, label: "Autonomy L0–L3",   sub: "suggest → draft → act-with-gate → autonomous", badge: "POLICY",
+    desc: "Per-agent, per-tenant. L0 suggest, L1 draft, L2 act-with-gate, L3 autonomous within policy limits. Payable is barred from L3 at any config." },
+  { id: "f:guardrails",type: "guardrail",  col: 1, label: "Guardrail engine", sub: "caps · idempotency · kill switch", badge: "POLICY",
+    desc: "Always on regardless of autonomy: amount caps, verified-vendor-only, tolerance bands, daily send caps, idempotency keys on side-effecting tools, per-agent kill switch." },
+
+  { id: "data:agent_registry",  type: "data", col: 5, label: "agent_registry",  sub: "per-tenant enable + autonomy + config", isNew: true },
+  { id: "data:agent_runs",      type: "data", col: 5, label: "agent_runs",      sub: "the audit backbone — WHY/WHAT/WHOM/HOW", isNew: true },
+  { id: "data:agent_approvals", type: "data", col: 5, label: "agent_approvals", sub: "gate records + decisions", isNew: true },
+  { id: "data:agent_messages",  type: "data", col: 5, label: "agent_messages",  sub: "orchestration transcript", isNew: true },
+
+  { id: "ui:gallery",  type: "ui", col: 0, label: "Agent Gallery",  sub: "fleet cards, status, quick run" },
+  { id: "ui:detail",   type: "ui", col: 0, label: "Agent Detail",   sub: "config, autonomy slider, recent runs" },
+  { id: "ui:console",  type: "ui", col: 0, label: "Run Console",    sub: "live step timeline over SSE" },
+  { id: "ui:inbox",    type: "ui", col: 0, label: "Approval Inbox", sub: "pending gates with exact payload" },
+  { id: "ui:audit",    type: "ui", col: 0, label: "Audit Explorer", sub: "entity-centric timeline, export" },
+  { id: "ui:cfo",      type: "ui", col: 0, label: "CFO Console",    sub: "goal box → plan → live execution" },
+];
+
+const FOUNDATION_EDGES = [
+  ["ui:gallery","f:api","flow"], ["ui:detail","f:api","flow"], ["ui:console","f:api","flow"],
+  ["ui:inbox","f:api","flow"],   ["ui:audit","f:api","flow"],  ["ui:cfo","f:api","flow"],
+  ["f:api","f:runtime","flow"],
+  ["f:runtime","f:autonomy","dep"], ["f:runtime","f:guardrails","dep"],
+  ["f:runtime","data:agent_registry","data"],
+  ["f:runtime","data:agent_runs","audit"],
+  ["f:runtime","data:agent_approvals","data"],
+  ["f:runtime","data:agent_messages","data"],
+];
+
+/* ---- the fleet -----------------------------------------------------------
+   Each agent: triggers, tools (with source + integrations touched),
+   gates, and data stores. Data ids are global so shared tables link agents
+   together in the "Everything" view.
+   ----------------------------------------------------------------------- */
+const SPECS = [
+  {
+    id: "vendor_bill", label: "Vendor Bill", badge: "LIVE", priority: "shipped",
+    status: "✅ in production", autonomy: "L1 — drafts only", difficulty: "shipped",
+    doc: "VENDOR_BILL_AGENT.md",
+    sub: "Watched mailbox → PDF → OCR → draft bill.",
+    desc: "The only deployed agent. Polls connected mailboxes for invoices from flagged POCs, OCRs attachments, and drops drafts into the Bills Draft tab. Never auto-posts into the approval chain.",
+    triggers: [
+      ["Background poll", "every AGENT_POLL_INTERVAL (600s)"],
+      ["Manual refresh", "user hits Refresh in the Hub"],
+      ["POC mail w/ attachment", "Gmail query, flagged senders only"],
+    ],
+    tools: [
+      ["list_messages",      "reuse", "Gmail search, flagged POCs + has:attachment", ["gmail"]],
+      ["get_message",        "reuse", "fetch body + attachment", ["gmail"]],
+      ["classify_bill",      "reuse", "bill vs conversation; skipped when no PDF", ["openai"]],
+      ["ocr_pipeline",       "reuse", "normal OCR extraction path", ["openai"]],
+      ["duplicate_analysis", "reuse", "thread-aware duplicate / correction / new", ["openai"]],
+      ["claim_message",      "reuse", "atomic INSERT … ON CONFLICT — one scan wins", []],
+      ["store_draft",        "reuse", "pending draft, not ingested", []],
+    ],
+    gates: [["Human review", "draft → ReviewPage → ingest → submit"]],
+    data: [
+      ["agent_settings", false, "tenant on/off"],
+      ["agent_draft_bills", false, "pending drafts + analysis"],
+      ["agent_email_events", false, "activity log; de-dupes messages"],
+      ["supplier_contacts", false, "agent_enabled per-POC flag"],
+      ["user_email_connections", false, "agent_last_scan_at"],
+    ],
+  },
+  {
+    id: "verification", label: "Verification", badge: "P0", priority: "P0 · Util",
+    status: "🟡 KYB calls built; wrapper + MSME + score new", autonomy: "L2 — act with gate", difficulty: "easy · 4–5d",
+    doc: "VERIFICATION_AGENT.md",
+    sub: "GSTIN, PAN, bank and MSME checks → trust score.",
+    desc: "Answers one question with evidence: is this vendor safe to transact with? Composes three existing Sandbox calls into one auditable verdict with a deterministic trust score. Payable refuses to prepare a disbursement without a green verdict.",
+    triggers: [
+      ["vendor.created", "new row in dim_suppliers"],
+      ["vendor.tax_id_changed", "invalidates the prior verdict"],
+      ["vendor.bank_changed", "always re-verifies — the fraud surface"],
+      ["Agent pre-flight", "Payable and GST call in"],
+      ["User: Verify now", "vendor detail page"],
+      ["Staleness sweep", "nightly, verdicts older than 90d"],
+    ],
+    tools: [
+      ["verify_gstin",             "reuse", "status, legal name, registration", ["sandbox"]],
+      ["verify_pan",               "reuse", "validity + name match", ["sandbox"]],
+      ["verify_bank",              "reuse", "penny-less name match", ["sandbox"]],
+      ["check_msme",               "new",   "Udyam lookup — drives 45-day terms", ["sandbox"]],
+      ["check_gst_filing_status",  "wrap",  "a vendor who stopped filing is ITC risk", ["sandbox"]],
+      ["compute_trust_score",      "new",   "deterministic weighted score, no LLM", []],
+      ["persist_verification",     "wrap",  "logic exists but is worker-shaped", []],
+    ],
+    gates: [["Flip vendor to payable", "or any bank detail change"]],
+    data: [
+      ["vendor_verification_verdicts", true, "append-only verdict history"],
+      ["dim_suppliers", false, ""], ["supplier_gstins", false, ""],
+      ["supplier_bank_accounts", false, ""], ["vendor_documents", false, ""],
+    ],
+  },
+  {
+    id: "recon", label: "Recon", badge: "P0", priority: "P0 · 🔥 HARD · ⭐ IMP",
+    status: "🟡 Nova usage recon in production", autonomy: "L1 — surface findings", difficulty: "hard · 8d + weeks",
+    doc: "RECON_AGENT.md",
+    sub: "Invoice lines vs ERP usage → discrepancy set.",
+    desc: "Does this invoice match what we actually consumed, ordered and paid? Generalizes the shipped Nova reconciliation into four modes over one discrepancy model. The centerpiece of the fleet — and the one most likely to be wrong in a way that costs money.",
+    triggers: [
+      ["bill.ingested", "recon before the approval chain"],
+      ["bill.approval_requested", "so the approver sees findings"],
+      ["User: Reconcile", "?refresh=true bypasses cache"],
+      ["Month close", "vendor + period sweep"],
+      ["CFO delegation", "step 1 of close_vendor_period"],
+      ["disbursement.succeeded", "→ bank recon mode"],
+    ],
+    tools: [
+      ["pull_nova_usage",   "reuse", "month snapshot — reproducible, not live", ["nova"]],
+      ["pull_erp_usage",    "wrap",  "Tally ledger / purchase entries", ["tally"]],
+      ["run_recon",         "reuse", "core in utils/billing_recon_core.py", []],
+      ["match_line",        "reuse", "LLM proposes — arithmetic vetoes", ["openai"]],
+      ["_numeric_guardrail","reuse", "the pattern the whole fleet copies", []],
+      ["list_discrepancies","reuse", "GET /api/billing/discrepancies", []],
+      ["resolve_discrepancy","reuse","PATCH — human dispositions a finding", []],
+      ["match_po",          "new",   "2-way and 3-way; blocked on a PO model", []],
+      ["bank_recon",        "new",   "disbursements vs statement lines", []],
+      ["write_recon_note",  "reuse", "LLM advisory prose, redacted", ["openai"]],
+    ],
+    gates: [],
+    data: [
+      ["billing_nova_usage_snapshots", false, ""], ["billing_vendor_invoices", false, ""],
+      ["billing_reconciliation_runs", false, "the precedent agent_runs generalizes"],
+      ["billing_reconciliation_discrepancies", false, ""],
+      ["billing_vendor_module_alias", false, "alias drift invalidates past recons"],
+      ["fact_purchase_orders", true, "⚠ does not exist yet"],
+      ["fact_po_line_items", true, "qty_billed catches cross-invoice over-billing"],
+    ],
+  },
+  {
+    id: "analytics", label: "Analytics", badge: "P0", priority: "P0 · MED",
+    status: "🟡 per-domain stats exist, no rollup", autonomy: "L1 — draft, don't send", difficulty: "medium · 8–12d",
+    doc: "ANALYTICS_AGENT.md",
+    sub: "Weekly spend, exceptions and run rollup.",
+    desc: "Makes the rest of the fleet legible. Every other agent produces findings scoped to one bill; nobody sees the aggregate. Also the fleet's own accountability surface — failure rates, gate latency and token spend per agent.",
+    triggers: [
+      ["Weekly rollup", "Mon 07:00 tenant-local"],
+      ["Month-end close", "cost centers, TDS/GST exposure, ageing"],
+      ["User: Generate report", "arbitrary period"],
+      ["CFO briefing request", "before planning"],
+      ["Threshold breach", "ad-hoc alert report"],
+    ],
+    tools: [
+      ["query_spend",       "wrap",  "by vendor, category, cost center", []],
+      ["query_exceptions",  "wrap",  "open discrepancies, RED verdicts, failures", []],
+      ["query_approvals",   "wrap",  "pending, overdue, time-to-approve", []],
+      ["query_ageing",      "new",   "AP buckets 0-30/31-60/61-90/90+", []],
+      ["query_disbursements","reuse", "GET /api/disbursements/stats", []],
+      ["query_fx",          "reuse", "fx report, exposure, agent briefing", []],
+      ["query_runs",        "new",   "fleet rollup — build this first", []],
+      ["query_tds_gst_exposure","wrap","fact_tds_ledger + GST recon state", []],
+      ["render_report",     "new",   "deterministic assembly", []],
+      ["summarize",         "new",   "LLM prose over computed numbers only", ["openai"]],
+      ["draft_digest_email","new",   "delegates the send to Communication", []],
+    ],
+    gates: [["Send digest", "L1 drafts; L2 auto-sends on schedule"]],
+    data: [["agent_reports", true, "persisted payload, not just a render"]],
+  },
+  {
+    id: "cfo", label: "CFO Orchestrator", badge: "PHASE 2", priority: "Foundation, sequenced late",
+    status: "❌ new", autonomy: "L1 — plan, gate every side effect", difficulty: "medium · 12–15d",
+    doc: "CFO_ORCHESTRATOR_AGENT.md",
+    sub: "Plans a goal, delegates it across the fleet.",
+    desc: "Turns a goal into a sequence of agent runs under one parent run. Owns no finance logic — only decomposition, sequencing, gate placement and rollup. Deliberately Phase 2: orchestrating agents whose outcome schemas are still moving is expensive.",
+    triggers: [
+      ["User goal", "NL or structured, from the CFO Console"],
+      ["Month close", "fans out per vendor, capped"],
+      ["Composite event", "high-value bill → verify + recon + prepare"],
+      ["Gate approved", "resume the paused plan"],
+    ],
+    tools: [
+      ["list_agents",       "new", "registry read — enabled, autonomy, caps", []],
+      ["plan",              "new", "LLM parameterizes a template, then validated", ["openai"]],
+      ["invoke_agent",      "new", "registered + enabled agents only", []],
+      ["wait_for_gate",     "new", "suspend; resume on decision", []],
+      ["query_runs",        "reuse","shared with Analytics, for rollup", []],
+      ["summarize_outcomes","new", "narrative over child outcomes", ["openai"]],
+    ],
+    gates: [["Plan confirmation", "free-text goals and any money step"]],
+    data: [["agent_plans", true, "cursor column survives restart mid-gate"]],
+    delegates: ["verification","recon","analytics","payable","contract","tds","gst","receivable"],
+  },
+  {
+    id: "payable", label: "Payable", badge: "NEXT", priority: "follows Recon",
+    status: "🟡 disbursement + OTP + chain built", autonomy: "L1 → L2 · L3 barred", difficulty: "medium · 13–16d",
+    doc: "PAYABLE_AGENT.md",
+    sub: "Gated disbursement, OTP, chain follow-ups.",
+    desc: "The right amount to the right verified vendor, with a human signature on every rupee that leaves. This is the agent the fleet's guardrails were written for — everything else produces information; this one moves money.",
+    triggers: [
+      ["bill.approved + recon clean", "→ prepare"],
+      ["User: Pay", "bill or vendor payment page"],
+      ["CFO plan step", "close_vendor_period"],
+      ["Approval stalled", "chain step overdue → follow up"],
+      ["Due-date sweep", "MSME 45-day, early-payment discounts"],
+      ["Status unresolved", "PENDING/IN_PROCESS → refresh"],
+    ],
+    tools: [
+      ["get_payment_profile",    "reuse", "verified account, KYB state, masked", []],
+      ["check_verification",     "reuse", "hard precondition", []],
+      ["check_recon",            "reuse", "within_tolerance, recommended_action", []],
+      ["compute_payable_amount", "wrap",  "invoice − TDS − credit notes; arithmetic", []],
+      ["prepare_disbursement",   "reuse", "creates record + OTP; moves no money", []],
+      ["initiate_imps",          "reuse", "human-supplied OTP only", ["imps"]],
+      ["bulk_prepare",           "reuse", "vendor batch + batch-verify-otp", ["imps"]],
+      ["check_payment_status",   "reuse", "refresh-status to a terminal state", ["imps"]],
+      ["advance_approval_chain", "wrap",  "bill_approval_chain + wf_tasks", []],
+      ["nudge_approver",         "wrap",  "existing wf_nudges machinery", []],
+      ["allocate_cash",          "new",   "deterministic ranked allocation", []],
+      ["send_remittance_advice", "new",   "via Communication, after settlement", []],
+    ],
+    gates: [
+      ["initiate_payment", "exact payload: amount, vendor, A/C, IFSC, bill"],
+      ["Human OTP", "the human's signature — agent never holds it"],
+    ],
+    data: [
+      ["fact_disbursements", false, "_audit already logs old/new state"],
+      ["payment_runs", true, "proposed allocation, not execution"],
+      ["bill_approval_chain", false, ""], ["wf_tasks", false, ""],
+      ["wf_nudges", false, ""], ["supplier_bank_accounts", false, ""],
+      ["fact_tds_ledger", false, ""],
+    ],
+    depends: ["verification","recon"],
+  },
+  {
+    id: "contract", label: "Contract", badge: "P1", priority: "P1 · MED · Util",
+    status: "🟡 OCR built; term extraction new", autonomy: "L1 — extract, never enforce", difficulty: "medium · 11–15d",
+    doc: "CONTRACT_AGENT.md",
+    sub: "Parses contracts, extracts and links terms.",
+    desc: "Closes a real gap: Recon can say an invoice doesn't match usage, but not that it doesn't match the contracted rate — because that rate lives in a PDF nobody parsed. Supplies rates, payment terms, SLAs and escalation clauses.",
+    triggers: [
+      ["document.uploaded", "contract / MSA / SOW / rate card"],
+      ["Vendor onboarding", "contract attached at creation"],
+      ["User: Extract terms", "vendor documents list"],
+      ["Recon rate request", "contracted rate for a flagged line"],
+      ["Renewal sweep", "expiring or auto-renewing within N days"],
+    ],
+    tools: [
+      ["classify_document", "new",   "contract vs SOW vs rate card vs amendment", ["openai"]],
+      ["parse_document",    "reuse", "page split + vision extraction", ["openai"]],
+      ["extract_terms",     "new",   "typed fields, each with a page citation", ["openai"]],
+      ["validate_terms",    "new",   "dates ordered, rates positive, tiers sane", []],
+      ["resolve_vendor",    "wrap",  "same matching as billing_api", []],
+      ["persist_document",  "wrap",  "vendor_documents + stored file", []],
+      ["link_terms",        "new",   "attach to vendor / bill / PO", []],
+      ["diff_amendment",    "new",   "supersede clauses, never overwrite", ["openai"]],
+      ["get_contracted_rate","new",  "date-aware lookup Recon calls", []],
+    ],
+    gates: [["Confidence gate", "< 0.80 → needs_review, invisible to Recon"]],
+    data: [
+      ["vendor_contracts", true, "amendment chain via amends_id"],
+      ["vendor_contract_rates", true, "normalized_item joins the alias table"],
+      ["vendor_documents", false, ""], ["raw_invoice_uploads", false, ""],
+    ],
+  },
+  {
+    id: "tds", label: "TDS", badge: "P2", priority: "P2",
+    status: "🟡 engine + ledger + rules built", autonomy: "L0 → L1 · filing gated", difficulty: "medium · 10–14d",
+    doc: "TDS_AGENT.md",
+    sub: "Computes liability, drafts the return.",
+    desc: "Withholding right on every bill, and quarterly filing as a review rather than a reconstruction. Most of the engine ships already — the agent adds exception detection before filing, 26Q assembly, and challan reconciliation.",
+    triggers: [
+      ["Bill with TDS applicability", "compute and attach"],
+      ["Threshold crossing", "catch-up deduction"],
+      ["Quarterly window", "15 Jul / Oct / Jan · 31 May"],
+      ["Monthly deposit due", "7th — challan reminder"],
+      ["User: Review TDS", "period or vendor"],
+      ["Rate/section config change", "re-evaluate open bills"],
+    ],
+    tools: [
+      ["resolve_section",         "reuse", "priority-ordered mapping rules", []],
+      ["compute_tds",             "reuse", "rate, base, amount, cumulative", []],
+      ["compute_catchup",         "reuse", "threshold crossing, utils/tds_catchup.py", []],
+      ["get_ytd_ledger",          "wrap",  "fact_tds_ledger per supplier/FY/section", []],
+      ["detect_exceptions",       "new",   "shadow recompute → diff vs applied", []],
+      ["assemble_return",         "new",   "26Q deductee-wise draft", []],
+      ["reconcile_challan",       "new",   "deducted vs deposited", []],
+      ["compute_interest_penalty","new",   "201(1A) interest, deterministic", []],
+      ["report_tds",              "wrap",  "feeds Analytics", []],
+    ],
+    gates: [["Filing", "hard gate at any autonomy level"]],
+    data: [
+      ["dim_tds_sections", false, "effective-dated rates"],
+      ["dim_tds_mapping_rules", false, "priority-ordered"],
+      ["dim_vendor_tds_overrides", false, ""],
+      ["fact_tds_ledger", false, "YTD per supplier/FY/section"],
+      ["tds_challans", true, ""], ["tds_return_drafts", true, ""],
+    ],
+  },
+  {
+    id: "gst", label: "GST", badge: "P2", priority: "P2 — phase 2 deserves promotion",
+    status: "🟡 GSTIN validation built; rest designed", autonomy: "L0 → L1 · filing gated", difficulty: "medium · 12–17d",
+    doc: "GST_AGENT.md",
+    sub: "Assembles returns, checks vendor filings.",
+    desc: "ITC is only claimable if the vendor actually filed — and nothing checks that today. A vendor can invoice with GST, get paid in full, never file, and the cost surfaces months later as a reversal with interest. Filing-status checking needs only the public API and prevents real money loss.",
+    triggers: [
+      ["Bill ingested with GST", "validate GSTIN, place of supply, arithmetic"],
+      ["Before payment", "delegated by Payable — is filing current?"],
+      ["2A/2B window", "after the 14th"],
+      ["Return window", "GSTR-3B / GSTR-1 ahead of the 20th"],
+      ["Vendor onboarding", "called by Verification for filing history"],
+      ["User: Check GST", "vendor or period"],
+    ],
+    tools: [
+      ["search_gstin",         "reuse", "status, legal name, taxpayer type", ["sandbox"]],
+      ["track_filing_status",  "wrap",  "the ITC-risk signal", ["sandbox"]],
+      ["search_gstin_by_pan",  "wrap",  "catches invoicing from an unregistered arm", ["sandbox"]],
+      ["validate_bill_gst",    "new",   "CGST/SGST vs IGST by place of supply", []],
+      ["fetch_2b",             "new",   "4-step job flow; needs a portal session", ["gstportal"]],
+      ["reconcile_2b",         "new",   "purchase register vs 2B", []],
+      ["assemble_return",      "new",   "GSTR-3B / GSTR-1 draft", []],
+      ["compute_itc_at_risk",  "new",   "exposure from non-filing vendors", []],
+      ["report_gst",           "wrap",  "feeds Analytics", []],
+    ],
+    gates: [
+      ["Filing", "GSTR-3B is an irreversible statutory act"],
+      ["Portal session", "OTP — human-initiated, agent cannot"],
+    ],
+    data: [
+      ["gst_filing_status", true, "status + ITC at risk per GSTIN"],
+      ["gst_return_drafts", true, ""],
+      ["fact_gst_reconciliation", true, "per integration doc §4.3"],
+      ["supplier_gstins", false, ""], ["int_connector_limits", false, "rate limits"],
+    ],
+  },
+  {
+    id: "receivable", label: "Receivable", badge: "P2", priority: "P2 — confirm demand first",
+    status: "❌ thinnest domain in the platform", autonomy: "L1 — draft follow-ups", difficulty: "medium · 14–17d",
+    doc: "RECEIVABLE_AGENT.md",
+    sub: "Tracks AR, chases overdue invoices.",
+    desc: "The mirror of Payable. Real output is a prioritized collections queue with a drafted message per item — not automated nagging. Steps 1–3 are an AR module, not an agent; agent value only starts at step 4.",
+    triggers: [
+      ["invoice.issued", "create AR record, compute due date"],
+      ["Due-date approach", "T−7, T−1 reminders"],
+      ["Overdue", "escalate the dunning ladder"],
+      ["payment.received", "match and settle"],
+      ["User: Chase this", "or generate a statement"],
+      ["Month close", "ageing + DSO for Analytics"],
+    ],
+    tools: [
+      ["create_ar_record",     "new",   "from issued invoices → AR ledger", []],
+      ["compute_due_date",     "new",   "customer terms; contracted where known", []],
+      ["get_ageing",           "new",   "buckets + DSO, shared with Analytics", []],
+      ["rank_collections",     "new",   "deterministic prioritization", []],
+      ["draft_dunning",        "new",   "LLM fills a fixed per-stage template", ["openai"]],
+      ["send_followup",        "reuse", "via Communication — gated and capped", []],
+      ["match_receipt",        "new",   "reference → amount → partial. Arithmetic", []],
+      ["apply_receipt",        "new",   "settle full or partial", []],
+      ["generate_statement",   "new",   "statement of account", []],
+      ["predict_payment_date", "wrap",  "ai_payment_predictions — verify it's populated", []],
+    ],
+    gates: [["Stage 4 final notice", "always gated — legal and commercial weight"]],
+    data: [
+      ["fact_receivables", true, "open AR with due dates"],
+      ["fact_receipts", true, ""],
+      ["fact_receipt_allocations", true, "makes partial + over-payment representable"],
+      ["ar_dunning_log", true, "the ladder depends on accurate history"],
+      ["dim_customers", false, ""], ["ai_payment_predictions", false, ""],
+    ],
+  },
+  {
+    id: "communication", label: "Communication", badge: "UTIL", priority: "Utility — no fleet card",
+    status: "🟡 Gmail OAuth built; no gated send path", autonomy: "L1 — send behind a gate", difficulty: "easy · 10d",
+    doc: "COMMUNICATION_AGENT.md",
+    sub: "One outbound door: templates, caps, suppression, log.",
+    desc: "Not on the fleet board, but Payable, Receivable, Analytics and GST all send email. Without one shared path each would build its own caps and suppression — which is how a fleet ends up emailing a customer four times in an hour.",
+    triggers: [
+      ["Delegated send", "Payable, Receivable, Analytics, GST"],
+      ["User: Email this vendor", "from a bill or vendor page"],
+      ["Reply received", "notify the originating agent"],
+      ["Bounce / failure", "suppress the address, flag the contact"],
+    ],
+    tools: [
+      ["render_template", "new",   "deterministic; missing ctx is a hard failure", []],
+      ["polish_copy",     "new",   "tone only — may not change any figure", ["openai"]],
+      ["check_sendable",  "new",   "suppression, caps, quiet hours, dedupe", []],
+      ["send_email",      "reuse", "Gmail send; OTP mail is the precedent", ["gmail","ses"]],
+      ["log_outreach",    "wrap",  "vendor_outreach_log, generalized", []],
+      ["track_thread",    "reuse", "thread reading already built", ["gmail"]],
+      ["classify_reply",  "wrap",  "reuse the Vendor Bill classifier pattern", ["openai"]],
+      ["suppress",        "new",   "bounce, unsubscribe, manual", []],
+    ],
+    gates: [["Send gate", "user sees the exact final text and recipient"]],
+    data: [
+      ["agent_messages_out", true, "outbox + idempotency key"],
+      ["comm_suppressions", true, "absolute, incl. manual do-not-contact"],
+      ["comm_templates", true, "required_ctx enforces every figure"],
+      ["vendor_outreach_log", false, ""],
+    ],
+  },
+];
+
+// agents that call Communication
+const COMMS_CALLERS = ["payable","receivable","analytics","gst"];
+
+/* ============================================================================
+   GRAPH CONSTRUCTION
+   ==========================================================================*/
+
+const AGENT_BY_ID = Object.fromEntries(SPECS.map(s => [s.id, s]));
+const INT_BY_ID   = Object.fromEntries(INTEGRATIONS.map(i => [i.id, i]));
+const slug = s => s.replace(/[^a-zA-Z0-9_]+/g, "_").slice(0, 48);
+
+function agentNode(s, col) {
+  return {
+    id: "a:" + s.id, type: "agent", col, label: s.label, sub: s.sub, badge: s.badge,
+    desc: s.desc, agent: s.id, wide: true,
+    meta: [s.status, s.autonomy, s.difficulty],
+    doc: s.doc, priority: s.priority,
+  };
+}
+function intNode(i, col) {
+  return { id: "i:" + i.id, type: "integration", col, label: i.label, sub: i.sub, badge: i.badge, ref: i.ref,
+           desc: "External dependency. " + i.sub + "." };
+}
+function dataNode(name, isNew, note, col) {
+  return { id: "data:" + name, type: "data", col, label: name, sub: note || "",
+           badge: isNew ? "NEW" : null, isNew,
+           desc: (isNew ? "New table. " : "Existing table, reused through tools. ") + (note || "") };
+}
+
+/* ---- fleet view: foundation + agents + integrations + core stores -------- */
+function buildFleet() {
+  const nodes = [], edges = [];
+  FOUNDATION.forEach(n => nodes.push({ ...n }));
+  FOUNDATION_EDGES.forEach(([f, t, k]) => edges.push({ from: f, to: t, kind: k }));
+
+  nodes.push(agentNode(AGENT_BY_ID.cfo, 2));
+  SPECS.filter(s => s.id !== "cfo").forEach(s => nodes.push(agentNode(s, 3)));
+  INTEGRATIONS.forEach(i => nodes.push(intNode(i, 4)));
+
+  // runtime → every agent, and every agent → the audit store
+  SPECS.forEach(s => {
+    edges.push({ from: "f:runtime", to: "a:" + s.id, kind: "flow" });
+    edges.push({ from: "a:" + s.id, to: "data:agent_runs", kind: "audit", label: "WHY/WHAT/WHOM/HOW" });
+    if (s.gates && s.gates.length)
+      edges.push({ from: "a:" + s.id, to: "data:agent_approvals", kind: "gate", label: s.gates[0][0] });
+  });
+
+  // orchestrator delegation
+  (AGENT_BY_ID.cfo.delegates || []).forEach(t =>
+    edges.push({ from: "a:cfo", to: "a:" + t, kind: "dep", label: "delegates" }));
+  edges.push({ from: "a:cfo", to: "data:agent_plans", kind: "data" });
+  nodes.push(dataNode("agent_plans", true, "cursor survives restart mid-gate", 5));
+
+  // hard inter-agent dependencies
+  edges.push({ from: "a:verification", to: "a:payable",  kind: "dep", label: "hard precondition" });
+  edges.push({ from: "a:recon",        to: "a:payable",  kind: "dep", label: "within tolerance" });
+  edges.push({ from: "a:contract",     to: "a:recon",    kind: "dep", label: "contracted rate" });
+  edges.push({ from: "a:gst",          to: "a:payable",  kind: "dep", label: "filing current?" });
+  edges.push({ from: "a:verification", to: "a:gst",      kind: "dep", label: "filing history" });
+  edges.push({ from: "a:recon",        to: "a:tds",      kind: "dep", label: "recon data" });
+  edges.push({ from: "a:vendor_bill",  to: "a:recon",    kind: "dep", label: "submitted bill" });
+  COMMS_CALLERS.forEach(c =>
+    edges.push({ from: "a:" + c, to: "a:communication", kind: "dep", label: "outbound" }));
+
+  // agent → integration, aggregated from its tools
+  SPECS.forEach(s => {
+    const ints = new Set();
+    (s.tools || []).forEach(([, , , tint]) => (tint || []).forEach(x => ints.add(x)));
+    ints.forEach(x => edges.push({ from: "a:" + s.id, to: "i:" + x, kind: "flow" }));
+  });
+
+  return { nodes, edges };
+}
+
+/* ---- one agent, fully expanded ------------------------------------------ */
+function buildAgent(id) {
+  const s = AGENT_BY_ID[id];
+  const nodes = [], edges = [];
+  const aid = "a:" + s.id;
+
+  nodes.push({ ...agentNode(s, 1), col: 1 });
+  nodes.push({ ...FOUNDATION.find(n => n.id === "f:runtime"), col: 0 });
+  edges.push({ from: "f:runtime", to: aid, kind: "flow" });
+
+  (s.triggers || []).forEach(([label, sub], k) => {
+    const nid = `t:${s.id}:${k}`;
+    nodes.push({ id: nid, type: "trigger", col: 0, label, sub, agent: s.id,
+                 desc: "Trigger — " + sub + "." });
+    edges.push({ from: nid, to: aid, kind: "flow" });
+  });
+
+  const intsUsed = new Set();
+  (s.tools || []).forEach(([name, src, note, tint]) => {
+    const nid = `tool:${s.id}:${slug(name)}`;
+    nodes.push({ id: nid, type: "tool", col: 2, label: name, sub: note, agent: s.id,
+                 src, badge: src.toUpperCase(), desc: note, mono: true });
+    edges.push({ from: aid, to: nid, kind: "flow" });
+    (tint || []).forEach(x => {
+      intsUsed.add(x);
+      edges.push({ from: nid, to: "i:" + x, kind: "flow" });
+    });
+  });
+
+  (s.gates || []).forEach(([label, sub], k) => {
+    const nid = `g:${s.id}:${k}`;
+    nodes.push({ id: nid, type: "gate", col: 3, label, sub, agent: s.id, badge: "GATE",
+                 desc: "Approval gate — " + sub + "." });
+    edges.push({ from: aid, to: nid, kind: "gate" });
+    edges.push({ from: nid, to: "data:agent_approvals", kind: "data" });
+  });
+  if ((s.gates || []).length) {
+    nodes.push({ ...FOUNDATION.find(n => n.id === "data:agent_approvals"), col: 5 });
+  }
+
+  (s.data || []).forEach(([name, isNew, note]) => {
+    nodes.push(dataNode(name, isNew, note, 3));
+    edges.push({ from: aid, to: "data:" + name, kind: "data" });
+  });
+
+  intsUsed.forEach(x => nodes.push(intNode(INT_BY_ID[x], 4)));
+
+  nodes.push({ ...FOUNDATION.find(n => n.id === "data:agent_runs"), col: 5 });
+  edges.push({ from: aid, to: "data:agent_runs", kind: "audit", label: "every run, no exceptions" });
+
+  (s.depends || []).forEach(d => {
+    nodes.push({ ...agentNode(AGENT_BY_ID[d], 0) });
+    edges.push({ from: "a:" + d, to: aid, kind: "dep", label: "precondition" });
+  });
+  if (s.id !== "communication" && COMMS_CALLERS.includes(s.id)) {
+    nodes.push({ ...agentNode(AGENT_BY_ID.communication, 4) });
+    edges.push({ from: aid, to: "a:communication", kind: "dep", label: "outbound" });
+  }
+  if (s.id === "cfo") {
+    (s.delegates || []).forEach(t => {
+      nodes.push({ ...agentNode(AGENT_BY_ID[t], 3) });
+      edges.push({ from: aid, to: "a:" + t, kind: "dep", label: "delegates" });
+    });
+  }
+  return { nodes, edges };
+}
+
+/* ---- everything at once ------------------------------------------------- */
+function buildAll() {
+  const fleet = buildFleet();
+  const nodes = [...fleet.nodes], edges = [...fleet.edges];
+  SPECS.forEach(s => {
+    const g = buildAgent(s.id);
+    g.nodes.forEach(n => { if (!["agent", "foundation", "integration"].includes(n.type)) nodes.push(n); });
+    g.edges.forEach(e => edges.push(e));
+  });
+  return { nodes, edges };
+}
+
+function buildView(view) {
+  const g = view === "fleet" ? buildFleet() : view === "all" ? buildAll() : buildAgent(view);
+  // de-duplicate shared nodes (data stores, integrations) and identical edges
+  const seen = new Map();
+  g.nodes.forEach(n => { if (!seen.has(n.id)) seen.set(n.id, n); });
+  const ekey = e => `${e.from}→${e.to}:${e.kind}`;
+  const eseen = new Map();
+  g.edges.forEach(e => { if (seen.has(e.from) && seen.has(e.to) && !eseen.has(ekey(e))) eseen.set(ekey(e), e); });
+  return { nodes: [...seen.values()], edges: [...eseen.values()] };
+}
+
+/* ============================================================================
+   RENDER + INTERACTION
+   ==========================================================================*/
+
+const $ = s => document.querySelector(s);
+const canvas = $("#canvas"), world = $("#world"), edgesG = $("#edges-g"),
+      nodesEl = $("#nodes"), svg = $("#edges"), inspector = $("#inspector");
+
+const STORE_KEY = "agentHubGraph.positions.v1";
+const positions = JSON.parse(localStorage.getItem(STORE_KEY) || "{}");
+const savePositions = () => localStorage.setItem(STORE_KEY, JSON.stringify(positions));
+
+const state = {
+  view: "fleet", tx: 60, ty: 40, scale: 1,
+  nodes: [], edges: [], byId: new Map(), els: new Map(), paths: new Map(),
+  sel: null, off: new Set(), query: "",
+};
+
+const COL_X = [0, 300, 620, 940, 1250, 1560];
+const V_GAP = 16;
+
+function applyTransform() {
+  world.style.transform = `translate(${state.tx}px,${state.ty}px) scale(${state.scale})`;
+}
+
+function nodeHTML(n) {
+  const t = TYPES[n.type];
+  const badge = n.badge ? `<span class="n-badge">${n.badge}</span>` : "";
+  const sub = n.sub ? `<div class="n-sub">${n.sub}</div>` : "";
+  const meta = (n.meta || []).filter(Boolean).map(m => `<span class="chip">${m}</span>`).join("");
+  const label = n.mono ? `<div class="n-label" style="font-family:var(--mono);font-size:12px">${n.label}</div>`
+                       : `<div class="n-label">${n.label}</div>`;
+  return `<div class="n-head"><span class="n-type">${t.label}</span>${badge}</div>
+          ${label}${sub}${meta ? `<div class="n-meta">${meta}</div>` : ""}
+          <div class="port in"></div><div class="port out"></div>`;
+}
+
+function render() {
+  const g = buildView(state.view);
+  state.nodes = g.nodes; state.edges = g.edges;
+  state.byId = new Map(g.nodes.map(n => [n.id, n]));
+  state.els.clear(); state.paths.clear();
+  nodesEl.innerHTML = ""; edgesG.innerHTML = "";
+
+  // 1. create + measure
+  g.nodes.forEach(n => {
+    const el = document.createElement("div");
+    el.className = "node" + (n.wide ? " wide" : "");
+    el.style.setProperty("--nc", TYPES[n.type].color);
+    el.innerHTML = nodeHTML(n);
+    if (n.src) {
+      const b = el.querySelector(".n-badge");
+      if (b) b.className = "n-badge chip " + n.src;
+    }
+    el.dataset.id = n.id;
+    nodesEl.appendChild(el);
+    state.els.set(n.id, el);
+  });
+  g.nodes.forEach(n => { const el = state.els.get(n.id); n.w = el.offsetWidth; n.h = el.offsetHeight; });
+
+  // 2. layered layout, honouring any saved drag
+  const cols = new Map();
+  g.nodes.forEach(n => {
+    const c = n.col ?? 2;
+    if (!cols.has(c)) cols.set(c, []);
+    cols.get(c).push(n);
+  });
+  const store = positions[state.view] || {};
+  const heights = new Map();
+  [...cols.keys()].forEach(c => heights.set(c, cols.get(c).reduce((a, n) => a + n.h + V_GAP, -V_GAP)));
+  const tallest = Math.max(...heights.values(), 0);
+
+  [...cols.keys()].sort((a, b) => a - b).forEach(c => {
+    let y = (tallest - heights.get(c)) / 2;
+    cols.get(c).forEach(n => {
+      const s = store[n.id];
+      if (s) { n.x = s.x; n.y = s.y; } else { n.x = COL_X[Math.min(c, COL_X.length - 1)]; n.y = y; }
+      y += n.h + V_GAP;
+    });
+  });
+
+  g.nodes.forEach(n => {
+    const el = state.els.get(n.id);
+    el.style.left = n.x + "px"; el.style.top = n.y + "px";
+  });
+
+  // 3. edges
+  g.edges.forEach((e, k) => {
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("class", "edge " + e.kind);
+    e._k = k; state.paths.set(k, { path: p, edge: e });
+    edgesG.appendChild(p);
+  });
+  drawEdges();
+
+  // 4. chrome
+  $("#counts").textContent = `${g.nodes.length} nodes · ${g.edges.length} edges`;
+  renderLegend();
+  applyFilters();
+  if (state.sel && !state.byId.has(state.sel)) closeInspector();
+}
+
+function edgePath(a, b) {
+  const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
+  const dx = Math.max(46, Math.abs(x2 - x1) * 0.45);
+  return `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+}
+
+function drawEdges() {
+  let maxX = 0, maxY = 0;
+  state.nodes.forEach(n => { maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h); });
+  svg.setAttribute("width", maxX + 400); svg.setAttribute("height", maxY + 400);
+  state.paths.forEach(({ path, edge }) => {
+    const a = state.byId.get(edge.from), b = state.byId.get(edge.to);
+    if (a && b) path.setAttribute("d", edgePath(a, b));
+  });
+}
+
+function drawEdgesFor(id) {
+  state.paths.forEach(({ path, edge }) => {
+    if (edge.from !== id && edge.to !== id) return;
+    const a = state.byId.get(edge.from), b = state.byId.get(edge.to);
+    if (a && b) path.setAttribute("d", edgePath(a, b));
+  });
+}
+
+/* ---- legend / filters --------------------------------------------------- */
+function renderLegend() {
+  const counts = {};
+  state.nodes.forEach(n => counts[n.type] = (counts[n.type] || 0) + 1);
+  $("#lg-types").innerHTML = Object.entries(TYPES)
+    .filter(([k]) => counts[k])
+    .map(([k, t]) => `<div class="lg-row ${state.off.has(k) ? "off" : ""}" data-t="${k}">
+        <span class="sw" style="--c:${t.color}"></span>${t.label}
+        <span class="lg-n">${counts[k]}</span></div>`).join("");
+  $("#lg-types").querySelectorAll(".lg-row").forEach(r => r.onclick = () => {
+    const t = r.dataset.t;
+    state.off.has(t) ? state.off.delete(t) : state.off.add(t);
+    renderLegend(); applyFilters();
+  });
+}
+
+function visible(n) {
+  if (state.off.has(n.type)) return false;
+  if (state.query) {
+    const hay = (n.label + " " + (n.sub || "") + " " + (n.desc || "")).toLowerCase();
+    if (!hay.includes(state.query)) return false;
+  }
+  return true;
+}
+
+function applyFilters() {
+  let shown = 0;
+  state.nodes.forEach(n => {
+    const v = visible(n);
+    if (v) shown++;
+    const el = state.els.get(n.id);
+    el.style.display = v ? "" : "none";
+  });
+  state.paths.forEach(({ path, edge }) => {
+    const a = state.byId.get(edge.from), b = state.byId.get(edge.to);
+    path.style.display = (a && b && visible(a) && visible(b)) ? "" : "none";
+  });
+  $("#empty").classList.toggle("hide", shown > 0);
+  if (state.sel) highlight(state.sel);
+}
+
+function highlight(id) {
+  const near = new Set([id]);
+  state.edges.forEach(e => {
+    if (e.from === id) near.add(e.to);
+    if (e.to === id) near.add(e.from);
+  });
+  state.els.forEach((el, nid) => {
+    el.classList.toggle("dim", !near.has(nid));
+    el.classList.toggle("sel", nid === id);
+  });
+  state.paths.forEach(({ path, edge }) => {
+    const on = edge.from === id || edge.to === id;
+    path.classList.toggle("hit", on);
+    path.classList.toggle("dim", !on);
+  });
+}
+
+function clearHighlight() {
+  state.els.forEach(el => el.classList.remove("dim", "sel"));
+  state.paths.forEach(({ path }) => path.classList.remove("hit", "dim"));
+}
+
+/* ---- inspector ---------------------------------------------------------- */
+function openInspector(id) {
+  const n = state.byId.get(id);
+  if (!n) return;
+  state.sel = id; highlight(id);
+  const t = TYPES[n.type];
+  const inbound = state.edges.filter(e => e.to === id);
+  const outbound = state.edges.filter(e => e.from === id);
+  const listOf = (arr, dir) => arr.map(e => {
+    const o = state.byId.get(dir === "in" ? e.from : e.to);
+    if (!o) return "";
+    return `<li data-go="${o.id}"><span class="dot" style="--c:${TYPES[o.type].color}"></span>
+      <span>${o.mono ? `<code>${o.label}</code>` : o.label}
+      ${e.label ? `<span style="color:var(--faint)"> — ${e.label}</span>` : ""}</span></li>`;
+  }).join("");
+
+  const spec = n.agent ? AGENT_BY_ID[n.agent] : null;
+  const kv = [];
+  if (n.type === "agent" && spec) {
+    kv.push(["Priority", spec.priority], ["Status", spec.status],
+            ["Autonomy", spec.autonomy], ["Estimate", spec.difficulty]);
+  }
+  if (n.type === "tool") kv.push(["Source", `<span class="chip ${n.src}">${n.src}</span>`],
+                                 ["Owner", AGENT_BY_ID[n.agent]?.label || "—"]);
+  if (n.type === "data") kv.push(["Table", n.isNew ? "new — needs DDL" : "exists, reused via tools"]);
+  if (n.type === "trigger" && spec) kv.push(["Fires", spec.label]);
+
+  inspector.innerHTML = `
+    <button class="ins-close" title="Close (Esc)">×</button>
+    <div class="ins-type" style="--ic:${t.color}">${t.label}</div>
+    <div class="ins-title" ${n.mono ? 'style="font-family:var(--mono);font-size:14px"' : ""}>${n.label}</div>
+    ${n.sub ? `<div class="ins-sub">${n.sub}</div>` : ""}
+    ${n.desc && n.desc !== n.sub ? `<div class="ins-desc">${n.desc}</div>` : ""}
+    ${kv.length ? `<dl class="kv">${kv.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl>` : ""}
+    ${n.ref ? `<div class="ins-sec">Reference</div><code class="ref">${n.ref}</code>` : ""}
+    ${inbound.length ? `<div class="ins-sec">Upstream · ${inbound.length}</div><ul class="ins-list">${listOf(inbound, "in")}</ul>` : ""}
+    ${outbound.length ? `<div class="ins-sec">Downstream · ${outbound.length}</div><ul class="ins-list">${listOf(outbound, "out")}</ul>` : ""}
+    ${n.type === "agent" && spec ? `<a class="ins-btn" href="agents/${spec.doc}">Open spec — ${spec.doc} →</a>` : ""}
+    ${n.type === "agent" && state.view !== n.agent ? `<button class="ins-btn" data-drill="${n.agent}">Drill into this agent's graph →</button>` : ""}
+  `;
+  inspector.classList.add("open");
+  inspector.querySelector(".ins-close").onclick = closeInspector;
+  inspector.querySelectorAll("[data-go]").forEach(li => li.onclick = () => {
+    openInspector(li.dataset.go); centerOn(li.dataset.go);
+  });
+  const drill = inspector.querySelector("[data-drill]");
+  if (drill) drill.onclick = () => setView(drill.dataset.drill);
+}
+
+function closeInspector() {
+  state.sel = null; inspector.classList.remove("open"); clearHighlight();
+}
+
+/* ---- viewport ----------------------------------------------------------- */
+function bbox() {
+  const vis = state.nodes.filter(visible);
+  if (!vis.length) return null;
+  return vis.reduce((b, n) => ({
+    x1: Math.min(b.x1, n.x), y1: Math.min(b.y1, n.y),
+    x2: Math.max(b.x2, n.x + n.w), y2: Math.max(b.y2, n.y + n.h),
+  }), { x1: Infinity, y1: Infinity, x2: -Infinity, y2: -Infinity });
+}
+
+function fit() {
+  const b = bbox(); if (!b) return;
+  const pad = 60, vw = canvas.clientWidth, vh = canvas.clientHeight;
+  const s = Math.min((vw - pad * 2) / (b.x2 - b.x1), (vh - pad * 2) / (b.y2 - b.y1), 1.15);
+  state.scale = Math.max(0.12, s);
+  state.tx = (vw - (b.x2 - b.x1) * state.scale) / 2 - b.x1 * state.scale;
+  state.ty = (vh - (b.y2 - b.y1) * state.scale) / 2 - b.y1 * state.scale;
+  applyTransform();
+}
+
+function centerOn(id) {
+  const n = state.byId.get(id); if (!n) return;
+  state.tx = canvas.clientWidth / 2 - (n.x + n.w / 2) * state.scale;
+  state.ty = canvas.clientHeight / 2 - (n.y + n.h / 2) * state.scale;
+  applyTransform();
+}
+
+function setView(v) {
+  state.view = v; $("#view").value = v;
+  closeInspector(); render(); fit();
+}
+
+/* ---- pointer handling --------------------------------------------------- */
+let drag = null, pan = null;
+
+canvas.addEventListener("pointerdown", e => {
+  const nodeEl = e.target.closest(".node");
+  if (nodeEl) {
+    const n = state.byId.get(nodeEl.dataset.id);
+    drag = { n, el: nodeEl, sx: e.clientX, sy: e.clientY, ox: n.x, oy: n.y, moved: false };
+    nodeEl.setPointerCapture(e.pointerId);
+    e.preventDefault();
+    return;
+  }
+  pan = { sx: e.clientX, sy: e.clientY, tx: state.tx, ty: state.ty };
+  canvas.classList.add("panning");
+  canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener("pointermove", e => {
+  if (drag) {
+    const dx = (e.clientX - drag.sx) / state.scale, dy = (e.clientY - drag.sy) / state.scale;
+    if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true;
+    drag.n.x = drag.ox + dx; drag.n.y = drag.oy + dy;
+    drag.el.style.left = drag.n.x + "px"; drag.el.style.top = drag.n.y + "px";
+    drawEdgesFor(drag.n.id);
+    return;
+  }
+  if (pan) {
+    state.tx = pan.tx + (e.clientX - pan.sx);
+    state.ty = pan.ty + (e.clientY - pan.sy);
+    applyTransform();
+  }
+});
+
+canvas.addEventListener("pointerup", e => {
+  if (drag) {
+    if (drag.moved) {
+      (positions[state.view] ||= {})[drag.n.id] = { x: drag.n.x, y: drag.n.y };
+      savePositions(); drawEdges();
+    } else {
+      openInspector(drag.n.id);
+    }
+    drag = null; return;
+  }
+  if (pan) {
+    if (Math.abs(e.clientX - pan.sx) + Math.abs(e.clientY - pan.sy) < 3) closeInspector();
+    pan = null; canvas.classList.remove("panning");
+  }
+});
+
+canvas.addEventListener("dblclick", e => {
+  const nodeEl = e.target.closest(".node");
+  if (!nodeEl) return;
+  const n = state.byId.get(nodeEl.dataset.id);
+  if (n && n.type === "agent" && state.view !== n.agent) setView(n.agent);
+});
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+  const ns = Math.min(2.4, Math.max(0.12, state.scale * f));
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  state.tx = mx - (mx - state.tx) * (ns / state.scale);
+  state.ty = my - (my - state.ty) * (ns / state.scale);
+  state.scale = ns; applyTransform();
+}, { passive: false });
+
+/* ---- chrome wiring ------------------------------------------------------ */
+const viewSel = $("#view");
+viewSel.innerHTML =
+  `<option value="fleet">Fleet overview — hub + agents + integrations</option>` +
+  `<option value="all">Everything — all nodes, dense</option>` +
+  `<optgroup label="Drill into one agent">` +
+  SPECS.map(s => `<option value="${s.id}">${s.label}  ·  ${s.badge}</option>`).join("") +
+  `</optgroup>`;
+viewSel.onchange = () => setView(viewSel.value);
+
+$("#fit").onclick = fit;
+$("#relayout").onclick = () => {
+  delete positions[state.view]; savePositions(); render(); fit();
+};
+$("#theme").onclick = () => {
+  const cur = document.documentElement.getAttribute("data-theme");
+  const next = cur === "light" ? "dark" : "light";
+  document.documentElement.setAttribute("data-theme", next);
+  localStorage.setItem("agentHubGraph.theme", next);
+};
+const search = $("#search");
+search.oninput = () => { state.query = search.value.trim().toLowerCase(); applyFilters(); };
+search.onkeydown = e => {
+  if (e.key === "Enter") {
+    const first = state.nodes.find(visible);
+    if (first) { openInspector(first.id); centerOn(first.id); }
+  }
+  if (e.key === "Escape") { search.value = ""; state.query = ""; applyFilters(); search.blur(); }
+};
+
+document.addEventListener("keydown", e => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.key === "/") { e.preventDefault(); search.focus(); }
+  if (e.key === "f" || e.key === "F") fit();
+  if (e.key === "Escape") closeInspector();
+});
+
+let rt;
+window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(fit, 140); });
+
+/* ---- boot -------------------------------------------------------------- */
+(function boot() {
+  const saved = localStorage.getItem("agentHubGraph.theme");
+  const dark = saved ? saved === "dark"
+    : !window.matchMedia("(prefers-color-scheme: light)").matches;
+  document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+  setView("fleet");
+})();
+</script>
+</body>
+</html>

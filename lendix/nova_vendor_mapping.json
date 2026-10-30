@@ -1,0 +1,928 @@
+{
+  "meta": {
+    "title": "Nova Reconciliation Map",
+    "source": "billing rates (Sheet1).csv \u2014 Jul billing cycle worksheet",
+    "description": "Registered entity -> brand -> tenant hierarchy cross-referenced against API vendor rate card for Nova billing reconciliation.",
+    "generated_date": "2026-08-22",
+    "last_synced_with_db": "2026-08-23"
+  },
+  "cost_center_policy": {
+    "note": "Cost centre was originally only tracked at the brand level for the Non-RE entity (Vimanotech), which bills IT services per brand for internal allocation; Registered Entities defaulted to cost_center: null until finance assigned one. Avinash Capital Markets is now the first RE with assigned cost centres (see its cost_centers array) \u2014 cost_center: null remains the default for every other RE until finance assigns theirs too.",
+    "db_sync": "Vimanotech's 8 cost_centres rows were inserted into dim_cost_centres (tenant_id 3894e068-a31d-444c-8000-fb5a562263a7, source UPLOAD) on 2026-08-23; Avinash Capital Markets' 2 cost_centres rows (Brightloans, KreditBuddha) were inserted (tenant_id d0e00000-0000-0000-0000-000000000003, source UPLOAD) on 2026-08-23; cost_centre_id values below are live database IDs, not placeholders."
+  },
+  "legend": {
+    "received": "Companies from whom we are receiving bills",
+    "mismatch": "Billings not matching with Nova \u2014 category defined in source legend; no rows in this pull are currently flagged against it"
+  },
+  "reconciliation_policy": {
+    "default_tolerance_pct": 2,
+    "default_tolerance_note": "2% variation allowed on all API line items",
+    "account_aggregator_tolerance_pct": 20,
+    "account_aggregator_tolerance_note": "AA billing depends on statement volume rather than a flat per-hit rate, so it gets a wider band"
+  },
+  "entities": [
+    {
+      "registered_entity": "Aadhar India Finvest Limited",
+      "entity_type": "RE",
+      "brands": [
+        "Rupee112"
+      ],
+      "cost_center": null,
+      "tenant": null,
+      "vendor_rates": [
+        {
+          "service": "Account Aggregator",
+          "vendor": "Ignosis",
+          "rate": "4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112",
+            "Bharatloan",
+            "Rupeeontime",
+            "Loan112"
+          ],
+          "notes": "Shared AA pool across four brands"
+        },
+        {
+          "service": "Account Aggregator",
+          "vendor": "Scienaptic",
+          "rate": "5 per statement above INR 100000",
+          "rate_unit": "tiered",
+          "brand_mapping": [
+            "Rupee112",
+            "Bharatloan",
+            "Rupeeontime",
+            "Loan112"
+          ],
+          "notes": "Shared AA pool across four brands; minimum threshold INR 100000"
+        },
+        {
+          "service": "Phone-to-Prefill",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GST Detail API",
+          "vendor": "Signzy",
+          "rate": "1.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GSTIN Company Name Match",
+          "vendor": "Signzy",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ],
+          "verified": false
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ]
+        },
+        {
+          "service": "Aadhaar Extraction",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ]
+        }
+      ]
+    },
+    {
+      "registered_entity": "Solomon Capitals Private Limited",
+      "entity_type": "RE",
+      "brands": [
+        "Bharatloan"
+      ],
+      "cost_center": null,
+      "tenant": null,
+      "vendor_rates": [
+        {
+          "service": "Account Aggregator",
+          "vendor": "Signzy",
+          "rate": "4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112",
+            "Bharatloan"
+          ]
+        },
+        {
+          "service": "Phone-to-Prefill",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Bharatloan"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GST Detail API",
+          "vendor": "Signzy",
+          "rate": "1.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Bharatloan"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GSTIN Company Name Match",
+          "vendor": "Signzy",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Bharatloan"
+          ],
+          "verified": false
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Bharatloan"
+          ]
+        },
+        {
+          "service": "Aadhaar Extraction",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Bharatloan"
+          ]
+        }
+      ]
+    },
+    {
+      "registered_entity": "Devmuni Leasing & Finance Limited",
+      "entity_type": "RE",
+      "brands": [
+        "Loan112"
+      ],
+      "cost_center": null,
+      "tenant": null,
+      "vendor_rates": [
+        {
+          "service": "Account Aggregator",
+          "vendor": "Signzy",
+          "rate": "4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Loan112"
+          ]
+        },
+        {
+          "service": "Phone-to-Prefill",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Loan112"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GST Detail API",
+          "vendor": "Signzy",
+          "rate": "1.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Loan112"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GSTIN Company Name Match",
+          "vendor": "Signzy",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Loan112"
+          ],
+          "verified": false
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Loan112"
+          ]
+        },
+        {
+          "service": "Aadhaar Extraction",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Loan112"
+          ]
+        }
+      ]
+    },
+    {
+      "registered_entity": "Vrinda Finlease Limited",
+      "entity_type": "RE",
+      "brands": [
+        "Rupeeontime"
+      ],
+      "cost_center": null,
+      "tenant": null,
+      "vendor_rates": [
+        {
+          "service": "Account Aggregator",
+          "vendor": "Signzy",
+          "rate": "4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupeeontime"
+          ]
+        },
+        {
+          "service": "Phone-to-Prefill",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupeeontime"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GST Detail API",
+          "vendor": "Signzy",
+          "rate": "1.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupeeontime"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GSTIN Company Name Match",
+          "vendor": "Signzy",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupeeontime"
+          ],
+          "verified": false
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ],
+          "notes": "As listed in source sheet \u2014 expected Rupeeontime, see data_gaps"
+        },
+        {
+          "service": "Aadhaar Extraction",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Rupee112"
+          ],
+          "notes": "As listed in source sheet \u2014 expected Rupeeontime, see data_gaps"
+        }
+      ]
+    },
+    {
+      "registered_entity": "Avinash Capital Markets Limited",
+      "entity_type": "RE",
+      "brands": [
+        "Brightloans",
+        "Kreditbuddha"
+      ],
+      "cost_center": null,
+      "cost_centers": [
+        {
+          "name": "Brightloans",
+          "cost_centre_id": "4926db5e-8654-4afb-b101-15a7a8590614",
+          "source": "UPLOAD",
+          "source_cc_id": "Brightloans",
+          "is_active": true
+        },
+        {
+          "name": "KreditBuddha",
+          "cost_centre_id": "eaffaa8e-d94b-4bdc-97bd-383de0ac2aa7",
+          "source": "UPLOAD",
+          "source_cc_id": "KreditBuddha",
+          "is_active": true
+        }
+      ],
+      "tenant": {
+        "tenant_id": "d0e00000-0000-0000-0000-000000000003",
+        "company_name": "AVINASH CAPITAL MARKETS PVT LTD",
+        "plan_tier": "growth",
+        "is_active": true
+      },
+      "notes": "Kreditbuddha was previously an unowned brand on the source sheet \u2014 now confirmed owned by Avinash Capital Markets, with a cost centre assigned, but no vendor_rates of its own yet (see data_gaps).",
+      "vendor_rates": [
+        {
+          "service": "Account Aggregator",
+          "vendor": "Signzy",
+          "rate": "4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Brightloans",
+            "Kreditbuddha"
+          ]
+        },
+        {
+          "service": "Phone-to-Prefill",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Brightloans",
+            "Kreditbuddha"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GST Detail API",
+          "vendor": "Signzy",
+          "rate": "1.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Brightloans",
+            "Kreditbuddha"
+          ],
+          "verified": false
+        },
+        {
+          "service": "GSTIN Company Name Match",
+          "vendor": "Signzy",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Brightloans",
+            "Kreditbuddha"
+          ],
+          "verified": false
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Brightloans",
+            "Kreditbuddha"
+          ]
+        },
+        {
+          "service": "Aadhaar Extraction",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "Brightloans",
+            "Kreditbuddha"
+          ]
+        }
+      ]
+    },
+    {
+      "registered_entity": "Vimanotech India Private Limited",
+      "entity_type": "NON-RE",
+      "brands": [
+        "Brightloans",
+        "Kreditbuddha",
+        "Rupee112",
+        "Loan112",
+        "Rupeeontime",
+        "Bharatloan"
+      ],
+      "cost_centers": [
+        {
+          "name": "Rupee112",
+          "cost_centre_id": "3349469f-5474-4d23-bc00-9687975e263d",
+          "source": "UPLOAD",
+          "source_cc_id": "Rupee112",
+          "is_active": true
+        },
+        {
+          "name": "Bharatloan",
+          "cost_centre_id": "853df88d-cc9e-469a-a77d-c977c49c3ec1",
+          "source": "UPLOAD",
+          "source_cc_id": "Bharatloan",
+          "is_active": true
+        },
+        {
+          "name": "Loan112",
+          "cost_centre_id": "05cc59df-b075-4c3a-bb86-654edcd3b843",
+          "source": "UPLOAD",
+          "source_cc_id": "Loan112",
+          "is_active": true
+        },
+        {
+          "name": "Rupeeontime",
+          "cost_centre_id": "9165cc70-e9ec-4d00-a3d7-99ff35e4cd6b",
+          "source": "UPLOAD",
+          "source_cc_id": "Rupeeontime",
+          "is_active": true
+        },
+        {
+          "name": "Brightloans",
+          "cost_centre_id": "9f9ea073-5aae-4775-99c5-b81565aabe99",
+          "source": "UPLOAD",
+          "source_cc_id": "Brightloans",
+          "is_active": true
+        },
+        {
+          "name": "KreditBuddha",
+          "cost_centre_id": "eed94d85-e481-4d85-a2c2-cac0ff7f0276",
+          "source": "UPLOAD",
+          "source_cc_id": "KreditBuddha",
+          "is_active": true
+        },
+        {
+          "name": "Credme",
+          "cost_centre_id": "a1cd5990-9a2e-4577-adc8-6398aaebc404",
+          "source": "UPLOAD",
+          "source_cc_id": "Credme",
+          "is_active": true
+        },
+        {
+          "name": "Salary112",
+          "cost_centre_id": "2d5ac944-cbe8-4735-a9aa-63a6acc433ef",
+          "source": "UPLOAD",
+          "source_cc_id": "Salary112",
+          "is_active": true
+        }
+      ],
+      "tenant": {
+        "tenant_id": "3894e068-a31d-444c-8000-fb5a562263a7",
+        "company_name": "Vimanotech India Pvt. Ltd.",
+        "plan_tier": "free",
+        "is_active": true
+      },
+      "notes": "Bills shared IT/verification/comms services across all six brands at once; cost not split per brand except where noted. Cost centre list includes two entries (Credme, Salary112) beyond the six lending brands billed by Vimanotech \u2014 see data_gaps.",
+      "vendor_rates": [
+        {
+          "service": "Esign",
+          "vendor": "Signzy",
+          "rate": "8",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "eKYC with Digilocker",
+          "vendor": "Signzy",
+          "rate": "1.1",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Penny Drop",
+          "vendor": "Signzy",
+          "rate": "2.39",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "GSTIN Company Name Match",
+          "vendor": "Signzy",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Face Match",
+          "vendor": "Signzy",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Liveness Match",
+          "vendor": "Signzy",
+          "rate": "1.15",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Geocoder Address Matcher",
+          "vendor": "Signzy",
+          "rate": "0.7",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Route Distance",
+          "vendor": "Signzy",
+          "rate": "0.7",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "PAN OCR",
+          "vendor": "Signzy",
+          "rate": "0.79",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Personal Email Verification",
+          "vendor": "Signzy",
+          "rate": "0.49",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "Digitap",
+          "rate": "0.76",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "eKYC with Digilocker",
+          "vendor": "Digitap",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Penny Drop",
+          "vendor": "Digitap",
+          "rate": "1.9",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Liveness Match",
+          "vendor": "Digitap",
+          "rate": "0.9",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Geocoder Address Matcher",
+          "vendor": "Digitap",
+          "rate": "0.55",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Face Match",
+          "vendor": "Digitap",
+          "rate": "0.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "PAN OCR",
+          "vendor": "Digitap",
+          "rate": "0.35",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Aadhaar OCR",
+          "vendor": "Digitap",
+          "rate": "0.35",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Aadhaar Mask",
+          "vendor": "Digitap",
+          "rate": "0.35",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Esign",
+          "vendor": "Trustt",
+          "rate": "8",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Address Geocode Match",
+          "vendor": "Trustt",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Email Verification",
+          "vendor": "KYCKart",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Face Match",
+          "vendor": "KYCKart",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "Name Match",
+          "vendor": "KYCKart",
+          "rate": "0.4",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "PAN Premium API",
+          "vendor": "KYCKart",
+          "rate": "0.6",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "PAN OCR",
+          "vendor": "KYCKart",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": []
+        },
+        {
+          "service": "eKYC with Digilocker",
+          "vendor": "KYCKart",
+          "rate": "0.59",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Aadhaar OCR",
+          "vendor": "KYCKart",
+          "rate": "0.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "SMS",
+          "vendor": "Smartping",
+          "rate": "0.01 on submission, 0.08 on delivery",
+          "rate_unit": "tiered",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "RCS",
+          "vendor": "Smartping",
+          "rate": "0.11",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "WhatsApp Messages",
+          "vendor": "Smartping",
+          "rate": "Marketing 0.88; Utility & OTP 0.12 (collection)",
+          "rate_unit": "tiered",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Email Sending",
+          "vendor": "Smartping",
+          "rate": "0.02",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Personal Email Validation",
+          "vendor": "Sendgrid",
+          "rate": "0.7 paise",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Email Sending",
+          "vendor": "Sendgrid",
+          "rate": "3 lakh emails for $249",
+          "rate_unit": "package",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "AI Voice Agent",
+          "vendor": "Girnar",
+          "rate": "1",
+          "rate_unit": "INR/min",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "OCR",
+          "vendor": "Girnar",
+          "rate": "1",
+          "rate_unit": "INR/page",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "BRE",
+          "vendor": "Credeau",
+          "rate": "2.5",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "Email Sending",
+          "vendor": "Netcore",
+          "rate": "0.02",
+          "rate_unit": "INR/hit",
+          "brand_mapping": [
+            "All Entity"
+          ],
+          "verified": false
+        },
+        {
+          "service": "SMS",
+          "vendor": "Wocom",
+          "rate": "0.02 on submission, 0.08 on delivery",
+          "rate_unit": "tiered",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "RCS",
+          "vendor": "Wocom",
+          "rate": "Rich Text 0.14; Conversation 0.38",
+          "rate_unit": "tiered",
+          "brand_mapping": [],
+          "verified": false
+        },
+        {
+          "service": "WhatsApp Messages",
+          "vendor": "Wocom",
+          "rate": "Marketing 0.878; Utility & OTP 0.115; plus 2000 portal charge",
+          "rate_unit": "tiered",
+          "brand_mapping": [],
+          "verified": false
+        }
+      ]
+    }
+  ],
+  "vendors": {
+    "_note": "Derived from the service/vendor pairs actually present in each entity's vendor_rates above \u2014 not an external vendor catalog.",
+    "Signzy": [
+      "Aadhaar Extraction",
+      "Account Aggregator",
+      "eKYC with Digilocker",
+      "Esign",
+      "Face Match",
+      "Geocoder Address Matcher",
+      "GST Detail API",
+      "GSTIN Company Name Match",
+      "Liveness Match",
+      "PAN OCR",
+      "PAN Premium API",
+      "Penny Drop",
+      "Personal Email Verification",
+      "Phone-to-Prefill",
+      "Route Distance"
+    ],
+    "Ignosis": [
+      "Account Aggregator"
+    ],
+    "Scienaptic": [
+      "Account Aggregator"
+    ],
+    "Digitap": [
+      "Aadhaar Mask",
+      "Aadhaar OCR",
+      "eKYC with Digilocker",
+      "Face Match",
+      "Geocoder Address Matcher",
+      "Liveness Match",
+      "PAN OCR",
+      "PAN Premium API",
+      "Penny Drop"
+    ],
+    "Trustt": [
+      "Address Geocode Match",
+      "Esign"
+    ],
+    "KYCKart": [
+      "Aadhaar OCR",
+      "eKYC with Digilocker",
+      "Email Verification",
+      "Face Match",
+      "Name Match",
+      "PAN OCR",
+      "PAN Premium API"
+    ],
+    "Smartping": [
+      "Email Sending",
+      "RCS",
+      "SMS",
+      "WhatsApp Messages"
+    ],
+    "Sendgrid": [
+      "Email Sending",
+      "Personal Email Validation"
+    ],
+    "Girnar": [
+      "AI Voice Agent",
+      "OCR"
+    ],
+    "Credeau": [
+      "BRE"
+    ],
+    "Netcore": [
+      "Email Sending"
+    ],
+    "Wocom": [
+      "RCS",
+      "SMS",
+      "WhatsApp Messages"
+    ]
+  },
+  "data_gaps": [
+    {
+      "issue": "Avinash Capital Markets / Brightloans not in top-of-sheet legend",
+      "detail": "Appears in the RE rate-card section but is absent from the top-of-sheet NBFC -> Brand legend. Confirmed as a real tenant only because Nova already has its tenant record."
+    },
+    {
+      "issue": "Kreditbuddha has no owning registered entity",
+      "detail": "RESOLVED 2026-08-23 \u2014 Kreditbuddha is now confirmed owned by Avinash Capital Markets Limited (added to its brands array, with a cost centre assigned). It still has no vendor_rates of its own \u2014 see 'Kreditbuddha has no certified vendor_rates yet' below.",
+      "status": "resolved"
+    },
+    {
+      "issue": "Vrinda Finlease brand-mapping mismatch",
+      "detail": "PAN Premium API and Aadhaar Extraction rows are tagged 'Rupee112' instead of the expected 'Rupeeontime' \u2014 likely a copy-paste artifact from the Aadhar India Finvest block directly above it in the source sheet."
+    },
+    {
+      "issue": "Incomplete tenant coverage",
+      "detail": "Only 2 of 6 brand-owning entities have a Nova tenant_id on file (Avinash Capital Markets, Vimanotech). Solomon Capitals, Aadhar India Finvest, Vrinda Finlease and Devmuni need their tenant records supplied to complete this map."
+    },
+    {
+      "issue": "'Not matching Nova' bills category unused",
+      "detail": "The legend defines this category but no row in the current pull is flagged against it \u2014 either this cycle reconciled cleanly, or the flag hasn't been re-applied to this export."
+    },
+    {
+      "issue": "Vimanotech cost centres beyond the six lending brands",
+      "detail": "Credme and Salary112 are listed as Vimanotech cost centres but are not lending brands tracked anywhere else in this map (Credme is not a brand; Salary112 looks like a payroll cost centre, not a brand-linked one). No vendor rates are currently attributed to either."
+    },
+    {
+      "issue": "Cost centre undefined for Registered Entities",
+      "detail": "Still true for every RE except Avinash Capital Markets, which now has cost_centers assigned (Brightloans, KreditBuddha) \u2014 the other REs (Aadhar India Finvest, Solomon Capitals, Devmuni, Vrinda Finlease) still carry cost_center: null, with no cost centre key assigned at the RE level."
+    },
+    {
+      "issue": "Kreditbuddha has no certified vendor_rates yet",
+      "detail": "Kreditbuddha is now in Avinash Capital Markets' brands array and has a cost centre, but its vendor_rates are still empty \u2014 none of Avinash's Signzy rows carry \"Kreditbuddha\" in brand_mapping. Any bill reconciled against the Kreditbuddha cost centre will find every service UNCERTIFIED until real rates are supplied (either its own rate card, or confirmation that Brightloans' existing rows should extend to it too \u2014 not assumed here). RESOLVED 2026-08-23 \u2014 Kreditbuddha now shares Brightloans' exact rate card (all 6 Signzy services, same rates) by adding \"Kreditbuddha\" to each row's brand_mapping, per direct instruction to keep the mapping logic the same for both brands. Not a separately negotiated rate card \u2014 if Kreditbuddha ever gets its own distinct rates, these rows need splitting.",
+      "status": "resolved"
+    },
+    {
+      "issue": "\"Kreditbuddha\" vs \"KreditBuddha\" casing is inconsistent across this map",
+      "detail": "brands[] arrays (Avinash Capital Markets, Vimanotech) and the top-of-sheet vendors index use \"Kreditbuddha\"; cost_centres[].name entries (Vimanotech, Avinash Capital Markets) use \"KreditBuddha\". Both casings currently resolve correctly because brand lookups and cost-centre lookups are separate code paths, but a future consumer that compares the two directly (e.g. matching a cost-centre name back to a brand string) would silently fail to match. Not normalized here since it wasn't clear which casing is authoritative."
+    },
+    {
+      "issue": "Nova module \"name-match\" was labeled two different ways across entities",
+      "detail": "Vimanotech (Non-RE) called the same real Nova module \"Name Match\" (rate 0.5/hit) while Avinash Capital Markets and 4 other REs called it \"GSTIN Company Name Match\" (rate 0.6/hit) \u2014 same underlying Signzy module, two labels. The alias resolver is global (vendor->canonical, not entity-scoped), so it always picked whichever label scored higher by string similarity against Nova's module slug \"name-match\", which meant Brightloans bills never matched at all. Confirmed only the Signzy row had this collision (5 other entities all use \"GSTIN Company Name Match\" under vendor Signzy); Vimanotech's KYCKart \"Name Match\" row is untouched \u2014 no other entity certifies that vendor/service pair, so no collision exists there. Fixed 2026-08-23 by renaming Vimanotech's row to \"GSTIN Company Name Match\" to match the other five entities' convention \u2014 Vimanotech's own certified rate (0.5) is unchanged, only the label.",
+      "status": "resolved"
+    },
+    {
+      "issue": "Not every vendor_rates row has been confirmed against a real July bill",
+      "detail": "A July-2026 bill verification sweep (per vendor/service, cross-checked against actual bills) marked 33 vendor_rates rows across Vimanotech (Digitap, KYCKart, Smartping, Sendgrid, Girnar, Wocom, Credeau, Netcore rows) and the four RE entities without a Nova tenant yet (Solomon Capitals, Aadhar India Finvest, Vrinda Finlease, Devmuni \u2014 their Phone-to-Prefill/GST Detail API/GSTIN Company Name Match rows) as verified: false \u2014 the rate exists in the source sheet but no confirmed match against an actual bill yet (\"logic not yet developed\"). algorithm.certified_pairs() now excludes verified: false rows entirely, so a bill against one of these shows UNCERTIFIED rather than falsely CERTIFIED. Rows with no verified key are treated as verified (the default, unaffected by this sweep). Extended 2026-08-23 to Avinash Capital Markets: its Phone-to-Prefill, GST Detail API, and GSTIN Company Name Match rows (Signzy) are now also verified: false, consistent with the same three services being unverified across every other RE entity \u2014 since these rows carry brand_mapping [\"Brightloans\", \"Kreditbuddha\"], the flag applies to both of Avinash's cost centres at once. Its Account Aggregator, PAN Premium API, and Aadhaar Extraction rows remain verified.",
+      "status": "resolved"
+    }
+  ]
+}

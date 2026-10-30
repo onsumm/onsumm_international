@@ -1,0 +1,594 @@
+/* Record cards opened by id over any page (?open=bill:… / ?open=vendor:…). */
+
+/* Its own stacking context, above the pages' own cards (vendor panel at
+   --z-overlay, bill modal at --z-modal) and below toasts. */
+.rc__layer {
+  position: relative;
+  z-index: calc(var(--z-modal) + 50);
+}
+
+.rc__overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: rgb(11 28 48 / 46%);
+}
+
+.rc__status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  color: var(--ink-700);
+  font-size: var(--fs-sm);
+}
+
+.rc__status-icon {
+  color: var(--danger-600);
+  flex-shrink: 0;
+}
+
+.rc__status-close {
+  display: inline-flex;
+  margin-left: var(--sp-2);
+  padding: var(--sp-1);
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-500);
+  cursor: pointer;
+}
+
+.rc__status-close:hover {
+  background: var(--surface-2);
+}
+
+.rc__link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.rc__link:hover {
+  text-decoration: underline;
+}
+
+/* ── Guide: points at the control that fixes the problem ─────────────────── */
+
+/* Fixed to the viewport, tracking the control; it never takes clicks, so the
+   control under it still works. */
+.rc__guide-ring {
+  position: fixed;
+
+  /* Above the card itself: the vendor panel's overlay carries its own
+     z-index inside this layer, so the guide must out-rank it explicitly. */
+  z-index: var(--z-toast);
+  border: 2px solid var(--brand-500);
+  border-radius: 12px;
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 18%);
+  pointer-events: none;
+  animation: rc-guide-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes rc-guide-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 4px rgb(37 99 235 / 18%);
+  }
+
+  50% {
+    box-shadow: 0 0 0 9px rgb(37 99 235 / 6%);
+  }
+}
+
+.rc__guide-tip {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--brand-900);
+  color: #fff;
+  box-shadow: var(--e-3);
+  animation: rc-guide-in 0.25s ease-out;
+}
+
+/* The arrow, pointing at the control. */
+.rc__guide-tip::before {
+  position: absolute;
+  left: var(--rc-arrow-left, 50%);
+  width: 10px;
+  height: 10px;
+  background: var(--brand-900);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.rc__guide-tip--below::before {
+  top: -5px;
+}
+
+.rc__guide-tip--above::before {
+  bottom: -5px;
+}
+
+@keyframes rc-guide-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.rc__guide-msg {
+  flex: 1;
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+}
+
+.rc__guide-done {
+  flex-shrink: 0;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: var(--r-sm);
+  background: none;
+  color: #fff;
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+}
+
+.rc__guide-done:hover {
+  background: rgb(255 255 255 / 12%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc__guide-ring,
+  .rc__guide-tip {
+    animation: none;
+  }
+}
+
+/* ── Suggested corrections, built into their fields ─────────────────────── */
+
+/* The field's own value steps aside while its suggestion box stands in.
+   data-fix-state is set on the bill card's field by CorrectionPins. */
+[data-fix-state] > .bm__field {
+  display: none !important;
+}
+
+[data-fix-state] > .vd__field-val {
+  display: none !important;
+}
+
+[data-fix-state] > td:nth-child(2) > :not(.rc__fix-host) {
+  display: none;
+}
+
+/* ✓ / ✕ sit at the end of the field's label row. */
+[data-fix-state] > .bm__lbl,
+[data-fix-state] > .vd__field-lbl {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.rc__fix-acts-host {
+  margin-left: auto;
+}
+
+.rc__fix-acts {
+  display: inline-flex;
+  gap: var(--sp-1);
+}
+
+.rc__fix-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: background var(--dur-base), color var(--dur-base), border-color var(--dur-base);
+}
+
+.rc__fix-btn--use {
+  border: 1px solid var(--success-100);
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.rc__fix-btn--use.rc__fix-btn--on,
+.rc__fix-btn--use:hover:not(:disabled) {
+  border-color: var(--success-600);
+  background: var(--success-600);
+  color: #fff;
+}
+
+.rc__fix-btn--keep {
+  border: 1px solid var(--line-200);
+  background: var(--surface-0);
+  color: var(--ink-500);
+}
+
+.rc__fix-btn--keep.rc__fix-btn--on,
+.rc__fix-btn--keep:hover {
+  border-color: var(--ink-600);
+  background: var(--ink-600);
+  color: #fff;
+}
+
+.rc__fix-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The box that replaces the value: what it says now, and what it should say. */
+.rc__fix-box {
+  display: grid;
+  gap: var(--sp-1);
+  margin-top: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1.5px solid var(--brand-400);
+  border-radius: var(--r-md);
+  background: var(--brand-50);
+  text-transform: none;
+  letter-spacing: normal;
+  animation: rc-guide-in 0.2s ease-out;
+}
+
+.rc__fix-old {
+  color: var(--ink-500);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-decoration: line-through;
+  text-decoration-color: var(--danger-500);
+}
+
+.rc__fix-line {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.rc__fix-new {
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--brand-700);
+  color: #fff;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.rc__fix-info {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--r-full);
+  background: none;
+  color: var(--brand-500);
+  cursor: help;
+}
+
+.rc__fix-info:hover,
+.rc__fix-info:focus-visible {
+  color: var(--brand-700);
+  background: var(--brand-100);
+  outline: none;
+}
+
+/* The ⓘ's reason: immediate, readable, centred just above the icon. */
+.rc__fix-tip {
+  position: fixed;
+  z-index: var(--z-toast);
+  max-width: 280px;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--brand-900);
+  color: #fff;
+  box-shadow: var(--e-3);
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+/* The arrow, pointing down at the icon. */
+.rc__fix-tip::after {
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  background: var(--brand-900);
+  content: "";
+  transform: translateX(-50%) rotate(45deg);
+}
+
+/* Just scrolled to: a pulse so the eye lands on it. */
+.rc__fix-box--flash {
+  animation: rc-fix-flash 1.2s ease-out;
+}
+
+@keyframes rc-fix-flash {
+  0%,
+  40% {
+    box-shadow: 0 0 0 5px rgb(37 99 235 / 25%);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0%);
+  }
+}
+
+/* "Next suggestion" — bobbing gently above the save bar. */
+.rc__fix-next {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-3);
+  border: 1px solid var(--brand-100);
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+  color: var(--brand-700);
+  box-shadow: var(--e-3);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transform: translateX(-50%);
+  animation: rc-fix-bob 1.4s ease-in-out infinite;
+}
+
+.rc__fix-next:hover {
+  background: var(--brand-50);
+  animation-play-state: paused;
+}
+
+@keyframes rc-fix-bob {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(5px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rc__fix-next,
+  .rc__fix-box--flash {
+    animation: none;
+  }
+}
+
+/* Accepted: the suggestion wins. */
+.rc__fix-box--use {
+  border-color: var(--success-600);
+  background: var(--success-50);
+}
+
+.rc__fix-box--use .rc__fix-new {
+  background: var(--success-600);
+}
+
+/* Kept: what the bill says stands, the suggestion is set aside. */
+.rc__fix-box--keep {
+  border-color: var(--line-200);
+  border-style: dashed;
+  background: var(--surface-1);
+}
+
+.rc__fix-box--keep .rc__fix-old {
+  color: var(--ink-900);
+  text-decoration: none;
+}
+
+.rc__fix-box--keep .rc__fix-new {
+  background: var(--line-200);
+  color: var(--ink-500);
+  text-decoration: line-through;
+}
+
+/* Used in the save bar for a suggestion whose field is not on screen. */
+.rc__pin-old {
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--danger-50);
+  color: var(--danger-700);
+  text-decoration: line-through;
+}
+
+.rc__pin-new {
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--success-50);
+  color: var(--success-700);
+  font-weight: var(--fw-semibold);
+}
+
+.rc__pin-save,
+.rc__pin-later,
+.rc__pin-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  border-radius: var(--r-md);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* The save bar, centred at the foot of the card. */
+.rc__pin-bar {
+  position: fixed;
+  z-index: var(--z-toast);
+  display: grid;
+  gap: var(--sp-2);
+  min-width: 420px;
+  max-width: 640px;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-lg);
+  background: var(--brand-900);
+  color: #fff;
+  box-shadow: var(--e-4);
+  transform: translateX(-50%);
+  animation: rc-guide-in 0.25s ease-out;
+}
+
+.rc__pin-bar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+}
+
+.rc__pin-bar-lbl {
+  min-width: 96px;
+  color: rgb(255 255 255 / 75%);
+}
+
+.rc__pin-mini {
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid rgb(255 255 255 / 30%);
+  background: none;
+  color: #fff;
+}
+
+.rc__pin-mini--on {
+  background: rgb(255 255 255 / 20%);
+}
+
+.rc__pin-bar-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.rc__pin-bar-count {
+  flex: 1;
+  font-size: var(--fs-sm);
+}
+
+.rc__pin-bar-err {
+  color: #fecaca;
+  font-size: var(--fs-xs);
+}
+
+.rc__pin-later {
+  padding: var(--sp-1) var(--sp-2);
+  border: 0;
+  background: none;
+  color: rgb(255 255 255 / 80%);
+  font-size: var(--fs-sm);
+}
+
+.rc__pin-save {
+  padding: var(--sp-2) var(--sp-4);
+  border: 0;
+  background: #fff;
+  color: var(--brand-900);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+}
+
+.rc__pin-save:disabled,
+.rc__pin-later:disabled,
+.rc__pin-mini:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (width <= 620px) {
+  .rc__pin-bar {
+    min-width: calc(100vw - 2 * var(--sp-4));
+  }
+}
+
+/* ── A contract's claimed value on the vendor card ───────────────────────── */
+
+/* Suspected, not confirmed: said plainly under the claim. */
+.rc__claim-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  margin: 2px 0 0;
+  color: var(--ink-500);
+  font-size: var(--fs-xs);
+}
+
+.rc__claim-note svg {
+  flex-shrink: 0;
+  color: var(--warn-600);
+}
+
+/* The caution before a suspected value replaces what is on file. */
+.rc__claim-confirm {
+  margin-top: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--warn-100);
+  border-radius: var(--r-md);
+  background: var(--warn-50);
+  font-size: var(--fs-sm);
+  animation: rc-guide-in 0.15s ease-out;
+}
+
+.rc__claim-confirm p {
+  margin: 0;
+  color: var(--ink-700);
+}
+
+.rc__claim-confirm-acts {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+.rc__claim-yes,
+.rc__claim-no {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-md);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.rc__claim-yes {
+  border: 0;
+  background: var(--brand-700);
+  color: #fff;
+  font-weight: var(--fw-semibold);
+}
+
+.rc__claim-no {
+  border: 1px solid var(--line-200);
+  background: var(--surface-0);
+  color: var(--ink-700);
+}
+
+.rc__claim-yes:disabled,
+.rc__claim-no:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.rc__claim-err {
+  margin: var(--sp-1) 0 0;
+  color: var(--danger-700);
+  font-size: var(--fs-xs);
+}

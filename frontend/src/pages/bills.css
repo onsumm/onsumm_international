@@ -1,0 +1,2527 @@
+/**
+ * Bills — the approval queue and the bill detail modal.
+ *
+ * Replaces the page's two injected <style> blocks. What was there had ~90 raw
+ * hexes, nine type sizes below the documented 11px floor (8px stepper roles),
+ * #9ca3af as body text in twelve places (2.5:1 — tokens.css marks it NON-TEXT),
+ * and no press feedback, focus ring or reduced-motion path anywhere.
+ *
+ * Built on the Apple design foundations (skills/apple-design-skill.md):
+ *   · Response      — feedback on pointer-down (`:active`), never only on release.
+ *   · Materials     — the sticky table head and the bulk bar are translucent
+ *                     layers rows scroll *under*, with a scroll-edge fade in
+ *                     place of a hard 1px divider.
+ *   · Spatial       — the modal grows out of the row that was clicked, unwinding
+ *                     from a dot at that point into the sheet, so it reads as
+ *                     that row opening rather than a new surface appearing.
+ *   · Typography    — tracking is size-specific: negative on the display title,
+ *                     ~zero on body, positive on small-caps labels. Nothing
+ *                     ships below --fs-2xs.
+ *   · Restraint     — one accent per surface; row state is carried by a leading
+ *                     rail rather than by repainting the whole row.
+ *
+ * All colour/space/type values come from tokens.css.
+ */
+
+/* --bp-ease / --bp-spring / --bp-press live in tokens.css now, not here: this
+   file is its own lazy-loaded route chunk, and ApprovalStepper — which this
+   page owns the CSS for but which Review Hub also renders — needs them
+   resolved before Bills has ever loaded. A :root block in a chunk that may
+   never load is not root-scoped, it's route-scoped by accident. */
+
+.bp {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  /* Next to nothing below: the pager closes the table card at the foot. */
+  padding: var(--sp-5) var(--sp-8) var(--sp-1);
+  overflow: hidden;
+  background: var(--canvas);
+  font-family: var(--font-sans);
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.bp__header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-4);
+}
+
+.bp__title {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+
+  /* Negative tracking as type grows. The old -0.05em was tight enough to
+     close the counters on "Bills" at 26px. */
+  letter-spacing: -0.024em;
+  color: var(--ink-900);
+}
+
+.bp__sub {
+  margin: 0;
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+  color: var(--ink-500);
+}
+
+/* Count of bills waiting on *this* user. Red is spent here and nowhere else
+   on the page, so it stays legible as "act on me". */
+.bp__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: var(--r-full);
+  background: var(--danger-600);
+  color: var(--surface-0);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  box-shadow: 0 4px 10px rgb(185 28 28 / 22%);
+}
+
+.bp__refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 34px;
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: rgb(255 255 255 / 72%);
+  backdrop-filter: blur(12px) saturate(160%);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    border-color var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bp__refresh:hover:not(:disabled) {
+  background: var(--surface-0);
+  border-color: var(--line-300);
+}
+
+/* Feedback on the press, not the release. */
+.bp__refresh:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.bp__refresh:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@keyframes bp-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.bp__spin {
+  animation: bp-spin 0.8s linear infinite;
+}
+
+.bp__error {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+  margin-bottom: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--danger-100);
+  border-left: 3px solid var(--danger-600);
+  border-radius: var(--r-md);
+  background: var(--danger-50);
+  color: var(--danger-700);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-normal);
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────── */
+
+.bp__filterbar {
+  padding: 0 2px var(--sp-3);
+}
+
+.bp__wrap {
+  flex: 1;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-1);
+}
+
+/* The pager is the table card's footer: one card, square join, rounded foot.
+   A class set by the page, not `:has(+ .u-pager)` — :has() on a large,
+   hover-heavy scroll container makes the browser re-check it on every hover
+   change while scrolling, and the table flashed white. */
+.bp__wrap--paged {
+  border-bottom: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.bp__wrap + .u-pager {
+  flex-shrink: 0;
+  border: 1px solid var(--line-200);
+  border-top-color: var(--line-100);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
+  box-shadow: var(--e-1);
+}
+
+.bp__table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--fs-sm);
+}
+
+/* The head is a material, not a bar: rows pass beneath it and stay faintly
+   readable through it, which is what tells you the table is still scrolling. */
+.bp__table th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  padding: var(--sp-3) var(--sp-4);
+
+  /* Solid, not a backdrop blur: blurring the rows scrolling beneath a sticky
+     header has to be redone every frame, and on a high-DPI screen the browser
+     fell behind and flashed white while the table scrolled. */
+  background: rgb(248 250 252);
+  text-align: left;
+  white-space: nowrap;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+
+  /* Positive tracking: small caps need the air that display type does not. */
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+
+  /* Vibrancy — over a translucent surface, flat grey loses too much. */
+  color: var(--ink-600);
+}
+
+/* Scroll edge, not a divider. The fade only exists where the floating head
+   actually overlaps content, so a short table shows no line at all. */
+.bp__table th::after {
+  content: "";
+  position: absolute;
+  inset: 100% 0 auto;
+  height: 8px;
+  background: linear-gradient(to bottom, rgb(15 23 42 / 7%), rgb(15 23 42 / 0%));
+  pointer-events: none;
+}
+
+.bp__table td {
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--line-100);
+  vertical-align: middle;
+  color: var(--ink-700);
+  transition: background var(--dur-fast) var(--bp-ease);
+}
+
+.bp__row:last-child td {
+  border-bottom: none;
+}
+
+.bp__row:hover td {
+  background: var(--surface-1);
+}
+
+/* State rides on the leading edge instead of repainting the row, so an
+   amount stays as readable hovered as it is at rest. */
+.bp__row:hover td:first-child {
+  box-shadow: inset 2px 0 0 var(--brand-400);
+}
+
+.bp__vendor {
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.bp__gstn {
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  letter-spacing: 0.01em;
+  color: var(--ink-500);
+}
+
+.bp__category {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--info-100);
+  border-radius: var(--r-full);
+  background: var(--info-50);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--info-700);
+}
+
+.bp__id {
+  padding: 2px 7px;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-sm);
+  background: var(--surface-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-600);
+}
+
+.bp__uploaded {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 160px;
+  font-size: var(--fs-xs);
+  color: var(--ink-700);
+}
+
+.bp__uploaded-role {
+  font-size: var(--fs-2xs);
+  text-transform: capitalize;
+  color: var(--ink-500);
+}
+
+.bp__doc {
+  display: inline-flex;
+  padding: 6px;
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  color: var(--ink-600);
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--bp-ease),
+    background-color var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bp__doc:hover {
+  background: var(--info-50);
+  color: var(--info-600);
+}
+
+.bp__doc:active {
+  transform: scale(0.92);
+}
+
+.bp__tally-badge {
+  display: inline-block;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+}
+
+.bp__tally-badge--queued {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.bp__tally-badge--no {
+  color: var(--ink-400);
+}
+
+/* ── Selection ──────────────────────────────────────────────────────────── */
+
+.bp__th-check,
+.bp__td-check {
+  width: 36px;
+  padding: 0 var(--sp-1) 0 var(--sp-2);
+  text-align: center;
+}
+
+.bp__chk {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--brand-600);
+  cursor: pointer;
+}
+
+.bp__row--checked td {
+  background: var(--brand-50);
+}
+
+.bp__row--checked td:first-child {
+  box-shadow: inset 2px 0 0 var(--brand-600);
+}
+
+.bp__row--checked:hover td {
+  background: var(--brand-100);
+}
+
+/* ── Tooltip ────────────────────────────────────────────────────────────── */
+
+.bp__tip-wrap {
+  position: relative;
+}
+
+.bp__tip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  z-index: var(--z-dropdown);
+  padding: var(--sp-1) var(--sp-2);
+  border-radius: var(--r-sm);
+  background: var(--ink-900);
+  color: var(--surface-0);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+
+  /* Grows the last couple of pixels out of its anchor rather than
+     appearing beside it. */
+  transform: translateX(-50%) translateY(3px) scale(0.96);
+  transform-origin: bottom center;
+  transition:
+    opacity var(--dur-fast) var(--bp-ease),
+    transform var(--dur-fast) var(--bp-ease);
+}
+
+.bp__tip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  border: 4px solid transparent;
+  border-top-color: var(--ink-900);
+  transform: translateX(-50%);
+}
+
+.bp__tip-wrap:hover .bp__tip,
+.bp__tip-wrap:focus-within .bp__tip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0) scale(1);
+}
+
+/* ── Bulk action bar ────────────────────────────────────────────────────
+   A parallel, non-blocking layer: translucent and offset, with no scrim, so
+   the table underneath stays live and the flow is not broken. */
+
+@keyframes bp-bulk-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(14px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.bp__bulk-bar {
+  position: fixed;
+  bottom: var(--sp-6);
+  left: 50%;
+  z-index: var(--z-overlay);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-top-color: rgb(255 255 255 / 18%);
+  border-radius: var(--r-lg);
+  background: rgb(15 23 42 / 88%);
+  backdrop-filter: blur(20px) saturate(180%);
+  box-shadow: var(--e-4);
+  color: var(--surface-0);
+  white-space: nowrap;
+  transform: translateX(-50%);
+
+  /* It rose into place, so a touch of overshoot is earned. */
+  animation: bp-bulk-in var(--dur-slow) var(--bp-spring) both;
+}
+
+.bp__bulk-count {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+}
+
+.bp__bulk-clear {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid rgb(255 255 255 / 22%);
+  border-radius: var(--r-sm);
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: rgb(255 255 255 / 72%);
+  cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--bp-ease),
+    background var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bp__bulk-clear:hover {
+  background: rgb(255 255 255 / 10%);
+  color: var(--surface-0);
+}
+
+.bp__bulk-clear:active {
+  transform: scale(0.96);
+}
+
+.bp__bulk-sep {
+  width: 1px;
+  height: 20px;
+  background: rgb(255 255 255 / 15%);
+}
+
+.bp__bulk-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px var(--sp-4);
+  border: none;
+  border-radius: var(--r-md);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    opacity var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bp__bulk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bp__bulk-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.bp__bulk-btn--approve {
+  background: var(--success-600);
+  color: var(--surface-0);
+}
+
+.bp__bulk-btn--approve:not(:disabled):hover {
+  background: var(--success-700);
+}
+
+.bp__bulk-btn--tally {
+  background: #6d28d9;
+  color: var(--surface-0);
+}
+
+.bp__bulk-btn--tally:not(:disabled):hover {
+  background: #5b21b6;
+}
+
+.bp__bulk-btn--paid {
+  background: var(--info-600);
+  color: var(--surface-0);
+}
+
+.bp__bulk-btn--paid:not(:disabled):hover {
+  background: var(--info-700);
+}
+
+.bp__bulk-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgb(255 255 255 / 30%);
+  border-top-color: var(--surface-0);
+  border-radius: 50%;
+  animation: bp-spin 0.7s linear infinite;
+}
+
+/* ── Page toast ─────────────────────────────────────────────────────────── */
+
+.bp__toast {
+  position: fixed;
+  bottom: 88px;
+  left: 50%;
+  z-index: var(--z-toast);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  box-shadow: var(--e-3);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  white-space: nowrap;
+  transform: translateX(-50%);
+  animation: bp-bulk-in var(--dur-base) var(--bp-spring) both;
+}
+
+.bp__toast--ok {
+  border-color: var(--success-100);
+  background: var(--success-50);
+  color: var(--success-700);
+}
+
+.bp__toast--warn {
+  border-color: var(--warn-100);
+  background: var(--warn-50);
+  color: var(--warn-700);
+}
+
+.bp__toast--err {
+  border-color: var(--danger-100);
+  background: var(--danger-50);
+  color: var(--danger-700);
+}
+
+.bp__toast-close {
+  display: flex;
+  align-items: center;
+  padding: 0 0 0 var(--sp-1);
+  border: none;
+  background: none;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  transition:
+    opacity var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bp__toast-close:hover {
+  opacity: 1;
+}
+
+.bp__toast-close:active {
+  transform: scale(0.9);
+}
+
+/* ── Approval-stepper skeleton ────────────────────────────────────────────
+   Shaped like the stepper it replaces so the row does not jump when the
+   chain config lands. */
+
+@keyframes bp-skel-shine {
+  from {
+    background-position: -400px 0;
+  }
+
+  to {
+    background-position: 400px 0;
+  }
+}
+
+.bp__skel {
+  border-radius: var(--r-sm);
+  background: linear-gradient(
+    90deg,
+    var(--surface-2) 25%,
+    var(--line-200) 50%,
+    var(--surface-2) 75%
+  );
+  background-size: 800px 100%;
+  animation: bp-skel-shine 1.4s infinite linear;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Bill detail modal (.bm__*)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes bm-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* The bill opens *out of the row that was clicked*. The JSX hands us that
+   row's offset from screen centre as --bm-dx/--bm-dy, and the card grows from
+   a dot at that point into the full sheet, the border-radius unwinding from a
+   circle to the sheet's corner as it goes — so the modal is visibly the row,
+   enlarged, rather than a new surface that appeared over it. Spatial anchoring
+   (§7) taken literally.
+   The slight overshoot at 55% is earned: this is a real object arriving with
+   momentum, not chrome fading in. */
+@keyframes bm-zoom-open {
+  0% {
+    opacity: 0.7;
+    transform: translate(var(--bm-dx, 0), var(--bm-dy, 0)) scale(0.028);
+    border-radius: 50%;
+  }
+
+  55% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.018);
+    border-radius: 20px;
+  }
+
+  75% {
+    transform: translate(0, 0) scale(0.992);
+    border-radius: 16px;
+  }
+
+  100% {
+    transform: translate(0, 0) scale(1);
+    border-radius: 16px;
+  }
+}
+
+/* Plain arrival, for surfaces with no anchor to grow from. */
+@keyframes bm-materialize {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Dim to focus: this is a modal task, so the scrim is earned. */
+.bm__overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-6);
+  background: rgb(11 28 48 / 46%);
+  backdrop-filter: blur(3px) saturate(120%);
+  animation: bm-fade-in 0.35s ease;
+}
+
+/* 16px, not --r-lg: the zoom keyframe lands on this value, so the two have to
+   agree or the corner snaps on the last frame. */
+.bm__card {
+  display: flex;
+  width: 100%;
+  max-width: 1400px;
+  height: 100%;
+  border-radius: 16px;
+  background: var(--surface-0);
+  box-shadow: var(--e-4);
+  overflow: hidden;
+  transform-origin: center center;
+  will-change: transform, opacity;
+  animation: bm-zoom-open 0.65s cubic-bezier(0.34, 1.06, 0.64, 1) forwards;
+}
+
+/* ── Details (left) ─────────────────────────────────────────────────────── */
+
+.bm__left {
+  display: flex;
+  flex: 0 0 58%;
+  flex-direction: column;
+  min-width: 0;
+  border-right: 1px solid var(--line-200);
+  background: var(--surface-0);
+}
+
+.bm__hdr {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-shrink: 0;
+  padding: var(--sp-5) var(--sp-6) var(--sp-4);
+  border-bottom: 1px solid var(--line-100);
+}
+
+.bm__vendor {
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  line-height: 1.25;
+  letter-spacing: -0.011em;
+  color: var(--ink-900);
+}
+
+.bm__gstn {
+  margin-top: var(--sp-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.bm__close {
+  display: flex;
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: var(--sp-1);
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-500);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    color var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__close:hover {
+  background: var(--surface-2);
+  color: var(--ink-800);
+}
+
+.bm__close:active {
+  transform: scale(0.9);
+}
+
+.bm__scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bm__body {
+  padding: var(--sp-5) var(--sp-6);
+}
+
+.bm__hero {
+  margin-bottom: var(--sp-5);
+}
+
+.bm__hero-lbl {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+/* The one figure the whole panel exists to show. Tabular so it does not
+   reflow as the user edits, tight tracking because it is display size. */
+.bm__hero-val {
+  font-family: var(--font-display);
+  font-size: var(--fs-3xl);
+  font-weight: var(--fw-bold);
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-900);
+}
+
+.bm__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-4) var(--sp-5);
+}
+
+/* Collapsible field groups (BillSection). The wrappers are layout-neutral,
+   so the fields stay cells of .bm__grid; the heading is the toggle. */
+.bm__group,
+.bm__group-body {
+  display: contents;
+}
+
+.bm__group--closed > .bm__group-body {
+  display: none;
+}
+
+.bm__group-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid var(--line-200);
+  background: none;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* The same toggle inside the extracted-coding table's header cell. */
+.bm__coding-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: left;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* A badge standing in for folded rows keeps its own case, not the heading's. */
+.bm__coding-head > span:not(.bm__group-title) {
+  letter-spacing: normal;
+  text-transform: none;
+}
+
+.bm__coding-sec--closed .bm__group-chev {
+  transform: rotate(-90deg);
+}
+
+.bm__group-head:disabled {
+  color: var(--ink-700);
+  cursor: default;
+}
+
+.bm__group-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.bm__group-chev {
+  flex-shrink: 0;
+  color: var(--ink-500);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.bm__group--closed .bm__group-chev {
+  transform: rotate(-90deg);
+}
+
+.bm__group-head:disabled .bm__group-chev {
+  display: none;
+}
+
+.bm__section {
+  grid-column: 1 / -1;
+  margin-top: var(--sp-1);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--line-200);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-700);
+}
+
+.bm__lbl {
+  margin-bottom: 3px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.bm__val {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-normal);
+  word-break: break-word;
+  color: var(--ink-800);
+}
+
+.bm__input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 5px var(--sp-2);
+  border: 1px solid var(--line-300);
+  border-radius: var(--r-sm);
+  background: var(--surface-0);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  color: var(--ink-900);
+  outline: none;
+  transition:
+    border-color var(--dur-fast) var(--bp-ease),
+    box-shadow var(--dur-fast) var(--bp-ease);
+}
+
+.bm__input:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgb(0 64 128 / 12%);
+}
+
+/* ── GSTIN checksum flag ────────────────────────────────────────────────
+   Validated inline as it is typed, not on submit. */
+
+.bm__field {
+  position: relative;
+}
+
+.bm__input--err {
+  padding-right: 26px;
+  border-color: var(--danger-500);
+  background: var(--danger-50);
+  color: var(--danger-700);
+}
+
+.bm__input--err:focus {
+  border-color: var(--danger-600);
+  box-shadow: 0 0 0 3px rgb(220 38 38 / 14%);
+}
+
+.bm__val--err {
+  color: var(--danger-700);
+}
+
+.bm__warn {
+  position: absolute;
+  top: 50%;
+  right: 7px;
+  display: flex;
+  color: var(--danger-600);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.bm__warn--inline {
+  position: static;
+  margin-left: var(--sp-2);
+  transform: none;
+}
+
+.bm__badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--surface-0);
+  border-radius: 50%;
+  background: var(--success-600);
+  color: var(--surface-0);
+  box-shadow: var(--e-1);
+}
+
+.bm__badge--inline {
+  position: static;
+  width: 15px;
+  height: 15px;
+  margin-left: var(--sp-2);
+  border: none;
+  box-shadow: none;
+}
+
+.bm__tip {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: var(--z-dropdown);
+  max-width: 260px;
+  padding: var(--sp-2) 9px;
+  border-radius: var(--r-sm);
+  background: var(--danger-700);
+  box-shadow: var(--e-3);
+  font-size: var(--fs-2xs);
+  line-height: 1.45;
+  white-space: normal;
+  color: var(--surface-0);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-3px);
+  transition:
+    opacity var(--dur-fast) var(--bp-ease),
+    transform var(--dur-fast) var(--bp-ease),
+    visibility var(--dur-fast);
+}
+
+.bm__field--err:hover .bm__tip,
+.bm__field--err:focus-within .bm__tip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* ── Vendor merge dialog ────────────────────────────────────────────────
+   A confirmation, spent only because the merge is not undoable. Stacked on
+   the modal, so the parent is dimmed a second time to push it back. */
+
+.bm__merge-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-5);
+  background: rgb(11 28 48 / 55%);
+  backdrop-filter: blur(2px);
+  animation: bm-fade-in var(--dur-base) var(--bp-ease);
+}
+
+.bm__merge-dialog {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--sp-5);
+  border-radius: var(--r-lg);
+  background: var(--surface-0);
+  box-shadow: var(--e-4);
+  animation: bm-materialize var(--dur-base) var(--bp-ease) both;
+}
+
+.bm__merge-title {
+  margin-bottom: var(--sp-3);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.011em;
+  color: var(--ink-900);
+}
+
+.bm__merge-body {
+  font-size: var(--fs-sm);
+  line-height: var(--lh-relaxed);
+  color: var(--ink-700);
+}
+
+.bm__merge-target {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+}
+
+.bm__merge-target-name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.bm__merge-target-meta {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+.bm__merge-err {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-xs);
+  color: var(--danger-700);
+}
+
+.bm__merge-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  margin-top: var(--sp-5);
+}
+
+.bm__merge-keep,
+.bm__merge-confirm {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-md);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__merge-keep {
+  border: 1px solid var(--line-300);
+  background: var(--surface-0);
+  color: var(--ink-700);
+}
+
+.bm__merge-keep:hover:not(:disabled) {
+  background: var(--surface-1);
+}
+
+.bm__merge-confirm {
+  border: none;
+  background: var(--brand-600);
+  color: var(--surface-0);
+}
+
+.bm__merge-confirm:hover:not(:disabled) {
+  background: var(--brand-700);
+}
+
+.bm__merge-keep:not(:disabled):active,
+.bm__merge-confirm:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.bm__merge-keep:disabled,
+.bm__merge-confirm:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.bm__history {
+  /* Inside the panel's scroll now, so it grows with its rows instead of scrolling on its own. */
+  padding: var(--sp-3) var(--sp-5) var(--sp-1);
+  border-bottom: 1px solid var(--line-200);
+  background: var(--surface-1);
+}
+
+/* ── Attachments ────────────────────────────────────────────────────────── */
+
+.bm__attach-section {
+  margin-top: var(--sp-1);
+  padding: var(--sp-4) var(--sp-5) 0;
+  border-top: 1px solid var(--line-100);
+}
+
+.bm__attach-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.bm__attach-empty {
+  padding: var(--sp-1) 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.bm__attach-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 7px var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  transition:
+    border-color var(--dur-fast) var(--bp-ease),
+    background var(--dur-fast) var(--bp-ease);
+}
+
+.bm__attach-row:hover {
+  border-color: var(--line-300);
+  background: var(--surface-0);
+}
+
+.bm__attach-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bm__attach-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.bm__attach-meta {
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+.bm__attach-dl,
+.bm__attach-del {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__attach-dl {
+  border: none;
+  background: var(--info-50);
+  color: var(--info-600);
+}
+
+.bm__attach-dl:hover {
+  background: var(--info-100);
+}
+
+.bm__attach-del {
+  border: 1px solid var(--danger-100);
+  background: var(--danger-50);
+  color: var(--danger-600);
+}
+
+.bm__attach-del:hover {
+  background: var(--danger-100);
+}
+
+.bm__attach-dl:active,
+.bm__attach-del:active {
+  transform: scale(0.92);
+}
+
+.bm__attach-upload {
+  padding-bottom: var(--sp-4);
+}
+
+.bm__attach-btn {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1.5px dashed var(--line-300);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-600);
+  cursor: pointer;
+  transition:
+    border-color var(--dur-fast) var(--bp-ease),
+    color var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__attach-btn:hover:not(:disabled) {
+  border-color: var(--brand-600);
+  color: var(--brand-600);
+}
+
+.bm__attach-btn:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+.bm__attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Audit timeline ─────────────────────────────────────────────────────── */
+
+.bm__timeline {
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+  border-top: 1px solid var(--line-100);
+}
+
+.bm__timeline-hdr {
+  margin-bottom: var(--sp-4);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.bm__tl-row {
+  display: flex;
+  gap: var(--sp-3);
+}
+
+.bm__tl-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 22px;
+}
+
+.bm__tl-dot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.bm__tl-line {
+  flex: 1;
+  width: 2px;
+  min-height: 10px;
+  margin: 3px 0;
+  background: var(--line-100);
+}
+
+.bm__tl-body {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: var(--sp-4);
+}
+
+.bm__tl-headline {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  margin-bottom: 2px;
+}
+
+.bm__tl-actor {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.bm__tl-role {
+  padding: 1px 5px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  font-size: var(--fs-2xs);
+  text-transform: capitalize;
+  color: var(--ink-500);
+}
+
+.bm__tl-verb {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+}
+
+.bm__tl-comment {
+  margin: var(--sp-1) 0;
+  padding: 3px var(--sp-2);
+  border-left: 2px solid var(--line-300);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  background: var(--surface-1);
+  font-size: var(--fs-xs);
+  font-style: italic;
+  line-height: var(--lh-normal);
+  color: var(--ink-700);
+}
+
+.bm__tl-ts {
+  margin-top: 2px;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-500);
+}
+
+.bm__tl-diff-toggle {
+  padding: 2px 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: #6d28d9;
+  cursor: pointer;
+}
+
+.bm__tl-diff-toggle:hover {
+  text-decoration: underline;
+}
+
+.bm__tl-diffs {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: #faf5ff;
+}
+
+.bm__tl-diff-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  font-size: var(--fs-2xs);
+}
+
+.bm__tl-diff-field {
+  min-width: 70px;
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+}
+
+.bm__tl-diff-old {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  text-decoration: line-through;
+  color: var(--danger-600);
+}
+
+.bm__tl-diff-arrow {
+  color: var(--ink-500);
+}
+
+.bm__tl-diff-new {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--success-600);
+}
+
+/* ── Action panel ───────────────────────────────────────────────────────── */
+
+.bm__actions {
+  flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--line-200);
+  background: var(--surface-0);
+}
+
+.bm__comment {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  line-height: var(--lh-normal);
+  color: var(--ink-800);
+  resize: none;
+  outline: none;
+  transition:
+    border-color var(--dur-fast) var(--bp-ease),
+    box-shadow var(--dur-fast) var(--bp-ease);
+}
+
+.bm__comment:focus {
+  border-color: var(--brand-600);
+  box-shadow: 0 0 0 3px rgb(0 64 128 / 10%);
+}
+
+.bm__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: var(--sp-2) var(--sp-4);
+  border: none;
+  border-radius: var(--r-md);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    opacity var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.bm__btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.bm__btn--primary {
+  background: var(--brand-600);
+  color: var(--surface-0);
+}
+
+.bm__btn--primary:hover:not(:disabled) {
+  background: var(--brand-700);
+}
+
+.bm__btn--secondary {
+  background: var(--surface-2);
+  color: var(--ink-700);
+}
+
+.bm__btn--secondary:hover:not(:disabled) {
+  background: var(--line-200);
+}
+
+.bm__btn--approve {
+  background: var(--success-600);
+  color: var(--surface-0);
+}
+
+.bm__btn--approve:hover:not(:disabled) {
+  background: var(--success-700);
+}
+
+.bm__btn--sendback {
+  background: var(--danger-50);
+  color: var(--danger-700);
+  box-shadow: inset 0 0 0 1px var(--danger-100);
+}
+
+.bm__btn--sendback:hover:not(:disabled) {
+  background: var(--danger-100);
+}
+
+.bm__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  font-family: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-600);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    color var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__edit-btn:hover {
+  background: var(--surface-2);
+  color: var(--ink-800);
+}
+
+.bm__edit-btn:active {
+  transform: scale(0.97);
+}
+
+/* ── PDF (right) ────────────────────────────────────────────────────────── */
+
+.bm__right {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface-1);
+}
+
+.bm__right--nopdf {
+  border-left: 1px solid var(--line-200);
+  background: var(--surface-0);
+}
+
+/* Floating chrome over the document, same material language as the table head. */
+.bm__pdfbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--line-200);
+  background: rgb(255 255 255 / 84%);
+  backdrop-filter: blur(14px) saturate(180%);
+}
+
+.bm__pdfbody {
+  flex: 1;
+  display: flex;
+  align-items: flex-start;
+  /* Not justify-content: center — once zoomed past the pane, a centred item
+     overflows to the left too, and that side can't be scrolled to. Auto
+     margins centre while it fits and collapse to 0 once it doesn't. */
+  justify-content: flex-start;
+  padding: var(--sp-5);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.bm__pdfbody > * { margin-inline: auto; }
+
+.bm__pctrl {
+  display: flex;
+  align-items: center;
+  padding: 5px 7px;
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--ink-600);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    color var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.bm__pctrl:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--ink-900);
+}
+
+.bm__pctrl:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.bm__pctrl:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Notification toasts (.nt__*)
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@keyframes nt-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px) scale(0.97);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+.nt__stack {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: var(--sp-6);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  pointer-events: none;
+}
+
+.nt__toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 300px;
+  max-width: 360px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line-200);
+  border-left: 3px solid var(--brand-600);
+  border-radius: var(--r-md);
+  background: rgb(255 255 255 / 92%);
+  backdrop-filter: blur(18px) saturate(180%);
+  box-shadow: var(--e-3);
+  pointer-events: all;
+
+  /* Slides in from the right edge; §7 says it must leave the same way. */
+  animation: nt-slide-in var(--dur-slow) var(--bp-spring) both;
+}
+
+.nt__icon {
+  flex-shrink: 0;
+  font-size: var(--fs-lg);
+}
+
+.nt__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.nt__title {
+  margin-bottom: 2px;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--brand-600);
+}
+
+.nt__vendor {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.nt__amount {
+  margin-top: 1px;
+  font-size: var(--fs-2xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-600);
+}
+
+.nt__status {
+  text-transform: capitalize;
+}
+
+.nt__btns {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.nt__view {
+  padding: var(--sp-1) var(--sp-3);
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--brand-600);
+  font-family: inherit;
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--surface-0);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    transform var(--bp-press);
+}
+
+.nt__view:hover {
+  background: var(--brand-700);
+}
+
+.nt__view:active {
+  transform: scale(0.95);
+}
+
+.nt__dismiss {
+  display: flex;
+  align-items: center;
+  padding: 2px var(--sp-1);
+  border: none;
+  border-radius: var(--r-sm);
+  background: none;
+  font-size: var(--fs-sm);
+  line-height: 1;
+  color: var(--ink-500);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--bp-ease),
+    color var(--dur-fast) var(--bp-ease);
+}
+
+.nt__dismiss:hover {
+  background: var(--surface-2);
+  color: var(--ink-800);
+}
+
+/* ── Accessibility ────────────────────────────────────────────────────────
+   Reduced motion is not "no feedback" — it is the same information carried
+   by a cross-fade instead of by travel. tokens.css already flattens
+   transitions globally; these rules kill the *travel* the keyframes encode. */
+
+@media (prefers-reduced-motion: reduce) {
+  .bm__card,
+  .bm__merge-dialog,
+  .bp__bulk-bar,
+  .bp__toast,
+  .nt__toast {
+    animation-name: bm-fade-in;
+  }
+
+  .bp__bulk-bar,
+  .bp__toast {
+    transform: translateX(-50%);
+  }
+
+  .bp__skel {
+    animation: none;
+  }
+
+  .bp__tip {
+    transform: translateX(-50%);
+  }
+}
+
+/* Frostier, not see-through: legibility beats the effect. */
+@media (prefers-reduced-transparency: reduce) {
+  .bp__refresh,
+  .bp__table th,
+  .bm__pdfbar,
+  .nt__toast {
+    background: var(--surface-0);
+    backdrop-filter: none;
+  }
+
+  .bp__table th {
+    background: var(--surface-2);
+  }
+
+  .bp__bulk-bar {
+    background: var(--ink-900);
+    backdrop-filter: none;
+  }
+
+  .bm__overlay,
+  .bm__merge-backdrop {
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .bp__table th,
+  .bp__bulk-bar,
+  .nt__toast,
+  .bm__pdfbar {
+    backdrop-filter: none;
+  }
+
+  .bp__table th {
+    background: var(--surface-2);
+    color: var(--ink-700);
+  }
+
+  .bp__table td {
+    border-bottom-color: var(--line-300);
+  }
+
+  .bp__category,
+  .bp__tally-badge,
+  .bp__id {
+    border: 1px solid currentcolor;
+  }
+}
+@keyframes priorityFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes priorityCardIn {
+  from { opacity: 0; transform: translateY(10px) scale(.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ── Phones ─────────────────────────────────────────────────────────────────
+   Approvers act on bills from their phone more than anywhere else, so the
+   list and the bill card both have to work one-handed at ~375px.
+
+   The header, toolbar and tabs carry inline desktop styles, hence !important
+   on the few properties that have to give way. */
+@media (width <= 768px) {
+  .bp {
+    padding: var(--sp-4) var(--sp-4) var(--sp-1);
+  }
+
+  .bp__header {
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-3);
+    margin-bottom: var(--sp-3);
+  }
+
+  .bp__toolbar {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 6px !important;
+  }
+
+  .bp__search {
+    flex: 1 1 100%;
+  }
+
+  .bp__search input {
+    width: 100% !important;
+    font-size: 16px !important; /* below 16px, iOS zooms the page on focus */
+  }
+
+  .bp__toolbar-sep {
+    display: none;
+  }
+
+  /* Icon-only Refresh keeps the toolbar to one row under the search box; the
+     word stays in the DOM, so it is still the button's accessible name. */
+  .bp__toolbar > .bp__refresh {
+    gap: 0;
+    padding: 8px 10px !important;
+    font-size: 0 !important;
+  }
+
+  .bp__toolbar > button,
+  .bp__toolbar > div:not(.bp__search) > button {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* Seven tabs never fit; swipe through them instead of clipping the last three. */
+  .bp__tabs {
+    flex-shrink: 0;
+    margin-inline: calc(-1 * var(--sp-4));
+    padding-inline: var(--sp-2);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .bp__tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .bp__tabs > button {
+    flex-shrink: 0;
+    padding: 12px 12px 10px !important;
+    font-size: 13px !important;
+    white-space: nowrap;
+  }
+
+  /* Clear the bottom nav bar. */
+  .bp__bulk-bar {
+    bottom: calc(58px + var(--sp-3));
+    max-width: calc(100vw - var(--sp-6));
+  }
+
+  .bp__toast {
+    bottom: calc(58px + var(--sp-6));
+  }
+
+  .nt__toast {
+    min-width: 0;
+    max-width: calc(100vw - var(--sp-6));
+  }
+
+  /* ── Bill card, phone layout ─────────────────────────────────────────
+     A full-screen sheet in one scrolling column, built the way native
+     approval apps are rather than the desktop card stacked:
+
+       status · vendor · GSTIN             [✎] [⤓] [×]
+       ●───●───○   submitted · admin · done      View activity
+       Nova check — couldn't reach Nova           [Re-run]
+       ₹96,056.72
+       Vendor name ......................... Convertup Media
+       GSTIN ................................ 06AAICC7367B1ZQ
+       [ note ]  [ Approve ] [ Send back ]   ← pinned
+
+     The document follows the details; its toolbar opens the full-screen
+     viewer. */
+  .bm__overlay {
+    padding: 0;
+  }
+
+  /* A sheet rises; the desktop zoom-from-the-row lands on rounded corners
+     a full-screen sheet doesn't have. */
+  .bm__card {
+    flex-direction: column;
+    max-width: none;
+    border-radius: 0;
+    overflow: hidden auto;
+    overscroll-behavior: contain;
+    animation: bm-sheet-up var(--dur-slow) var(--ease);
+  }
+
+  .bm__left {
+    flex: none;
+    border-right: none;
+  }
+
+  .bm__scroll {
+    flex: none;
+    overflow: visible;
+  }
+
+  /* Header: identity left, icon-only actions right, one block. */
+  .bm__hdr {
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-4);
+  }
+
+  .bm__hdr-actions {
+    gap: 2px !important;
+    margin-right: calc(-1 * var(--sp-1));
+  }
+
+  .bm__hdr-actions .bm__edit-btn {
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0 !important;
+    font-size: 0 !important; /* the space beside the icon would nudge it off-centre */
+    border-color: transparent !important;
+    background: none !important;
+    color: var(--ink-600) !important;
+  }
+
+  .bm__hdr-actions .bm__btn-text {
+    display: none;
+  }
+
+  .bm__close {
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    margin-top: 0;
+  }
+
+  .bm__hdr > div:first-child > div:first-child > span:first-child {
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .bm__vendor {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: var(--fs-md);
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .bm__gstn {
+    margin-top: 2px;
+  }
+
+  /* Nova: one slim line, never a panel, unless it has lines to show. */
+  .bm__recon {
+    margin: var(--sp-2) var(--sp-4) 0 !important;
+    border-radius: var(--r-md) !important;
+  }
+
+  .bm__recon > div:first-child {
+    gap: var(--sp-2) !important;
+    min-height: 36px;
+    padding: 6px 6px 6px var(--sp-3) !important;
+    font-size: 12px !important;
+    font-weight: 600 !important;
+  }
+
+  .bm__recon > div:first-child > span:first-child {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bm__recon button {
+    flex-shrink: 0;
+    padding: 4px 8px !important;
+    font-size: 11px !important;
+  }
+
+  .bm__body {
+    padding: var(--sp-4);
+  }
+
+  .bm__hero {
+    margin-bottom: var(--sp-2);
+  }
+
+  .bm__hero-lbl {
+    margin-bottom: 2px;
+  }
+
+  .bm__hero-val {
+    font-size: 28px;
+  }
+
+  /* Details as settings-style rows: label left, value right, hairlines. */
+  .bm__grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .bm__section {
+    margin-top: var(--sp-5);
+    padding: 0 0 var(--sp-1);
+    border-bottom: 1px solid var(--line-200);
+  }
+
+  .bm__kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--sp-4);
+    min-height: 40px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line-100);
+  }
+
+  .bm__kv > .bm__lbl {
+    flex-shrink: 0;
+    max-width: 45%;
+    margin: 0;
+    font-size: var(--fs-sm);
+    font-weight: var(--fw-normal);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--ink-500);
+  }
+
+  .bm__kv > .bm__field {
+    justify-content: flex-end;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .bm__kv .bm__val {
+    overflow-wrap: anywhere;
+  }
+
+  .bm__kv > .bm__val {
+    min-width: 0;
+    text-align: right;
+  }
+
+  /* One column has no slot for a dash to hold (Tax Breakdown's absent
+     components); desktop keeps them. */
+  .bm__kv--empty {
+    display: none;
+  }
+
+  .bm__group-head {
+    min-height: 44px;
+    margin-top: var(--sp-2);
+    padding: 0;
+  }
+
+  /* TDS sits among the folded sections, so it drops its desktop card and
+     reads as one of them. */
+  .bm__card .tds {
+    margin-top: var(--sp-2);
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    background: none !important;
+  }
+
+  .bm__card .tds > div:first-child {
+    min-height: 44px;
+    border-bottom: 1px solid var(--line-200);
+  }
+
+  .bm__card .tds__toggle {
+    min-height: 44px;
+    color: var(--ink-700) !important;
+  }
+
+  .bm__group--closed .bm__group-head {
+    border-bottom-color: var(--line-100);
+  }
+
+  /* Pinned decision bar: a one-line note that opens up when tapped. */
+  .bm__actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: var(--sp-2) var(--sp-3) calc(var(--sp-2) + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 12px rgb(15 23 42 / 6%);
+  }
+
+  .bm__comment {
+    height: 40px;
+    min-height: 40px;
+    font-size: 16px; /* below 16px, iOS zooms the page on focus */
+    resize: none;
+    transition: height var(--dur-fast) var(--ease);
+  }
+
+  .bm__comment:focus,
+  .bm__comment:not(:placeholder-shown) {
+    height: 72px;
+  }
+
+  .bm__actions .bm__btn {
+    min-height: 44px;
+    font-size: var(--fs-sm);
+  }
+
+  /* The document is opened from the header's PDF button, full screen. The
+     pane stays mounted, off-screen and invisible, because it is what loads
+     and parses the PDF the full-screen view reuses. */
+  .bm__right {
+    position: fixed;
+    top: 0;
+    left: -200vw;
+    width: 360px;
+    height: 480px;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .bm__pdf-btn {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 4px;
+    height: 32px;
+    margin-right: var(--sp-1);
+    padding: 0 10px;
+    border: 1px solid var(--brand-100);
+    border-radius: 999px;
+    background: var(--brand-50);
+    font-family: inherit;
+    font-size: var(--fs-xs);
+    font-weight: var(--fw-semibold);
+    color: var(--brand-600);
+    cursor: pointer;
+  }
+
+  .bm__pdf-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+
+  /* Without a document, the right pane only restates the details above. */
+  .bm__right--nopdf {
+    display: none;
+  }
+
+
+  .bm__merge-dialog {
+    max-width: calc(100vw - var(--sp-6));
+  }
+
+  /* Approval chain: dots, step and approver — the role line is on the
+     activity log, one tap away. */
+  .bm__card .bm__stepper {
+    padding: var(--sp-2) var(--sp-4) 0;
+  }
+
+  .bm__card .bm__dot {
+    width: 16px;
+    height: 16px;
+  }
+
+  .bm__card .bm__dot svg {
+    width: 8px;
+    height: 8px;
+  }
+
+  .bm__card .bm__connector {
+    margin-top: 7px;
+  }
+
+  .bm__card .bm__step {
+    gap: 2px;
+  }
+
+  .bm__card .bm__step-lbl {
+    font-size: 10px;
+  }
+
+  .bm__card .bm__step-actor {
+    max-width: 84px;
+  }
+
+  .bm__card .bm__step-actor-role {
+    display: none;
+  }
+
+  .bm__card .bm__stepper-skel {
+    padding: var(--sp-3) var(--sp-4) !important;
+  }
+
+  .bm__card .bm__stepper-skel > div > div {
+    min-width: 0 !important;
+    gap: 4px !important;
+  }
+
+  .bm__card .bm__stepper-skel .bp__skel:first-child {
+    width: 16px !important;
+    height: 16px !important;
+  }
+
+  .bm__card .bm__stepper-skel .bp__skel:nth-child(3) {
+    display: none;
+  }
+
+  .bm__card .bm__stepper-skel > div > .bp__skel {
+    margin-bottom: 14px !important;
+  }
+
+  /* Accounting / ledger / bank: the same rows as the details above. */
+  .bm__coding th {
+    flex: 1;
+    padding: 0 !important;
+    border-bottom: none !important; /* the row draws the rule */
+    color: var(--ink-700) !important;
+  }
+
+  .bm__coding-head {
+    min-height: 44px;
+    margin-top: var(--sp-2);
+  }
+
+  .bm__coding,
+  .bm__coding tbody {
+    display: block;
+  }
+
+  .bm__coding tr {
+    display: flex;
+    align-items: baseline;
+    gap: var(--sp-2);
+    border-bottom: 1px solid var(--line-100);
+  }
+
+  .bm__coding td {
+    padding: 10px 0 !important;
+    border-bottom: none;
+  }
+
+  .bm__coding td:first-child {
+    flex-shrink: 0;
+    padding-right: var(--sp-2) !important;
+    font-size: var(--fs-sm) !important;
+    letter-spacing: 0 !important;
+    text-transform: none !important;
+  }
+
+  .bm__coding td:nth-child(2) {
+    flex: 1;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .bm__coding td:nth-child(2) > div:first-child {
+    font-weight: var(--fw-normal) !important;
+    overflow-wrap: anywhere;
+  }
+
+  .bm__coding td:nth-child(3):empty {
+    display: none;
+  }
+
+  .bm__attach-section {
+    padding: var(--sp-2) 0 0;
+    border-top: none;
+  }
+
+  .bm__card .bm__view-chain {
+    align-self: flex-end;
+    margin: 0 var(--sp-4) var(--sp-2);
+    padding: 2px 0;
+    background: none;
+  }
+}
+
+/* Bills list on a phone: each row becomes a two-line entry the width of the
+   screen instead of a fifteen-column grid scrolled sideways.
+
+     [ ]  Vendor name, truncated …              ₹29,428.00
+          (Pending: Admin)  (P0 ▾) 3704d overdue
+
+   Priority already carries the days left / overdue, so the due-date column
+   is dropped rather than shown twice. The other columns live on the bill
+   card, one tap away. Column order is the <thead> in BillsPage.
+
+   The vendor spans the 1fr track, so grid sizes the auto track from the
+   status pill alone and a long name truncates instead of shoving the
+   amount off the row. */
+@media (width <= 768px) {
+  .bp__table--bills,
+  .bp__table--bills tbody {
+    display: block;
+  }
+
+  .bp__table--bills thead {
+    display: none;
+  }
+
+  .bp__table--bills .bp__row {
+    display: grid;
+    grid-template-columns: 32px auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 6px var(--sp-2);
+    padding: 10px var(--sp-3) 10px var(--sp-1);
+    border-bottom: 1px solid var(--line-100);
+  }
+
+  .bp__table--bills .bp__row:last-child {
+    border-bottom: none;
+  }
+
+  .bp__table--bills .bp__row--checked {
+    background: var(--brand-50);
+  }
+
+  .bp__table--bills .bp__row > td {
+    display: none;
+    padding: 0;
+    border: none;
+    background: none;
+    box-shadow: none;
+  }
+
+  /* check */
+  .bp__table--bills .bp__row > td:nth-child(1) {
+    display: flex;
+    grid-area: 1 / 1 / 3 / 2;
+    justify-content: center;
+  }
+
+  /* vendor */
+  .bp__table--bills .bp__row > td:nth-child(3) {
+    display: block;
+    grid-area: 1 / 2 / 2 / 4;
+    min-width: 0;
+  }
+
+  /* amount */
+  .bp__table--bills .bp__row > td:nth-child(4) {
+    display: block;
+    grid-area: 1 / 4 / 2 / 5;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  /* status */
+  .bp__table--bills .bp__row > td:nth-child(6) {
+    display: block;
+    grid-area: 2 / 2 / 3 / 3;
+  }
+
+  .bp__table--bills .bp__row > td:nth-child(6) > span {
+    padding: 2px 8px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+  }
+
+  /* priority: chip and days on one line */
+  .bp__table--bills .bp__row > td:nth-child(2) {
+    display: block;
+    grid-area: 2 / 3 / 3 / 5;
+    min-width: 0;
+  }
+
+  .bp__table--bills .bp__row > td:nth-child(2) > div {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 6px !important;
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  /* "3704d overdue" gives way before the chip does. */
+  .bp__table--bills .bp__row > td:nth-child(2) > div > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .bp__table--bills .bp__row > td:nth-child(2) > div > div > span {
+    padding: 1px 7px !important;
+  }
+
+  .bp__table--bills .bp__vendor {
+    overflow: hidden;
+    font-size: var(--fs-sm);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .bp__table--bills .bp__gstn {
+    display: none;
+  }
+}
+
+@keyframes bm-sheet-up {
+  from {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

@@ -1,0 +1,607 @@
+/**
+ * The USDC rail's pay screen: treasury sidebar, payee card, bill picker and the
+ * payment summary (UsdcTreasurySidebar.tsx, UsdcPayParts.tsx). Layout and the
+ * sidebar shell come from payment.css; all values are tokens.
+ *
+ * Dense by design: one line per fact, status as small pills, and the one number
+ * that matters on each block (available, outstanding, vendor receives) set large.
+ */
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.up-side__refresh {
+  margin-inline-start: auto;
+}
+
+.up-spin {
+  animation: up-spin 0.9s linear infinite;
+}
+
+@keyframes up-spin {
+  to { transform: rotate(360deg); }
+}
+
+.up-safe {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--brand-100);
+  border-radius: var(--r-md);
+  background: var(--brand-50);
+}
+
+.up-safe__top {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.up-safe__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-md);
+  background: var(--brand-600);
+  color: #fff;
+}
+
+.up-safe__name {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.up-safe__sub {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+.up-safe__sub .cr-mono {
+  font-size: var(--fs-2xs);
+}
+
+.up-safe__label {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.up-safe__bal {
+  font-size: 26px;
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.up-safe__bal span {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-500);
+}
+
+.up-safe__math {
+  font-size: var(--fs-2xs);
+  line-height: 1.5;
+  color: var(--ink-600);
+  font-variant-numeric: tabular-nums;
+}
+
+.up-owners {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+.up-owner {
+  padding: 2px 8px;
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: var(--surface-1);
+  font-size: var(--fs-2xs);
+  color: var(--ink-700);
+}
+
+.up-limits {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.up-limits b {
+  color: var(--ink-900);
+}
+
+.up-meter {
+  margin-top: var(--sp-2);
+}
+
+.up-meter__bar {
+  height: 5px;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+}
+
+.up-meter__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-500);
+}
+
+.up-meter__txt {
+  margin-top: 4px;
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+/* ── Payee ───────────────────────────────────────────────────────────────── */
+.up-payee__head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.up-avatar {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--r-full);
+  background: var(--brand-100);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-bold);
+  color: var(--brand-700);
+}
+
+.up-payee__id {
+  flex: 1;
+  min-width: 0;
+}
+
+.up-payee__name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.up-payee__meta {
+  margin-top: 2px;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.up-payee__due {
+  display: grid;
+  justify-items: end;
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.up-payee__due strong {
+  font-size: var(--fs-md);
+  color: var(--ink-900);
+}
+
+.up-payee__due span {
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+/* One strip: where the money lands, then why that wallet is safe to pay. */
+.up-payee__wallet {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-md);
+  background: var(--surface-1);
+  font-size: var(--fs-sm);
+}
+
+.up-payee__wicon {
+  color: var(--ink-500);
+}
+
+.up-payee__net {
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.up-payee__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin-inline-start: auto;
+}
+
+.up-fact {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  background: var(--success-50);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--success-700);
+  white-space: nowrap;
+}
+
+.up-fact--warn {
+  background: var(--warn-50);
+  color: var(--warn-700);
+}
+
+/* ── Bill picker and amount ──────────────────────────────────────────────── */
+.up-count {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--ink-500);
+}
+
+.up-bills {
+  display: grid;
+  gap: 6px;
+  max-height: 232px;
+  overflow: auto;
+}
+
+.up-bill {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+
+.up-bill:hover {
+  border-color: var(--line-300);
+  background: var(--surface-1);
+}
+
+.up-bill:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+}
+
+.up-bill--on,
+.up-bill--on:hover {
+  border-color: var(--brand-500);
+  background: var(--brand-50);
+}
+
+.up-bill__radio {
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--line-300);
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+}
+
+.up-bill--on .up-bill__radio {
+  border: 5px solid var(--brand-600);
+}
+
+.up-bill__no {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+}
+
+.up-bill__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-1) var(--sp-2);
+  min-width: 0;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.up-bill__amt {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.up-bill__amt strong {
+  font-size: var(--fs-sm);
+  color: var(--ink-900);
+}
+
+.up-bill__of {
+  font-size: var(--fs-2xs);
+  color: var(--ink-500);
+}
+
+.up-amount {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-3);
+}
+
+.up-amount__field {
+  display: flex;
+  align-items: center;
+  flex: 1 1 220px;
+  height: 40px;
+  overflow: hidden;
+  border: 1px solid var(--line-300);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+}
+
+.up-amount__field:focus-within {
+  border-color: var(--brand-500);
+  box-shadow: 0 0 0 3px var(--brand-100);
+}
+
+.up-amount__cur {
+  display: grid;
+  place-items: center;
+  align-self: stretch;
+  padding: 0 var(--sp-3);
+  border-right: 1px solid var(--line-200);
+  background: var(--surface-1);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-600);
+}
+
+.up-amount__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--sp-3);
+  border: 0;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.up-amount__err {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--danger-700);
+}
+
+.up-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.up-chip {
+  height: 30px;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--line-200);
+  border-radius: var(--r-full);
+  background: var(--surface-0);
+  font: inherit;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--ink-700);
+  cursor: pointer;
+}
+
+.up-chip:hover {
+  border-color: var(--line-300);
+  background: var(--surface-1);
+}
+
+.up-chip[aria-pressed='true'] {
+  border-color: var(--brand-500);
+  background: var(--brand-50);
+  color: var(--brand-700);
+}
+
+/* ── Summary ─────────────────────────────────────────────────────────────── */
+/* The breakdown on the left, the answer ("vendor receives") on the right. */
+.up-sum {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(200px, 0.8fr);
+  gap: var(--sp-4);
+  align-items: stretch;
+}
+
+.up-sum__rows {
+  display: grid;
+  align-content: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.up-sum__rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-sm);
+}
+
+.up-sum__rows dt {
+  color: var(--ink-500);
+}
+
+.up-sum__rows dd {
+  margin: 0;
+  color: var(--ink-800);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.up-sum__rule {
+  margin-inline-start: 4px;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  background: var(--surface-2);
+  font-size: var(--fs-2xs);
+  color: var(--ink-600);
+}
+
+.up-sum__net {
+  display: grid;
+  align-content: center;
+  justify-items: end;
+  gap: 2px;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-md);
+  background: var(--brand-50);
+  text-align: end;
+}
+
+.up-sum__net-k {
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+}
+
+.up-sum__net-v {
+  font-size: 24px;
+  font-weight: var(--fw-bold);
+  line-height: 1.15;
+  color: var(--ink-900);
+  font-variant-numeric: tabular-nums;
+}
+
+.up-sum__net-v small {
+  font-size: var(--fs-sm);
+  color: var(--ink-500);
+}
+
+.up-sum__net-to {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+.up-sum__partial {
+  font-size: var(--fs-2xs);
+  color: var(--warn-700);
+}
+
+.up-block {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-3);
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--danger-100);
+  border-radius: var(--r-md);
+  background: var(--danger-50);
+  font-size: var(--fs-sm);
+  color: var(--danger-700);
+}
+
+.up-block > svg {
+  flex: none;
+}
+
+.up-block__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.up-block__body span {
+  color: var(--ink-600);
+}
+
+.up-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: var(--sp-3);
+}
+
+.up-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: var(--r-full);
+  background: var(--success-50);
+  font-size: var(--fs-2xs);
+  font-weight: var(--fw-semibold);
+  color: var(--success-700);
+}
+
+.up-check--warn {
+  background: var(--warn-50);
+  color: var(--warn-700);
+}
+
+.up-hint {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-sm);
+  color: var(--ink-700);
+}
+
+.up-hint strong {
+  color: var(--ink-900);
+}
+
+.up-hint__sub {
+  font-size: var(--fs-xs);
+  color: var(--ink-500);
+}
+
+@media (width <= 768px) {
+  .up-sum {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .up-payee__facts {
+    margin-inline-start: 0;
+  }
+
+  .up-bill {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .up-bill__meta {
+    grid-column: 2 / -1;
+    grid-row: 2;
+  }
+}

@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tally ↔ Onsumm Architecture</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3e;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --blue: #3b82f6;
+    --blue-dim: #1e3a5f;
+    --green: #22c55e;
+    --green-dim: #14532d;
+    --purple: #a855f7;
+    --purple-dim: #3b0764;
+    --orange: #f97316;
+    --orange-dim: #431407;
+    --red: #ef4444;
+    --yellow: #eab308;
+    --teal: #14b8a6;
+    --teal-dim: #134e4a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Header ── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 28px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 100;
+  }
+  header h1 { font-size: 1.1rem; font-weight: 700; letter-spacing: -.3px; }
+  header h1 span { color: var(--blue); }
+  .flow-btns { display: flex; gap: 8px; }
+  .flow-btn {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); cursor: pointer;
+    font-size: .78rem; font-weight: 600; letter-spacing: .3px;
+    transition: all .2s;
+  }
+  .flow-btn:hover { color: var(--text); border-color: var(--blue); }
+  .flow-btn.active-agent { background: var(--orange-dim); color: var(--orange); border-color: var(--orange); }
+  .flow-btn.active-server { background: var(--blue-dim); color: var(--blue); border-color: var(--blue); }
+  .flow-btn.active-pair { background: var(--green-dim); color: var(--green); border-color: var(--green); }
+  .flow-btn.active-push { background: var(--purple-dim); color: var(--purple); border-color: var(--purple); }
+  .flow-btn.reset-btn { background: transparent; }
+
+  /* ── Legend ── */
+  .legend {
+    display: flex; gap: 18px; align-items: center;
+    padding: 8px 28px; font-size: .72rem; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  /* ── Main canvas ── */
+  .canvas {
+    display: grid;
+    grid-template-columns: 300px 1fr 280px;
+    grid-template-rows: auto auto;
+    gap: 0;
+    padding: 24px;
+    min-height: calc(100vh - 100px);
+  }
+
+  /* ── Zone labels ── */
+  .zone-label {
+    text-align: center; font-size: .68rem; font-weight: 700;
+    letter-spacing: 1.5px; text-transform: uppercase;
+    padding: 6px 0 10px; color: var(--muted);
+  }
+
+  /* ── Zones ── */
+  .zone {
+    border-radius: 14px; padding: 16px;
+    border: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 10px;
+    position: relative;
+  }
+  .zone-customer { background: #111520; border-color: #1e2940; }
+  .zone-cloud    { background: #0f1622; border-color: #1a2540; margin: 0 12px; }
+  .zone-db       { background: #100f1a; border-color: #221a40; }
+
+  /* ── Node cards ── */
+  .node {
+    border-radius: 10px; border: 1px solid var(--border);
+    padding: 10px 12px; cursor: pointer;
+    transition: all .2s; position: relative;
+    background: var(--surface);
+  }
+  .node:hover { transform: translateY(-2px); box-shadow: 0 4px 20px rgba(0,0,0,.5); }
+  .node.highlighted { box-shadow: 0 0 0 2px currentColor; }
+  .node-title {
+    font-size: .82rem; font-weight: 700; display: flex;
+    align-items: center; gap: 6px; margin-bottom: 4px;
+  }
+  .node-icon { font-size: 1rem; }
+  .node-desc { font-size: .7rem; color: var(--muted); line-height: 1.4; }
+  .node-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .tag {
+    font-size: .62rem; padding: 2px 6px; border-radius: 4px;
+    font-weight: 600; letter-spacing: .2px;
+  }
+  .tag-blue   { background: var(--blue-dim);   color: var(--blue); }
+  .tag-green  { background: var(--green-dim);  color: var(--green); }
+  .tag-orange { background: var(--orange-dim); color: var(--orange); }
+  .tag-purple { background: var(--purple-dim); color: var(--purple); }
+  .tag-teal   { background: var(--teal-dim);   color: var(--teal); }
+  .tag-red    { background: #3f1010; color: var(--red); }
+
+  /* Tally Prime node */
+  .node-tally { border-color: #2a4a3a; }
+  .node-tally .node-title { color: var(--green); }
+
+  /* Agent node */
+  .node-agent { border-color: #3a3010; }
+  .node-agent .node-title { color: var(--orange); }
+
+  /* Cloud API nodes */
+  .node-api { border-color: #1a2a4a; }
+  .node-api .node-title { color: var(--blue); }
+
+  /* Library nodes */
+  .node-lib { border-color: #2a1a4a; }
+  .node-lib .node-title { color: var(--purple); }
+
+  /* Worker nodes */
+  .node-worker { border-color: #1a3a4a; }
+  .node-worker .node-title { color: var(--teal); }
+
+  /* DB table nodes */
+  .node-table { border-color: #2a1a3a; padding: 7px 10px; }
+  .node-table .node-title { font-size: .74rem; color: var(--purple); margin-bottom: 1px; }
+  .node-table .node-desc { font-size: .65rem; }
+
+  /* ── Cloud inner layout ── */
+  .cloud-inner {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .cloud-col { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ── Shared lib strip ── */
+  .lib-strip {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: 4px;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px dashed #2a2a4a;
+    background: #0d0d1a;
+  }
+  .lib-strip-label {
+    grid-column: 1 / -1;
+    font-size: .65rem; color: var(--muted);
+    font-weight: 700; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 2px;
+  }
+
+  /* ── DB groups ── */
+  .db-group {
+    border-radius: 8px; padding: 8px;
+    border: 1px dashed var(--border);
+    display: flex; flex-direction: column; gap: 6px;
+    background: rgba(255,255,255,.01);
+  }
+  .db-group-label {
+    font-size: .62rem; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); padding-bottom: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── SVG arrows overlay ── */
+  #arrows-svg {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 50;
+    overflow: visible;
+  }
+  .arrow-path {
+    fill: none; stroke-width: 2;
+    opacity: 0;
+    transition: opacity .3s;
+    stroke-dasharray: 8 4;
+    animation: none;
+  }
+  .arrow-path.visible { opacity: 1; }
+  .arrow-path.animated { animation: dash-flow 1.5s linear infinite; }
+
+  @keyframes dash-flow {
+    to { stroke-dashoffset: -36; }
+  }
+
+  .arrow-agent  { stroke: var(--orange); }
+  .arrow-server { stroke: var(--blue); }
+  .arrow-pair   { stroke: var(--green); }
+  .arrow-push   { stroke: var(--purple); }
+
+  /* ── Detail panel ── */
+  #detail-panel {
+    position: fixed; right: 0; top: 0; bottom: 0;
+    width: 360px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    z-index: 200;
+    transform: translateX(100%);
+    transition: transform .3s ease;
+    overflow-y: auto;
+    padding: 20px;
+  }
+  #detail-panel.open { transform: translateX(0); }
+  #detail-panel h2 { font-size: .95rem; margin-bottom: 4px; }
+  #detail-panel .subtitle { font-size: .75rem; color: var(--muted); margin-bottom: 16px; }
+  #detail-panel .close-btn {
+    position: absolute; top: 14px; right: 14px;
+    background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 1.2rem; line-height: 1;
+  }
+  .detail-section { margin-bottom: 14px; }
+  .detail-section h3 {
+    font-size: .72rem; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 6px;
+  }
+  .detail-section p, .detail-section li {
+    font-size: .78rem; color: #94a3b8; line-height: 1.6;
+  }
+  .detail-section ul { padding-left: 14px; }
+  .code-block {
+    background: #0a0a12;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: .72rem;
+    font-family: 'Cascadia Code', 'Consolas', monospace;
+    color: #7dd3fc;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin-top: 6px;
+  }
+  .code-kw  { color: #c084fc; }
+  .code-str { color: #86efac; }
+  .code-cmt { color: #475569; }
+
+  /* ── Flow steps panel ── */
+  #steps-panel {
+    position: fixed; left: 24px; bottom: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 18px;
+    z-index: 150;
+    min-width: 280px; max-width: 340px;
+    display: none;
+  }
+  #steps-panel.open { display: block; }
+  #steps-panel h3 { font-size: .78rem; font-weight: 700; margin-bottom: 10px; }
+  .step {
+    display: flex; gap: 10px; align-items: flex-start;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+    font-size: .74rem;
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: .65rem; font-weight: 800; flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .step-text { color: #94a3b8; line-height: 1.5; }
+  .step-text strong { color: var(--text); }
+
+  /* ── Pulse animation for active nodes ── */
+  @keyframes pulse-border {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.4); }
+    50% { box-shadow: 0 0 0 6px rgba(59,130,246,0); }
+  }
+  .pulse { animation: pulse-border 1.5s ease-in-out infinite; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    .canvas { grid-template-columns: 1fr; }
+    .cloud-inner { grid-template-columns: 1fr; }
+    .lib-strip { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Onsumm <span>Tally ↔ PostgreSQL</span> Architecture</h1>
+  <div class="flow-btns">
+    <button class="flow-btn" id="btn-pair"   onclick="showFlow('pair')">Pairing Flow</button>
+    <button class="flow-btn" id="btn-agent"  onclick="showFlow('agent')">Agent Push (15min)</button>
+    <button class="flow-btn" id="btn-server" onclick="showFlow('server')">Server Pull</button>
+    <button class="flow-btn" id="btn-push"   onclick="showFlow('push')">Tally Push Back</button>
+    <button class="flow-btn reset-btn"        onclick="showFlow(null)">Clear</button>
+  </div>
+</header>
+
+<div class="legend">
+  <span style="font-weight:700;color:var(--text)">Flows:</span>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div> Pairing</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div> Agent Push (customer → cloud)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div> Server Pull (cloud → Tally direct)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div> Tally Push Back (DB → Tally)</div>
+  <span style="margin-left:auto;font-size:.7rem">Click any node for details &nbsp;|&nbsp; Use buttons above to trace flows</span>
+</div>
+
+<!-- SVG arrows overlay -->
+<svg id="arrows-svg"></svg>
+
+<div class="canvas">
+
+  <!-- ══════════════════════════════════════════
+       ZONE 1: CUSTOMER PC
+  ══════════════════════════════════════════ -->
+  <div>
+    <div class="zone-label" style="color:#2d6a4f">Customer PC (Windows)</div>
+    <div class="zone zone-customer">
+
+      <div class="node node-tally" id="node-tally" onclick="showDetail('tally')">
+        <div class="node-title"><span class="node-icon">📊</span> Tally Prime</div>
+        <div class="node-desc">ERP running on customer's machine with XML/ODBC server enabled on port 9000</div>
+        <div class="node-tags">
+          <span class="tag tag-green">HTTP XML API</span>
+          <span class="tag tag-green">localhost:9000</span>
+        </div>
+      </div>
+
+      <div style="text-align:center;font-size:.8rem;color:var(--muted);padding:2px 0">↕ XML over HTTP</div>
+
+      <div class="node node-agent" id="node-agent" onclick="showDetail('agent')">
+        <div class="node-title"><span class="node-icon">🔌</span> OnsummTallyAgent.exe</div>
+        <div class="node-desc">PyInstaller bundle. Runs in system tray. Syncs every 15 min.</div>
+        <div class="node-tags">
+          <span class="tag tag-orange">tally_agent/agent.py</span>
+          <span class="tag tag-orange">v1.0.0</span>
+        </div>
+      </div>
+
+      <div style="border:1px solid #2a2a1a;border-radius:8px;padding:8px;background:#0d0d0a">
+        <div style="font-size:.63rem;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Agent internals</div>
+
+        <div class="node node-agent" id="node-setup" onclick="showDetail('setup')" style="margin-bottom:6px;border-color:#2a2010">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">🖥️</span> Setup UI (Tkinter)</div>
+          <div class="node-desc">First-run dialog — enter pairing token, company name, auto-start option</div>
+        </div>
+
+        <div class="node node-agent" id="node-syncloop" onclick="showDetail('syncloop')" style="margin-bottom:6px;border-color:#2a2010">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">🔄</span> Sync Loop (every 15 min)</div>
+          <div class="node-desc">fetch_ledgers → fetch_vouchers → POST /api/tally/ingest. Circuit breaker after 5 failures.</div>
+        </div>
+
+        <div class="node node-agent" id="node-update" onclick="showDetail('update')" style="border-color:#2a2010">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">⬆️</span> Self-Update</div>
+          <div class="node-desc">GET /agent/version on startup → downloads new .exe → .bat trampoline swap</div>
+        </div>
+      </div>
+
+      <div style="font-size:.66rem;color:var(--muted);text-align:center">
+        Config: <code style="color:#94a3b8">%APPDATA%\OnsummTallyAgent\config.json</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       ZONE 2: CLOUD
+  ══════════════════════════════════════════ -->
+  <div>
+    <div class="zone-label" style="color:#1e40af">Cloud · onsumm.onrender.com</div>
+    <div class="zone zone-cloud">
+
+      <div class="cloud-inner">
+        <!-- Left col: FastAPI Agent API -->
+        <div class="cloud-col">
+          <div style="font-size:.65rem;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">FastAPI · backend_ocr/app/</div>
+
+          <div class="node node-api" id="node-pair" onclick="showDetail('pair')">
+            <div class="node-title"><span class="node-icon">🔑</span> POST /api/tally/pair</div>
+            <div class="node-desc">Exchange one-time pairing token → api_key (stored as SHA-256 hash). Expires 30 min.</div>
+            <div class="node-tags"><span class="tag tag-green">tally_agent_api.py</span></div>
+          </div>
+
+          <div class="node node-api" id="node-ingest" onclick="showDetail('ingest')">
+            <div class="node-title"><span class="node-icon">📥</span> POST /api/tally/ingest</div>
+            <div class="node-desc">Receives ledgers_xml + vouchers_xml from agent. Auth: Bearer api_key. Parses + upserts to staging tables.</div>
+            <div class="node-tags"><span class="tag tag-blue">tally_agent_api.py</span></div>
+          </div>
+
+          <div class="node node-api" id="node-version" onclick="showDetail('version')">
+            <div class="node-title"><span class="node-icon">📡</span> GET /agent/version</div>
+            <div class="node-desc">Version manifest for agent self-update. Set AGENT_LATEST_VERSION + AGENT_DOWNLOAD_URL env vars.</div>
+          </div>
+
+          <div class="node node-api" id="node-connstatus" onclick="showDetail('connstatus')">
+            <div class="node-title"><span class="node-icon">📶</span> GET /api/tally/connection</div>
+            <div class="node-desc">Dashboard polls this for connection status, last_sync_at, agent_version, error_message.</div>
+          </div>
+        </div>
+
+        <!-- Right col: Async Pipeline Workers -->
+        <div class="cloud-col">
+          <div style="font-size:.65rem;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:2px">Async Pipeline · pipelines/</div>
+
+          <div class="node node-worker" id="node-syncworker" onclick="showDetail('syncworker')">
+            <div class="node-title"><span class="node-icon">⚙️</span> TallySyncWorker</div>
+            <div class="node-desc">Bi-directional. Polls int_connections every 60s. Runs PULL then PUSH for each due connection. Circuit breaker: 3 failures → ERROR.</div>
+            <div class="node-tags">
+              <span class="tag tag-teal">tally_sync.py</span>
+              <span class="tag tag-blue">PULL</span>
+              <span class="tag tag-purple">PUSH</span>
+            </div>
+          </div>
+
+          <div class="node node-worker" id="node-readworker" onclick="showDetail('readworker')">
+            <div class="node-title"><span class="node-icon">👁️</span> TallyReadWorker</div>
+            <div class="node-desc">Read-only PULL from Tally direct. Polls every 60s. No writes back to Tally.</div>
+            <div class="node-tags">
+              <span class="tag tag-teal">tally_read.py</span>
+              <span class="tag tag-blue">PULL only</span>
+            </div>
+          </div>
+
+          <div style="border:1px solid #1a2a1a;border-radius:8px;padding:8px;background:#080e0a;margin-top:4px">
+            <div style="font-size:.63rem;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">PULL steps (both workers)</div>
+            <div style="font-size:.7rem;color:#64748b;line-height:1.8">
+              1. <code style="color:#7dd3fc">fetch_ledgers()</code> → XML<br>
+              2. <code style="color:#7dd3fc">parse_ledgers()</code> → dicts<br>
+              3. Upsert <code style="color:#c084fc">dim_ledger_accounts</code><br>
+              4. Upsert <code style="color:#c084fc">dim_end_customers</code><br>
+              5. <code style="color:#7dd3fc">fetch_vouchers()</code> → XML<br>
+              6. <code style="color:#7dd3fc">parse_vouchers()</code> → dicts<br>
+              7. Upsert <code style="color:#c084fc">stg_invoices/bills/payments</code>
+            </div>
+          </div>
+
+          <div style="border:1px solid #2a1a2a;border-radius:8px;padding:8px;background:#0a080e;margin-top:4px">
+            <div style="font-size:.63rem;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">PUSH steps (TallySyncWorker only)</div>
+            <div style="font-size:.7rem;color:#64748b;line-height:1.8">
+              1. Bridge <code style="color:#c084fc">fact_invoices.tally_push_pending</code><br>
+              2. Push customer ledger masters<br>
+              3. <code style="color:#7dd3fc">build_sales_voucher()</code> → XML<br>
+              4. <code style="color:#7dd3fc">import_xml()</code> → Tally<br>
+              5. Push receipt vouchers<br>
+              6. Update <code style="color:#c084fc">sync_status = SYNCED</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Shared library strip -->
+      <div class="lib-strip">
+        <div class="lib-strip-label">tally2database/ — Shared Library (used by both FastAPI + async workers)</div>
+
+        <div class="node node-lib" id="node-client" onclick="showDetail('client')" style="padding:8px 10px">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">📡</span> tally_client.py</div>
+          <div class="node-desc">HTTP XML calls to Tally. fetch_ledgers(), fetch_vouchers(), import_xml(). Voucher Register → Day Book fallback.</div>
+          <div class="node-tags"><span class="tag tag-purple">TALLY_HOST:9000</span></div>
+        </div>
+
+        <div class="node node-lib" id="node-parser" onclick="showDetail('parser')" style="padding:8px 10px">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">🔍</span> tally_parser.py</div>
+          <div class="node-desc">Tally XML → Python dicts. parse_ledgers(), parse_vouchers(). Handles invalid XML chars, Cr/Dr amounts, GST extraction.</div>
+          <div class="node-tags"><span class="tag tag-purple">lxml + recover</span></div>
+        </div>
+
+        <div class="node node-lib" id="node-builder" onclick="showDetail('builder')" style="padding:8px 10px">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">🔨</span> tally_builder.py</div>
+          <div class="node-desc">Python dicts → Tally import XML. build_sales_voucher(), build_receipt_voucher(), build_ledger_master().</div>
+          <div class="node-tags"><span class="tag tag-purple">PUSH only</span></div>
+        </div>
+
+        <div class="node node-lib" id="node-auditlog" onclick="showDetail('auditlog')" style="padding:8px 10px">
+          <div class="node-title" style="font-size:.76rem"><span class="node-icon">📝</span> sync_audit_logger.py</div>
+          <div class="node-desc">Structured JSONL audit log per sync event. direction, entity, action, status, tenant_id written to logs/sync_audit.jsonl.</div>
+          <div class="node-tags"><span class="tag tag-purple">JSONL</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
+       ZONE 3: POSTGRESQL (NEON)
+  ══════════════════════════════════════════ -->
+  <div>
+    <div class="zone-label" style="color:#5b21b6">PostgreSQL · Neon</div>
+    <div class="zone zone-db">
+
+      <div class="db-group" id="group-connections">
+        <div class="db-group-label">Integration / Connection</div>
+        <div class="node node-table" id="node-int-connections" onclick="showDetail('int_connections')">
+          <div class="node-title">int_connections</div>
+          <div class="node-desc">Connection state, api_key_hash, pairing_token, last_sync_at, consecutive_failures, agent_version</div>
+        </div>
+        <div class="node node-table" id="node-int-synclog" onclick="showDetail('int_synclog')">
+          <div class="node-title">int_sync_log</div>
+          <div class="node-desc">Job-level sync history: records_fetched, inserted, updated, errored, status</div>
+        </div>
+        <div class="node node-table" id="node-int-conflict" onclick="showDetail('int_conflict')">
+          <div class="node-title">int_conflict_log</div>
+          <div class="node-desc">Conflicts when Tally import rejects a voucher</div>
+        </div>
+      </div>
+
+      <div class="db-group" id="group-raw">
+        <div class="db-group-label">Raw Storage</div>
+        <div class="node node-table" id="node-raw" onclick="showDetail('raw')">
+          <div class="node-title">raw_api_payloads</div>
+          <div class="node-desc">Full XML blobs stored as JSONB. Entity type: LEDGER or INVOICE</div>
+        </div>
+      </div>
+
+      <div class="db-group" id="group-dim">
+        <div class="db-group-label">Dimension Tables</div>
+        <div class="node node-table" id="node-dim-ledger" onclick="showDetail('dim_ledger')">
+          <div class="node-title">dim_ledger_accounts</div>
+          <div class="node-desc">Chart of accounts from Tally. account_type: ASSET/LIABILITY/INCOME/EXPENSE/EQUITY</div>
+        </div>
+        <div class="node node-table" id="node-dim-customers" onclick="showDetail('dim_customers')">
+          <div class="node-title">dim_end_customers</div>
+          <div class="node-desc">Sundry Debtors from Tally ledgers. gstin, email, phone, billing_address_jsonb</div>
+        </div>
+        <div class="node node-table" id="node-dim-suppliers" onclick="showDetail('dim_suppliers')">
+          <div class="node-title">dim_suppliers</div>
+          <div class="node-desc">Sundry Creditors from Tally ledgers. gstn, payment_terms_days, status</div>
+        </div>
+      </div>
+
+      <div class="db-group" id="group-stg">
+        <div class="db-group-label">Staging Tables</div>
+        <div class="node node-table" id="node-stg-invoices" onclick="showDetail('stg_invoices')">
+          <div class="node-title">stg_invoices + line_items</div>
+          <div class="node-desc">SALES vouchers. sync_status: PENDING → SYNCED. source=TALLY skipped on push.</div>
+        </div>
+        <div class="node node-table" id="node-stg-bills" onclick="showDetail('stg_bills')">
+          <div class="node-title">stg_bills + line_items</div>
+          <div class="node-desc">PURCHASE vouchers. gstin_seller, supplier_id, outstanding_amount</div>
+        </div>
+        <div class="node node-table" id="node-stg-payments" onclick="showDetail('stg_payments')">
+          <div class="node-title">stg_payments</div>
+          <div class="node-desc">RECEIPT/PAYMENT vouchers. amount, transaction_ref, is_reconciled</div>
+        </div>
+      </div>
+
+      <div class="db-group" id="group-fact">
+        <div class="db-group-label">Fact Tables</div>
+        <div class="node node-table" id="node-fact-invoices" onclick="showDetail('fact_invoices')">
+          <div class="node-title">fact_invoices</div>
+          <div class="node-desc">Promoted from stg. tally_push_pending flag triggers PUSH back to Tally.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- end canvas -->
+
+<!-- ── Detail Panel ── -->
+<div id="detail-panel">
+  <button class="close-btn" onclick="closeDetail()">✕</button>
+  <h2 id="detail-title"></h2>
+  <div class="subtitle" id="detail-subtitle"></div>
+  <div id="detail-body"></div>
+</div>
+
+<!-- ── Flow Steps Panel ── -->
+<div id="steps-panel">
+  <h3 id="steps-title"></h3>
+  <div id="steps-body"></div>
+</div>
+
+<script>
+// ── Node positions cache (computed after layout) ──────────────────────────────
+const positions = {};
+
+function getCenter(id) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function getEdge(id, side = 'right') {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  const r = el.getBoundingClientRect();
+  if (side === 'right')  return { x: r.right,         y: r.top + r.height / 2 };
+  if (side === 'left')   return { x: r.left,           y: r.top + r.height / 2 };
+  if (side === 'top')    return { x: r.left + r.width/2, y: r.top };
+  if (side === 'bottom') return { x: r.left + r.width/2, y: r.bottom };
+  return getCenter(id);
+}
+
+// ── Arrow drawing ─────────────────────────────────────────────────────────────
+const svg = document.getElementById('arrows-svg');
+let drawnArrows = [];
+
+function clearArrows() {
+  drawnArrows.forEach(el => el.remove());
+  drawnArrows = [];
+}
+
+function drawArrow(fromId, fromSide, toId, toSide, cls, curved = true) {
+  const from = getEdge(fromId, fromSide);
+  const to   = getEdge(toId, toSide);
+  if (!from || !to) return;
+
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('class', `arrow-path ${cls} visible animated`);
+
+  let d;
+  if (curved) {
+    const dx = to.x - from.x;
+    const cx1 = from.x + dx * 0.4;
+    const cy1 = from.y;
+    const cx2 = to.x - dx * 0.4;
+    const cy2 = to.y;
+    d = `M ${from.x} ${from.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${to.x} ${to.y}`;
+  } else {
+    d = `M ${from.x} ${from.y} L ${to.x} ${to.y}`;
+  }
+
+  path.setAttribute('d', d);
+
+  // arrowhead marker
+  const markerId = `marker-${cls}-${Math.random().toString(36).slice(2)}`;
+  const defs = svg.querySelector('defs') || (() => {
+    const d = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+    svg.appendChild(d); return d;
+  })();
+  const colorMap = { 'arrow-agent': '#f97316', 'arrow-server': '#3b82f6', 'arrow-pair': '#22c55e', 'arrow-push': '#a855f7' };
+  const color = colorMap[cls] || '#888';
+  defs.innerHTML += `<marker id="${markerId}" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+    <path d="M0,0 L6,3 L0,6 Z" fill="${color}" opacity="0.8"/>
+  </marker>`;
+  path.setAttribute('marker-end', `url(#${markerId})`);
+
+  svg.appendChild(path);
+  drawnArrows.push(path);
+}
+
+// ── Flow definitions ──────────────────────────────────────────────────────────
+const flows = {
+  pair: {
+    title: 'Pairing Flow',
+    color: 'var(--green)',
+    btnClass: 'active-pair',
+    steps: [
+      { text: '<strong>Dashboard admin</strong> generates pairing token, stores it in <strong>int_connections</strong> (status=PENDING, expires 30 min)' },
+      { text: 'Customer downloads & runs <strong>OnsummTallyAgent.exe</strong>, enters token in Setup UI' },
+      { text: 'Agent calls <strong>POST /api/tally/pair</strong> with token + agent_version' },
+      { text: 'Cloud validates token, generates <strong>api_key</strong>, stores SHA-256 hash, marks connection <strong>ACTIVE</strong>' },
+      { text: 'Agent stores <strong>api_key</strong> in <code>config.json</code> — used as Bearer token in all future calls' },
+    ],
+    drawFn: () => {
+      drawArrow('node-setup', 'right', 'node-pair', 'left', 'arrow-pair');
+      drawArrow('node-pair', 'right', 'node-int-connections', 'left', 'arrow-pair');
+    }
+  },
+  agent: {
+    title: 'Agent Push Flow (every 15 min)',
+    color: 'var(--orange)',
+    btnClass: 'active-agent',
+    steps: [
+      { text: '<strong>Agent sync loop</strong> wakes every 15 min (POLL_INTERVAL=900s)' },
+      { text: 'Calls <strong>Tally XML API</strong> on localhost:9000 — List of Accounts + Voucher Register (90-day window). Falls back to Day Book if empty.' },
+      { text: 'Sends <strong>POST /api/tally/ingest</strong> with ledgers_xml + vouchers_xml (Bearer api_key)' },
+      { text: 'Cloud parses XML with <strong>tally_parser.py</strong> — cleans invalid chars, extracts Cr/Dr amounts, GSTIN' },
+      { text: 'Upserts into <strong>dim_ledger_accounts</strong>, <strong>dim_end_customers</strong>, <strong>stg_invoices</strong>, <strong>stg_bills</strong>, <strong>stg_payments</strong>' },
+      { text: 'Updates <strong>int_connections.last_sync_at</strong> + agent_version as heartbeat' },
+    ],
+    drawFn: () => {
+      drawArrow('node-tally', 'right', 'node-syncloop', 'left', 'arrow-agent');
+      drawArrow('node-syncloop', 'right', 'node-ingest', 'left', 'arrow-agent');
+      drawArrow('node-ingest', 'bottom', 'node-parser', 'top', 'arrow-agent');
+      drawArrow('node-parser', 'right', 'node-raw', 'left', 'arrow-agent');
+      drawArrow('node-parser', 'right', 'node-dim-ledger', 'left', 'arrow-agent');
+      drawArrow('node-ingest', 'right', 'node-stg-invoices', 'left', 'arrow-agent');
+      drawArrow('node-ingest', 'right', 'node-stg-bills', 'left', 'arrow-agent');
+      drawArrow('node-ingest', 'right', 'node-stg-payments', 'left', 'arrow-agent');
+    }
+  },
+  server: {
+    title: 'Server Pull Flow (TallyReadWorker / TallySyncWorker)',
+    color: 'var(--blue)',
+    btnClass: 'active-server',
+    steps: [
+      { text: '<strong>TallyReadWorker / TallySyncWorker</strong> polls every 60s. Checks int_connections for rows overdue by TALLY_SYNC_INTERVAL_MINUTES.' },
+      { text: 'Calls <strong>tally_client.fetch_ledgers()</strong> → XML over HTTP to TALLY_HOST:9000. Thread pool (asyncio executor) for blocking call.' },
+      { text: 'Calls <strong>tally_client.fetch_vouchers()</strong> — incremental window from last_sync_at. Voucher Register → Day Book fallback.' },
+      { text: 'Parses XML with <strong>tally_parser.parse_ledgers()</strong> + <strong>parse_vouchers()</strong>' },
+      { text: 'Upserts to staging tables in a single asyncpg transaction. Writes <strong>int_sync_log</strong> row with stats.' },
+      { text: 'Circuit breaker: 3 consecutive failures → sets int_connections.status = ERROR' },
+    ],
+    drawFn: () => {
+      drawArrow('node-syncworker', 'left', 'node-tally', 'right', 'arrow-server');
+      drawArrow('node-readworker', 'left', 'node-tally', 'right', 'arrow-server');
+      drawArrow('node-syncworker', 'bottom', 'node-client', 'top', 'arrow-server');
+      drawArrow('node-syncworker', 'bottom', 'node-parser', 'top', 'arrow-server');
+      drawArrow('node-syncworker', 'right', 'node-int-synclog', 'left', 'arrow-server');
+      drawArrow('node-client', 'right', 'node-stg-invoices', 'left', 'arrow-server');
+    }
+  },
+  push: {
+    title: 'Tally Push Back Flow (DB → Tally)',
+    color: 'var(--purple)',
+    btnClass: 'active-push',
+    steps: [
+      { text: 'Dashboard user marks invoice for Tally push → sets <strong>fact_invoices.tally_push_pending = true</strong>' },
+      { text: '<strong>TallySyncWorker._bridge_tally_push_flags()</strong> propagates flag to stg_invoices.sync_status = PENDING (only non-TALLY sources)' },
+      { text: '<strong>_push_customer_ledgers()</strong> creates ledger masters in Tally via import_xml()' },
+      { text: '<strong>_push_invoices()</strong>: builds Sales Voucher XML via <strong>tally_builder.build_sales_voucher()</strong> → import_xml()' },
+      { text: 'If date out-of-range error: retries with today\'s date, preserves original date in narration' },
+      { text: '<strong>_push_payments()</strong>: builds Receipt Voucher → import_xml(). Updates sync_status = SYNCED on success.' },
+    ],
+    drawFn: () => {
+      drawArrow('node-fact-invoices', 'top', 'node-stg-invoices', 'bottom', 'arrow-push');
+      drawArrow('node-stg-invoices', 'left', 'node-syncworker', 'right', 'arrow-push');
+      drawArrow('node-stg-payments', 'left', 'node-syncworker', 'right', 'arrow-push');
+      drawArrow('node-syncworker', 'bottom', 'node-builder', 'top', 'arrow-push');
+      drawArrow('node-builder', 'left', 'node-tally', 'right', 'arrow-push');
+    }
+  }
+};
+
+let currentFlow = null;
+
+function showFlow(name) {
+  clearArrows();
+  document.querySelectorAll('.flow-btn').forEach(b => {
+    b.className = b.className.replace(/active-\w+/g, '').trim();
+  });
+  document.getElementById('steps-panel').classList.remove('open');
+  currentFlow = name;
+
+  if (!name) return;
+
+  const flow = flows[name];
+  if (!flow) return;
+
+  const btn = document.getElementById('btn-' + name);
+  if (btn) btn.classList.add(flow.btnClass);
+
+  // Draw arrows after a tick (layout may shift)
+  setTimeout(() => { flow.drawFn(); }, 50);
+
+  // Show steps
+  const panel = document.getElementById('steps-panel');
+  document.getElementById('steps-title').textContent = flow.title;
+  document.getElementById('steps-body').innerHTML = flow.steps.map((s, i) =>
+    `<div class="step">
+      <div class="step-num" style="background:${flow.color};color:#000">${i+1}</div>
+      <div class="step-text">${s.text}</div>
+    </div>`
+  ).join('');
+  panel.classList.add('open');
+}
+
+// Redraw on resize
+let resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    if (currentFlow) showFlow(currentFlow);
+  }, 200);
+});
+
+// ── Detail panel content ──────────────────────────────────────────────────────
+const details = {
+  tally: {
+    title: 'Tally Prime',
+    subtitle: 'Customer-side ERP · HTTP XML Server on :9000',
+    body: `
+      <div class="detail-section">
+        <h3>What it does</h3>
+        <p>Tally Prime ERP runs on the customer's Windows machine. The XML/ODBC server must be enabled (Gateway of Tally → F12 → Allow BrowserBased Access). The agent hits it on localhost:9000.</p>
+      </div>
+      <div class="detail-section">
+        <h3>API calls made to it</h3>
+        <ul>
+          <li><strong>List of Accounts</strong> — all ledger masters (COA)</li>
+          <li><strong>Voucher Register</strong> — invoices/bills/payments by date range</li>
+          <li><strong>Day Book</strong> — fallback if Voucher Register returns empty</li>
+          <li><strong>Import Data / Vouchers</strong> — push back Sales/Receipt vouchers</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>XML request format</h3>
+        <div class="code-block"><span class="code-kw">POST</span> http://localhost:9000
+Content-Type: application/xml
+
+<span class="code-str">&lt;ENVELOPE&gt;
+  &lt;HEADER&gt;
+    &lt;TALLYREQUEST&gt;Export Data&lt;/TALLYREQUEST&gt;
+  &lt;/HEADER&gt;
+  &lt;BODY&gt;&lt;EXPORTDATA&gt;&lt;REQUESTDESC&gt;
+    &lt;REPORTNAME&gt;Voucher Register&lt;/REPORTNAME&gt;
+    &lt;STATICVARIABLES&gt;
+      &lt;SVEXPORTFORMAT&gt;$$SysName:XML&lt;/SVEXPORTFORMAT&gt;
+      &lt;SVFROMDATE&gt;20260101&lt;/SVFROMDATE&gt;
+      &lt;SVTODATE&gt;20260526&lt;/SVTODATE&gt;
+    &lt;/STATICVARIABLES&gt;
+  &lt;/REQUESTDESC&gt;&lt;/EXPORTDATA&gt;&lt;/BODY&gt;
+&lt;/ENVELOPE&gt;</span></div>
+      </div>`
+  },
+  agent: {
+    title: 'OnsummTallyAgent.exe',
+    subtitle: 'tally_agent/agent.py · PyInstaller bundle · Windows tray app',
+    body: `
+      <div class="detail-section">
+        <h3>Startup sequence</h3>
+        <ul>
+          <li>1. <code>check_and_apply_update()</code> — GET /agent/version</li>
+          <li>2. Load config.json (or run setup UI)</li>
+          <li>3. Launch background sync thread</li>
+          <li>4. Show system tray icon (green=ok, red=error)</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Key constants</h3>
+        <div class="code-block">POLL_INTERVAL = 900  <span class="code-cmt"># 15 minutes</span>
+TALLY_PORT   = 9000
+CLOUD_BASE   = <span class="code-str">"https://onsumm.onrender.com"</span>
+INGEST_URL   = CLOUD_BASE + <span class="code-str">"/api/tally/ingest"</span>
+PAIR_URL     = CLOUD_BASE + <span class="code-str">"/api/tally/pair"</span></div>
+      </div>
+      <div class="detail-section">
+        <h3>Config stored locally</h3>
+        <div class="code-block"><span class="code-cmt">%APPDATA%\OnsummTallyAgent\config.json</span>
+{
+  <span class="code-str">"api_key"</span>:       <span class="code-str">"&lt;bearer token&gt;"</span>,
+  <span class="code-str">"tally_company"</span>: <span class="code-str">"Acme Ltd"</span>,
+  <span class="code-str">"tenant_name"</span>:   <span class="code-str">"Acme"</span>,
+  <span class="code-str">"paired_at"</span>:     <span class="code-str">"2026-05-26"</span>
+}</div>
+      </div>
+      <div class="detail-section">
+        <h3>Auto-start (no admin needed)</h3>
+        <p>Adds itself to <code>HKCU\Software\Microsoft\Windows\CurrentVersion\Run</code>. Optional Windows Service install requires admin (--install-service).</p>
+      </div>`
+  },
+  setup: {
+    title: 'Setup UI (Tkinter)',
+    subtitle: 'First-run dialog · tally_agent/agent.py:run_setup_ui()',
+    body: `
+      <div class="detail-section">
+        <h3>Fields</h3>
+        <ul>
+          <li><strong>Pairing Token</strong> — from Onsumm dashboard → Settings → Connect Tally → Generate Token</li>
+          <li><strong>Tally Company Name</strong> — optional; blank = currently open company</li>
+          <li><strong>Auto-start checkbox</strong> — adds to HKCU Run registry</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>On Connect</h3>
+        <p>Calls <code>pair_with_token(token)</code> → POST /api/tally/pair. Stores returned api_key in config.json. Headless mode (no GUI) via ONSUMM_TOKEN env var.</p>
+      </div>`
+  },
+  syncloop: {
+    title: 'Sync Loop',
+    subtitle: 'tally_agent/agent.py:run_background_loop() · every 15 min',
+    body: `
+      <div class="detail-section">
+        <h3>Cycle logic</h3>
+        <div class="code-block"><span class="code-kw">def</span> run_sync_cycle(cfg):
+  if not tally_is_running(): return  <span class="code-cmt"># skip</span>
+  ledgers_xml  = fetch_ledgers(company)
+  from_date    = today - 90 days
+  vouchers_xml = fetch_vouchers(from_date, today)
+  result = push_to_cloud(api_key, ledgers_xml, vouchers_xml)</div>
+      </div>
+      <div class="detail-section">
+        <h3>Circuit breaker</h3>
+        <p>After <strong>5 consecutive failures</strong>, pauses for <strong>1 hour</strong> before retrying. Resets on success.</p>
+      </div>
+      <div class="detail-section">
+        <h3>Tray menu actions</h3>
+        <ul>
+          <li><strong>Sync Now</strong> — triggers immediate sync cycle</li>
+          <li><strong>Open Log File</strong> — opens %APPDATA%\OnsummTallyAgent\agent.log</li>
+          <li><strong>Disable Auto-start</strong> — removes registry Run key</li>
+        </ul>
+      </div>`
+  },
+  update: {
+    title: 'Self-Update',
+    subtitle: 'tally_agent/agent.py:check_and_apply_update()',
+    body: `
+      <div class="detail-section">
+        <h3>Update mechanism</h3>
+        <p>Can't overwrite a running .exe on Windows. Uses a .bat trampoline:</p>
+        <div class="code-block"><span class="code-cmt"># OnsummTallyAgent.update.bat</span>
+ping 127.0.0.1 -n 3 > nul  <span class="code-cmt"># wait ~2s</span>
+move /y "agent.new.exe" "agent.exe"
+start "" "agent.exe"
+del "%~f0"  <span class="code-cmt"># self-delete</span></div>
+      </div>
+      <div class="detail-section">
+        <h3>Server-side config</h3>
+        <p>Set env vars: <code>AGENT_LATEST_VERSION</code>, <code>AGENT_DOWNLOAD_URL</code>, <code>AGENT_DOWNLOAD_SHA256</code></p>
+      </div>`
+  },
+  pair: {
+    title: 'POST /api/tally/pair',
+    subtitle: 'backend_ocr/app/tally_agent_api.py:pair_agent()',
+    body: `
+      <div class="detail-section">
+        <h3>Flow</h3>
+        <ul>
+          <li>Dashboard creates int_connections row with status=PENDING, agent_pairing_token=UUID, expires in 30 min</li>
+          <li>Agent POSTs token + agent_version</li>
+          <li>Cloud validates token is not expired</li>
+          <li>Generates <code>secrets.token_urlsafe(40)</code> api_key</li>
+          <li>Stores <code>SHA-256(api_key)</code> as agent_api_key_hash — raw key never stored</li>
+          <li>Sets status=ACTIVE, clears token</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Response</h3>
+        <div class="code-block">{ <span class="code-str">"api_key"</span>: <span class="code-str">"&lt;40-char token&gt;"</span>,
+  <span class="code-str">"tenant_name"</span>: <span class="code-str">"Acme Ltd"</span> }</div>
+      </div>`
+  },
+  ingest: {
+    title: 'POST /api/tally/ingest',
+    subtitle: 'backend_ocr/app/tally_agent_api.py:ingest_tally_data()',
+    body: `
+      <div class="detail-section">
+        <h3>Auth</h3>
+        <p>Bearer api_key → SHA-256 lookup in int_connections.agent_api_key_hash. Returns 401 if not found, 403 if REVOKED.</p>
+      </div>
+      <div class="detail-section">
+        <h3>Request body</h3>
+        <div class="code-block">{
+  <span class="code-str">"agent_version"</span>: <span class="code-str">"1.0.0"</span>,
+  <span class="code-str">"ledgers_xml"</span>:   <span class="code-str">"&lt;ENVELOPE&gt;...&lt;/ENVELOPE&gt;"</span>,
+  <span class="code-str">"vouchers_xml"</span>:  <span class="code-str">"&lt;ENVELOPE&gt;...&lt;/ENVELOPE&gt;"</span>
+}</div>
+      </div>
+      <div class="detail-section">
+        <h3>Processing</h3>
+        <ul>
+          <li>Stores raw XML in raw_api_payloads (as JSONB)</li>
+          <li>parse_ledgers() → upsert dim_ledger_accounts + dim_end_customers</li>
+          <li>parse_vouchers() → invoices/bills/payments → upsert staging tables</li>
+          <li>Updates int_connections heartbeat (last_sync_at, agent_version, consecutive_failures=0)</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Response</h3>
+        <div class="code-block">{ <span class="code-str">"status"</span>: <span class="code-str">"ok"</span>, <span class="code-str">"invoices"</span>: 12,
+  <span class="code-str">"bills"</span>: 5, <span class="code-str">"payments"</span>: 3,
+  <span class="code-str">"ledgers"</span>: 48, <span class="code-str">"errors"</span>: 0 }</div>
+      </div>`
+  },
+  version: {
+    title: 'GET /agent/version',
+    subtitle: 'backend_ocr/app/tally_agent_api.py:agent_version_manifest()',
+    body: `
+      <div class="detail-section">
+        <h3>Returns</h3>
+        <div class="code-block">{
+  <span class="code-str">"version"</span>:      <span class="code-str">"1.0.0"</span>,
+  <span class="code-str">"download_url"</span>: <span class="code-str">"https://..."</span>,
+  <span class="code-str">"sha256"</span>:       <span class="code-str">"abc..."</span>,
+  <span class="code-str">"min_version"</span>:  <span class="code-str">"1.0.0"</span>
+}</div>
+      </div>
+      <div class="detail-section">
+        <h3>Env vars to set</h3>
+        <ul>
+          <li><code>AGENT_LATEST_VERSION</code></li>
+          <li><code>AGENT_DOWNLOAD_URL</code></li>
+          <li><code>AGENT_DOWNLOAD_SHA256</code></li>
+        </ul>
+      </div>`
+  },
+  connstatus: {
+    title: 'GET /api/tally/connection',
+    subtitle: 'backend_ocr/app/tally_agent_api.py · dashboard polling',
+    body: `
+      <div class="detail-section">
+        <h3>Purpose</h3>
+        <p>The dashboard polls this to show whether the customer's agent is connected and when it last synced.</p>
+      </div>
+      <div class="detail-section">
+        <h3>Returns</h3>
+        <div class="code-block">{
+  <span class="code-str">"connection_id"</span>: <span class="code-str">"uuid"</span>,
+  <span class="code-str">"status"</span>:        <span class="code-str">"ACTIVE"</span>,
+  <span class="code-str">"agent_version"</span>: <span class="code-str">"1.0.0"</span>,
+  <span class="code-str">"last_sync_at"</span>:  <span class="code-str">"2026-05-26T10:30:00Z"</span>,
+  <span class="code-str">"error_message"</span>: null,
+  <span class="code-str">"paired_at"</span>:     <span class="code-str">"2026-05-01T..."</span>
+}</div>
+      </div>`
+  },
+  syncworker: {
+    title: 'TallySyncWorker',
+    subtitle: 'pipelines/tally_sync.py · bi-directional PULL + PUSH',
+    body: `
+      <div class="detail-section">
+        <h3>Polling</h3>
+        <p>Inherits BaseWorker. poll_interval=60s. Queries int_connections for ACTIVE Tally connections overdue by TALLY_SYNC_INTERVAL_MINUTES.</p>
+      </div>
+      <div class="detail-section">
+        <h3>Per-connection cycle</h3>
+        <ul>
+          <li>PULL: ledgers → vouchers (from last_sync_at or -TALLY_PULL_DAYS)</li>
+          <li>Bridge tally_push_pending flags</li>
+          <li>PUSH: customer ledgers → invoices → payments</li>
+          <li>Update last_sync_at on success</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Circuit breaker</h3>
+        <p>In-process dict tracks consecutive_failures per connection_id. After 3 failures → sets int_connections.status = ERROR. Resets on success.</p>
+      </div>
+      <div class="detail-section">
+        <h3>Thread pool</h3>
+        <p>Tally HTTP calls are blocking (requests lib). Wrapped in <code>asyncio.run_in_executor(_tally_executor)</code> with dedicated ThreadPoolExecutor (config.TALLY_THREAD_POOL workers).</p>
+      </div>`
+  },
+  readworker: {
+    title: 'TallyReadWorker',
+    subtitle: 'pipelines/tally_read.py · read-only PULL',
+    body: `
+      <div class="detail-section">
+        <h3>Difference from TallySyncWorker</h3>
+        <p>Only does PULL (Tally → DB). Never writes back to Tally. Otherwise identical logic: same circuit breaker, same asyncpg upserts, same tally_client/parser imports.</p>
+      </div>
+      <div class="detail-section">
+        <h3>Use case</h3>
+        <p>Use when you want to import Tally data into the platform without risk of creating duplicate vouchers in Tally. TallySyncWorker is for full bi-directional sync.</p>
+      </div>`
+  },
+  client: {
+    title: 'tally_client.py',
+    subtitle: 'tally2database/ · HTTP XML calls to Tally',
+    body: `
+      <div class="detail-section">
+        <h3>Functions</h3>
+        <ul>
+          <li><code>fetch_ledgers()</code> — List of Accounts → XML</li>
+          <li><code>fetch_vouchers(from, to, vch_type)</code> — Voucher Register → Day Book fallback</li>
+          <li><code>import_xml(payload_xml)</code> — Import Data / Vouchers</li>
+          <li><code>post_xml(xml_body)</code> — raw HTTP POST to Tally</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Config (env vars)</h3>
+        <div class="code-block">TALLY_HOST         = <span class="code-str">"localhost"</span>
+TALLY_PORT         = <span class="code-str">"9000"</span>
+TALLY_COMPANY_NAME = <span class="code-str">""</span>  <span class="code-cmt"># blank = open company</span></div>
+      </div>
+      <div class="detail-section">
+        <h3>Fallback logic</h3>
+        <p>If Voucher Register returns XML without any &lt;VOUCHER&gt; elements, retries with Day Book for the same date range. Used by both agent.py and tally_client.py.</p>
+      </div>`
+  },
+  parser: {
+    title: 'tally_parser.py',
+    subtitle: 'tally2database/ · Tally XML → Python dicts',
+    body: `
+      <div class="detail-section">
+        <h3>parse_ledgers(xml)</h3>
+        <p>Extracts: account_name, parent group → account_type mapping, GSTIN, email, phone, billing_address. Marks Sundry Debtors/Creditors as _is_party=True.</p>
+      </div>
+      <div class="detail-section">
+        <h3>parse_vouchers(xml)</h3>
+        <p>Returns (invoices, bills, payments). SALES→invoice, PURCHASE→bill, RECEIPT/PAYMENT→payment. Extracts line items from INVENTORYENTRIES.LIST. Parses "123.45 Cr" / "123.45 Dr" amounts.</p>
+      </div>
+      <div class="detail-section">
+        <h3>XML cleaning</h3>
+        <div class="code-block"><span class="code-cmt"># Removes control chars + invalid XML entities</span>
+_INVALID_XML_CHARS = re.compile(
+  r<span class="code-str">"[\x00-\x08\x0b\x0c\x0e-\x1f...]"</span>)
+<span class="code-cmt"># Uses lxml recover=True for malformed XML</span>
+parser = etree.XMLParser(recover=<span class="code-kw">True</span>)</div>
+      </div>
+      <div class="detail-section">
+        <h3>Account type mapping</h3>
+        <div class="code-block">Sundry Debtors  → ASSET
+Sundry Creditors → LIABILITY
+Bank Accounts   → BANK → (ASSET)
+Capital Account → EQUITY
+Sales Accounts  → REVENUE → (INCOME)</div>
+      </div>`
+  },
+  builder: {
+    title: 'tally_builder.py',
+    subtitle: 'tally2database/ · Python dicts → Tally import XML',
+    body: `
+      <div class="detail-section">
+        <h3>Functions</h3>
+        <ul>
+          <li><code>build_sales_voucher()</code> — Sales voucher with line items + GST</li>
+          <li><code>build_receipt_voucher()</code> — Receipt voucher with bank ledger</li>
+          <li><code>build_ledger_master()</code> — Create/update ledger master</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Date out-of-range retry</h3>
+        <p>TallySyncWorker detects "OUT OF RANGE" in Tally response → retries with today's date, appends [OriginalInvoiceDate:YYYY-MM-DD] to narration.</p>
+      </div>`
+  },
+  auditlog: {
+    title: 'sync_audit_logger.py',
+    subtitle: 'tally2database/ · JSONL structured audit log',
+    body: `
+      <div class="detail-section">
+        <h3>Event schema</h3>
+        <div class="code-block">{
+  <span class="code-str">"event_id"</span>:      <span class="code-str">"uuid"</span>,
+  <span class="code-str">"timestamp_utc"</span>: <span class="code-str">"2026-05-26T10:30:00Z"</span>,
+  <span class="code-str">"direction"</span>:     <span class="code-str">"PULL"</span>,  <span class="code-cmt">// or PUSH</span>
+  <span class="code-str">"entity"</span>:        <span class="code-str">"INVOICE"</span>,
+  <span class="code-str">"action"</span>:        <span class="code-str">"UPSERT"</span>,
+  <span class="code-str">"status"</span>:        <span class="code-str">"SUCCESS"</span>,
+  <span class="code-str">"tenant_id"</span>:     <span class="code-str">"uuid"</span>,
+  <span class="code-str">"details"</span>:       { ... }
+}</div>
+      </div>
+      <div class="detail-section">
+        <h3>Log file</h3>
+        <p>Written to <code>logs/sync_audit.jsonl</code> (append mode). One JSON line per event. Used for debugging sync issues.</p>
+      </div>`
+  },
+  int_connections: {
+    title: 'int_connections',
+    subtitle: 'Connection registry · one row per tenant+source',
+    body: `
+      <div class="detail-section">
+        <h3>Key columns</h3>
+        <ul>
+          <li><code>agent_api_key_hash</code> — SHA-256 of api_key, never raw key</li>
+          <li><code>agent_pairing_token</code> — one-time token (cleared after use)</li>
+          <li><code>agent_pairing_expires_at</code> — 30 min TTL</li>
+          <li><code>last_sync_at</code> — used to compute next sync window</li>
+          <li><code>consecutive_failures</code> — triggers circuit breaker</li>
+          <li><code>status</code> — PENDING / ACTIVE / ERROR / REVOKED</li>
+          <li><code>tally_mode</code> — XML_SOCKET</li>
+        </ul>
+      </div>`
+  },
+  int_synclog: {
+    title: 'int_sync_log',
+    subtitle: 'Sync job history per pull cycle',
+    body: `
+      <div class="detail-section">
+        <h3>Columns</h3>
+        <p>log_id, tenant_id, connection_id, source, entity_type, started_at, completed_at, records_fetched, records_inserted, records_updated, records_errored, status (COMPLETED / PARTIAL)</p>
+      </div>`
+  },
+  int_conflict: {
+    title: 'int_conflict_log',
+    subtitle: 'Recorded when Tally rejects an import',
+    body: `
+      <div class="detail-section">
+        <h3>When written</h3>
+        <p>TallySyncWorker._push_invoices() calls <code>_log_conflict()</code> when Tally import returns an error response. resolution = LOG_CONFLICT.</p>
+      </div>`
+  },
+  raw: {
+    title: 'raw_api_payloads',
+    subtitle: 'Full XML blob storage',
+    body: `
+      <div class="detail-section">
+        <h3>Purpose</h3>
+        <p>Full raw XML from every Tally export is stored here as JSONB <code>{"xml": "..."}</code>. Enables reprocessing without re-fetching from Tally.</p>
+      </div>
+      <div class="detail-section">
+        <h3>entity_type values</h3>
+        <ul>
+          <li>LEDGER — from ledger fetch</li>
+          <li>INVOICE — from voucher fetch</li>
+        </ul>
+      </div>`
+  },
+  dim_ledger: {
+    title: 'dim_ledger_accounts',
+    subtitle: 'Chart of accounts from Tally',
+    body: `
+      <div class="detail-section">
+        <h3>Upsert key</h3>
+        <p><code>(tenant_id, source, source_account_id)</code> — UNIQUE constraint. ON CONFLICT DO UPDATE.</p>
+      </div>
+      <div class="detail-section">
+        <h3>account_type enum</h3>
+        <p>ASSET · LIABILITY · INCOME · EXPENSE · EQUITY</p>
+        <p>BANK and CASH from Tally are normalized to ASSET. REVENUE → INCOME.</p>
+      </div>`
+  },
+  dim_customers: {
+    title: 'dim_end_customers',
+    subtitle: 'Sundry Debtors from Tally + other sources',
+    body: `
+      <div class="detail-section">
+        <h3>Created from</h3>
+        <ul>
+          <li>Tally ledgers with parent = "Sundry Debtors"</li>
+          <li>Invoice PARTYLEDGERNAME in vouchers</li>
+        </ul>
+      </div>
+      <div class="detail-section">
+        <h3>Key fields</h3>
+        <p>gstin (15-char), email, phone, billing_address_jsonb, risk_score, risk_bucket, kyc_status, credit_limit</p>
+      </div>`
+  },
+  dim_suppliers: {
+    title: 'dim_suppliers',
+    subtitle: 'Sundry Creditors from Tally',
+    body: `
+      <div class="detail-section">
+        <h3>Created from</h3>
+        <p>PURCHASE vouchers' PARTYLEDGERNAME. Upsert key: <code>(tenant_id, source, source_supplier_id)</code>.</p>
+      </div>`
+  },
+  stg_invoices: {
+    title: 'stg_invoices + stg_invoice_line_items',
+    subtitle: 'SALES vouchers from Tally',
+    body: `
+      <div class="detail-section">
+        <h3>sync_status lifecycle</h3>
+        <p>PENDING → SYNCED (on successful Tally push) or ERROR (on rejected import). Rows with source=TALLY are skipped during push (no loop).</p>
+      </div>
+      <div class="detail-section">
+        <h3>Key fields</h3>
+        <p>source_invoice_id, invoice_number, invoice_date, end_customer_id, subtotal, tax_amount, total_amount, outstanding_amount, gstin_buyer, narration, validation_flag</p>
+      </div>`
+  },
+  stg_bills: {
+    title: 'stg_bills + stg_bill_line_items',
+    subtitle: 'PURCHASE vouchers from Tally',
+    body: `
+      <div class="detail-section">
+        <h3>Key fields</h3>
+        <p>source_bill_id, bill_number, bill_date, supplier_id, gstin_seller, outstanding_amount, sync_status</p>
+      </div>`
+  },
+  stg_payments: {
+    title: 'stg_payments',
+    subtitle: 'RECEIPT / PAYMENT vouchers from Tally',
+    body: `
+      <div class="detail-section">
+        <h3>Key fields</h3>
+        <p>source_payment_id, payment_date, amount, currency_code, transaction_ref, is_reconciled, end_customer_id</p>
+      </div>`
+  },
+  fact_invoices: {
+    title: 'fact_invoices',
+    subtitle: 'Promoted from stg_invoices · controls push-back',
+    body: `
+      <div class="detail-section">
+        <h3>tally_push_pending flag</h3>
+        <p>Dashboard sets <code>tally_push_pending = true</code> on selected invoices. TallySyncWorker's <code>_bridge_tally_push_flags()</code> propagates this to <code>stg_invoices.sync_status = PENDING</code>, which triggers the PUSH flow.</p>
+      </div>
+      <div class="detail-section">
+        <h3>After successful push</h3>
+        <p><code>tally_push_pending</code> is reset to false. <code>stg_invoices.sync_status</code> = SYNCED.</p>
+      </div>`
+  }
+};
+
+function showDetail(key) {
+  const d = details[key];
+  if (!d) return;
+  document.getElementById('detail-title').textContent = d.title;
+  document.getElementById('detail-subtitle').textContent = d.subtitle;
+  document.getElementById('detail-body').innerHTML = d.body;
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.remove('open');
+}
+
+// Close on backdrop click
+document.addEventListener('click', (e) => {
+  const panel = document.getElementById('detail-panel');
+  if (panel.classList.contains('open') && !panel.contains(e.target) && !e.target.closest('.node')) {
+    closeDetail();
+  }
+});
+</script>
+</body>
+</html>

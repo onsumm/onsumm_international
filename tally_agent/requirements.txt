@@ -1,0 +1,8 @@
+# Runtime deps — all bundled into the .exe by PyInstaller
+requests>=2.31.0
+pystray>=0.19.5
+Pillow>=10.0.0
+pywin32>=306          # Windows registry + Windows Service support
+
+# Build tool — only needed on the machine that builds the .exe
+pyinstaller>=6.0.0

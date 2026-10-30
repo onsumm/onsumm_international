@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="mask-icon" href="/favicon.svg" color="#004080" />
+    <meta name="theme-color" content="#004080" />
+
+    <!--
+      Both families are loaded here, once, for the whole app. Inter is the UI
+      face; Public Sans is the display face used by the logo and section
+      headings. Previously Public Sans was pulled in via @import inside injected
+      <style> tags on the login and landing screens only — so it silently fell
+      back to the system sans everywhere inside the authenticated app, and the
+      typography visibly changed the moment you signed in.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Public+Sans:wght@400;600;700;800&display=swap"
+    />
+
+    <!--
+      This file is the template, not the page.
+
+      The authenticated app is client-rendered and stays that way; nobody
+      indexes /bills. The public pages are not: prerender/prerender.mjs runs
+      after the Vite build and writes a real HTML file per public route, with
+      this head swapped for that route's own and the rendered markup already
+      inside #root. dist/index.html is the home page; dist/product/index.html
+      and the rest sit beside it.
+
+      That exists because the crawlers that decide whether Onsumm gets named in
+      an answer — GPTBot, OAI-SearchBot, ClaudeBot, Claude-SearchBot,
+      PerplexityBot — do not execute JavaScript. They fetch JS files and never
+      run them. Before prerendering, all four marketing routes returned this
+      same shell byte for byte, so the whole site was one page with a
+      <noscript> paragraph on it.
+
+      What stays here is only what holds for every route: the fonts, the robots
+      directive, and the Organization / WebSite / SoftwareApplication graph.
+      Per-route title, description, canonical, Open Graph and schema are written
+      by the prerenderer for a crawler, and again by src/seo/useSeo.ts once
+      React takes over for a reader.
+    -->
+    <title>AP Automation for Indian SMEs — Tally &amp; Zoho Books · Onsumm</title>
+    <meta
+      name="description"
+      content="AI accounts payable automation for Indian SMEs — invoice OCR, approval workflows, GST and TDS compliance, and direct Tally Prime and Zoho Books posting."
+    />
+    <link rel="canonical" href="https://www.onsumm.ai/" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <meta name="author" content="Onsumm" />
+
+    <!-- Open Graph / Twitter, so a shared link carries the same terms. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Onsumm" />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" content="https://www.onsumm.ai/" />
+    <meta property="og:title" content="AP Automation for Indian SMEs — Tally &amp; Zoho Books" />
+    <meta
+      property="og:description"
+      content="AI invoice OCR, approval workflows, GST and TDS compliance, and direct Tally Prime and Zoho Books posting. Built for Indian SMEs."
+    />
+    <meta property="og:image" content="https://www.onsumm.ai/brand/onsumm-wordmark-dark.svg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AP Automation for Indian SMEs — Tally &amp; Zoho Books" />
+    <meta
+      name="twitter:description"
+      content="AI invoice OCR, approval workflows, GST and TDS compliance, and direct Tally Prime and Zoho Books posting. Built for Indian SMEs."
+    />
+
+    <!--
+      Organization + SoftwareApplication + WebSite. Kept here rather than in the
+      bundle because these three never change per route; useSeo.ts adds the
+      per-page graph (FAQPage, Product, ContactPage) on top.
+    -->
+    <!--
+      NOTE — `sameAs` was removed on 2026-09-19 and needs putting back.
+
+      It asserted https://x.com/onsummai and
+      https://www.linkedin.com/company/onsummai. Both return 404, as do
+      /company/onsumm and /company/onsumm-ai. sameAs is the one machine-readable
+      statement tying this site to the same organisation elsewhere, and it is
+      how an entity gets resolved rather than guessed at. Pointing it at
+      profiles that do not exist is worse than omitting it: the claim is
+      checkable, and it fails the check.
+
+      Restore it — with the real URLs — the moment the LinkedIn company page and
+      the X account exist. LinkedIn in particular is the strongest single entity
+      anchor available to an Indian B2B SaaS company, and it costs nothing.
+    -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.onsumm.ai/#organization",
+            "name": "Onsumm",
+            "alternateName": "onsumm.ai",
+            "url": "https://www.onsumm.ai/",
+            "logo": "https://www.onsumm.ai/brand/onsumm-wordmark-dark.svg",
+            "description": "AP automation software for Indian SMEs — invoice OCR, approval workflows, GST and TDS compliance, and direct Tally Prime and Zoho Books posting.",
+            "areaServed": { "@type": "Country", "name": "India" },
+            "knowsAbout": [
+              "Accounts payable automation",
+              "Invoice OCR",
+              "GST compliance",
+              "TDS on vendor bills",
+              "Tally Prime integration",
+              "Zoho Books integration"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.onsumm.ai/#website",
+            "url": "https://www.onsumm.ai/",
+            "name": "Onsumm",
+            "inLanguage": "en-IN",
+            "publisher": { "@id": "https://www.onsumm.ai/#organization" }
+          },
+          {
+            "@type": "SoftwareApplication",
+            "@id": "https://www.onsumm.ai/#software",
+            "name": "Onsumm",
+            "applicationCategory": "BusinessApplication",
+            "applicationSubCategory": "Accounts Payable Automation Software",
+            "operatingSystem": "Web",
+            "url": "https://www.onsumm.ai/",
+            "publisher": { "@id": "https://www.onsumm.ai/#organization" },
+            "description": "Accounts payable automation software for Indian SMEs. AI invoice OCR and invoice data extraction, multi-level invoice approval workflows, GSTIN verification, TDS automation on vendor bills, vendor bank account verification, duplicate invoice and duplicate payment detection, and direct posting to Tally Prime and Zoho Books.",
+            "featureList": [
+              "AI invoice OCR and automated invoice data extraction",
+              "Invoice approval workflow with a multi-level approval matrix",
+              "GSTIN verification and GST invoice validation",
+              "TDS automation and TDS tracking on vendor bills",
+              "Vendor bank account verification and bank change detection",
+              "Duplicate invoice detection and duplicate payment prevention",
+              "Direct Tally Prime posting via the Tally connector",
+              "Zoho Books integration for AP automation",
+              "ITC reconciliation and GST compliance reporting"
+            ],
+            "audience": {
+              "@type": "BusinessAudience",
+              "name": "Indian SMEs and finance teams",
+              "geographicArea": { "@type": "Country", "name": "India" }
+            },
+            "offers": {
+              "@type": "AggregateOffer",
+              "priceCurrency": "INR",
+              "lowPrice": "4999",
+              "highPrice": "12999",
+              "offerCount": "3",
+              "url": "https://www.onsumm.ai/pricing"
+            }
+          }
+        ]
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!--
+      The crawler-visible summary. <noscript> rather than hidden text inside
+      #root: React would wipe #root on mount anyway, and hidden keyword copy is
+      cloaking. This says the same thing the rendered page says, in the same
+      terms, so a crawler that never runs the bundle still gets an accurate
+      answer rather than an empty div.
+    -->
+    <noscript>
+      <h1>Onsumm — AP automation for Indian SMEs</h1>
+      <p>
+        Onsumm is accounts payable automation software built for Indian SMEs. AI invoice OCR reads every
+        vendor bill, multi-level approval workflows route it, GSTIN verification and TDS tracking keep it
+        compliant, and approved bills post straight into Tally Prime and Zoho Books.
+      </p>
+      <h2>What Onsumm does</h2>
+      <ul>
+        <li>Invoice OCR and automated invoice data extraction from PDFs and scans</li>
+        <li>Invoice approval workflow with a configurable multi-level approval matrix</li>
+        <li>GST compliance: GSTIN validation, GST invoice validation, ITC reconciliation</li>
+        <li>TDS automation: automated TDS calculation and TDS tracking on vendor bills</li>
+        <li>Vendor bank account verification and vendor bank change detection</li>
+        <li>Duplicate invoice detection and duplicate payment prevention</li>
+        <li>Tally Prime integration and Zoho Books integration for automated posting</li>
+      </ul>
+      <p>
+        <a href="https://www.onsumm.ai/product">Product</a> ·
+        <a href="https://www.onsumm.ai/pricing">Pricing</a> ·
+        <a href="https://www.onsumm.ai/contact">Contact</a>
+      </p>
+    </noscript>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

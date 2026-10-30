@@ -1,0 +1,80 @@
+{
+  "fetched_at": "2026-08-23T11:53:23.845455+00:00",
+  "vendor": "Signzy",
+  "brand": "Kreditbuddha",
+  "tenant_id": "d0e00000-0000-0000-0000-000000000003",
+  "month": "2026-07",
+  "source": "GET https://api.lendix.ai/billing/monthly?vendor=Signzy&month=2026-07 (X-API-Key auth)",
+  "note": "Live sandbox response \u2014 confirmed to drift over wall-clock time between separate calls for the same vendor/month; this file is a snapshot as of fetched_at, not a stable ledger.",
+  "response": {
+    "success": true,
+    "data": {
+      "vendor": "Signzy",
+      "month": "2026-07",
+      "modules": [
+        {
+          "module": "bank-aggregator",
+          "apiCallCount": 117647,
+          "billableOperations": 6895,
+          "costPerOperationRupees": 4,
+          "totalCostRupees": 27580
+        },
+        {
+          "module": "eKYC",
+          "apiCallCount": 302300,
+          "billableOperations": 94451,
+          "costPerOperationRupees": 1.1,
+          "totalCostRupees": 103896.1
+        },
+        {
+          "module": "eSign",
+          "apiCallCount": 25915,
+          "billableOperations": 8820,
+          "costPerOperationRupees": 8,
+          "totalCostRupees": 70560
+        },
+        {
+          "module": "email-verification",
+          "apiCallCount": 109154,
+          "billableOperations": 108675,
+          "costPerOperationRupees": 0.49,
+          "totalCostRupees": 53250.75
+        },
+        {
+          "module": "facematch",
+          "apiCallCount": 52278,
+          "billableOperations": 52277,
+          "costPerOperationRupees": 0.5,
+          "totalCostRupees": 26138.5
+        },
+        {
+          "module": "image-liveliness",
+          "apiCallCount": 74651,
+          "billableOperations": 71679,
+          "costPerOperationRupees": 1.1500000000000001,
+          "totalCostRupees": 82430.85
+        },
+        {
+          "module": "pan",
+          "apiCallCount": 260635,
+          "billableOperations": 257005,
+          "costPerOperationRupees": 0.79,
+          "totalCostRupees": 203033.95
+        },
+        {
+          "module": "penny-drop",
+          "apiCallCount": 13289,
+          "billableOperations": 12963,
+          "costPerOperationRupees": 2.39,
+          "totalCostRupees": 30981.57
+        }
+      ],
+      "totals": {
+        "totalBillableOperations": 612765,
+        "totalCostRupees": 597871.7199999999
+      }
+    },
+    "timestamp": "2026-08-23T11:53:21.799Z",
+    "referenceId": "5bc815ea-ec0d-4490-8fea-dc5add36a26a"
+  }
+}

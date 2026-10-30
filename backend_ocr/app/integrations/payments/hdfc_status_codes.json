@@ -1,0 +1,1714 @@
+{
+ "_source": "HDFC Bank — bank-supplied IMPS status/error code sheet",
+ "_note": "IMPS only. codstatus is not unique; `reasons` carries the per-message detail. Codes with ambiguous=true have status/terminal/action null — resolve via the response's reason text.",
+ "payment_type": "IMPS",
+ "codes": {
+  "10001": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "User is Closed",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "User is Disabled",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "User is Dormant",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "User is Locked",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "We are unable to carry out your instruction, currently. Please try later",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "10002": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Raise to bank",
+   "reasons": [
+    {
+     "reason": "API Channel is not enabled for Domain or User",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "ENTL_CHNANNEL_ERROR",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "100503": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Payment Type",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "1049": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Sorry, this is a duplicate transaction request",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "11018": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Account No",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "11523": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Amount",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "12007": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Account Status",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "12018": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "This transaction is already exists.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "12089": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Insufficient funds to carry out this instruction",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "12118": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "From and To account cannot be same",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "13011": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Raise to bank",
+   "reasons": [
+    {
+     "reason": "No matching records found",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "13013": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Reference number cannot be empty. Please provide reference number",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "22027": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Transfer amount is greater than the limit defined for the selected beneficiary, The limit is {0}",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "23004": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Raise to bank",
+   "reasons": [
+    {
+     "reason": "Invalid Channel Id",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "30001": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "User Amount Limit Violated",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "30002": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Transaction Limit Violated",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "30003": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "No. of Transactions for User Limit Violated",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "3678": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Threshold limit exceeded for this account",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "400": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Raise to bank",
+   "reasons": [
+    {
+     "reason": "BAD Request",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "5427": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "The accounts blocked",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611047": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Header amount doesn’t match with total amount of all records",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611054": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Beneficiary account number or Beneficiary account number not found",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611071": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Date format",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611073": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid Beneficiary Id",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611074": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Please maintain LEI code for the beneficiary",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611075": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Please provide API Reference Number",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611081": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "The requested transaction does not follow 7 day criteria",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611082": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "value date cannot be less then today's date",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611127": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Debit amount is of invalid length or invalid debit amount",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611128": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Credit amount is of invalid length or invalid debit amount",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611134": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Total Amount in payment header Record does not match with toatl of instruction amount.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "611141": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid IFSC code",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "70000": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "JSON Validation Failed.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "70001": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Transaction count is not matching with header value.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "70002": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Transaction count is getter than 500.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "70008": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "We have accepted your request. Please enquire again after sometime.",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "70009": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Your request is still under process. Please enquire again after sometime.",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "90010": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "User does not belong to the Group",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "User does not belong to the Group.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "AO": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Sent to Bank",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "CI": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Cancel Requested",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "CN": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Cancelled",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "D": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Deleted",
+   "reasons": [
+    {
+     "reason": "Deleted",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "DEBFL": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Debit Failed",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "DEBREJE": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Debit Rejected",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "DR": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Draft",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "ENTL_ERR": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process. Contact Bank to provide the proper entitlement for inquiry",
+   "reasons": [
+    {
+     "reason": "Kindly check entitlement for API Inquiry",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "EX": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Expired",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "IO": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Pending Additional Approval",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "LK": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Parked",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "MANREJE": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Manually Rejected",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "NDF": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Re-inquire 3 to 4 times in certain frequency, still the error raise it with bank",
+   "reasons": [
+    {
+     "reason": "No Data found",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "PR": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Pending Confirmation",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "PRTXINPR": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Risk Validation in progress",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "R": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "BAD Request",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Credit amount is of invalid length or invalid debit amount",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Credit transaction count not same as in the summary information",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Debit amount is of invalid length or invalid debit amount",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Debit transaction count not same as in the summary information",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "ENTL_CHNANNEL_ERROR",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "From and To account cannot be same",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Header amount doesn’t match with total amount of all records",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Insufficient funds to carry out this instruction",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Account No",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Account Status",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Amount",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Beneficiary Id",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Beneficiary account number or Beneficiary account number not found",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Channel Id",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Date format",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid IFSC code",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid Payment Type",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid businessProduct",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Invalid response received.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "No matching records found",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Payment transaction count not same as in the summary information",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Please maintain LEI code for the beneficiary",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Reference number cannot be empty. Please provide reference number",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Rejected",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Sorry, this is a duplicate transaction request",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Sum Debit not equal to sum credit",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "The accounts blocked",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "This transaction cannot be processed  currently. Please tryagain later.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "This transaction is already exists.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Threshold limit exceeded for this account",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Total Amount in payment header Record does not match with toatl of instruction amount.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Transfer amount is greater than the limit defined for the selected beneficiary, The limit is {0}",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "User does not belong to the Group",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "We apologize, but this facility is temporarily unavailable. Please try again later.",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "We are unable to carry out your instruction, currently. Please try later",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "value date cannot be less then today's date",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "RA": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Pending Approval",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "RE": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Rejected by Entitlement",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "RES001": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Invalid businessProduct",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "RH": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Rejected by Bank",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "RN": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Rule Setup Required",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "RO": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Rejected by Verifier / Approver",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "RR": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Pending Release",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "RV": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Pending Verification",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "S": {
+   "status": "PROCESSED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "1) If only RBI Status is Disabled and Debit Status is Enabled then this will be the End Status\n2) If only RBI Status is Enabled, Debit Status is disabled and credit account is HDFC then this will be the End Status",
+   "reasons": [
+    {
+     "reason": "Executed",
+     "status": "PROCESSED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "STP_ERR_0003": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Check file format specifications and make necessary corretcions, still error comes please raise to bank",
+   "reasons": [
+    {
+     "reason": "XML validation failed",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "STP_ERR_0014": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Debit transaction count not same as in the summary information",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "STP_ERR_0015": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Credit transaction count not same as in the summary information",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "STP_ERR_0017": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Sum Debit not equal to sum credit",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "STP_ERR_0018": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Reject and initiate with correction",
+   "reasons": [
+    {
+     "reason": "Payment transaction count not same as in the summary information",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TLCWT": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Await Limit Check Response",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TRBLWT": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Await Re bulking",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXAGWT": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Aggregation Wait",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXAICN": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Awaiting Status",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXAUTH": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Authorized",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXAWRB": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Awaiting Rebulking",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXBVSP": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Business Validation Successful Preauth",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXBVSU": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Business Validation Successful",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXCOMP": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Payment Completed",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXDBFL": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Debit Failed",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TXDBPR": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Debit in progress",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXDPSU": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Possible Duplicate",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TXDRHD": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Awaiting Debit Handoff",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXDSETT": {
+   "status": "PROCESSED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Completed",
+   "reasons": [
+    {
+     "reason": "Deemed Settle",
+     "status": "PROCESSED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TXEXPD": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "Transaction Expired",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TXNVIP": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Validation in Progress",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXPARK": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Inquire Days Expired",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXPDAUTH": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Pending Authorization",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXPDST": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Pending for Settlement",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXPROC": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Transaction Processed",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXREJE": {
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Rejected",
+   "reasons": [
+    {
+     "reason": "NPCI Connectivity is down",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Payment Rejected",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Rejected",
+     "status": "REJECTED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TXSETT": {
+   "status": null,
+   "terminal": null,
+   "action": null,
+   "ambiguous": true,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Completed",
+     "status": "PROCESSED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    },
+    {
+     "reason": "Settled",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXSIP": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Inquiry Initiated",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    },
+    {
+     "reason": "Settlement in Progress",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "TXVLSU": {
+   "status": "PROCESSED",
+   "terminal": true,
+   "action": "NO_REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction Processed",
+   "reasons": [
+    {
+     "reason": "Processed",
+     "status": "PROCESSED",
+     "terminal": true,
+     "action": "NO_REINQUIRY"
+    }
+   ]
+  },
+  "TXWRHD": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "Payment Warehoused",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "U": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Transaction in process",
+   "reasons": [
+    {
+     "reason": "UnderProcess",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  },
+  "UNKNOWN": {
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REINQUIRY",
+   "ambiguous": false,
+   "remarks": "Re-inquire 3 to 4 times in certain frequency, still the error raise it with bank",
+   "reasons": [
+    {
+     "reason": "Kindly re-initiate the inquiry after sometime. If status doesn't change, please contact HDFC Bank Support team to get the status",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    },
+    {
+     "reason": "UNKNOWN",
+     "status": "INTERIM",
+     "terminal": false,
+     "action": "REINQUIRY"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,248 @@
+/**
+ * Design tokens — the single source of visual truth.
+ *
+ * The audit found 194 distinct hex colours, 21 font sizes, 19 radii and 23
+ * z-index values across the app, with the most-used text colour (#9ca3af, 285
+ * occurrences) failing WCAG AA at 2.54:1. Every value below is deliberate and
+ * contrast-checked; see docs/UI_UX_AUDIT_AND_REVAMP_PLAN.md §F.1.
+ *
+ * Rule of thumb: -600/-700 for text, -400/-500 for fills and large icons,
+ * -50 for tinted backgrounds. Never use a -400 as text on white.
+ */
+
+:root {
+  /* ── Brand ──────────────────────────────────────────────────────────────
+     Consolidates the three competing systems the audit found: the landing
+     navy (#002a58), the app-shell navy (#004080) and Tailwind blue (#2563eb). */
+  --brand-900: #00234a;
+  --brand-800: #002a58;
+  --brand-700: #003a70;
+  --brand-600: #004080; /* primary action — 10.3:1 on white */
+  --brand-500: #0b56a4;
+  --brand-400: #3b82c4;
+  --brand-100: #e6eefa;
+  --brand-50: #f2f6fd;
+  --accent-700: #005152;
+  --accent-600: #00696b; /* the teal in "onsumm.ai" */
+  --accent-400: #5cd8da;
+  --accent-50: #effbfb;
+
+  /* ── Neutrals — every text value AA-checked on --surface-0 ────────────── */
+
+  /* Ratios are the WORST case across --surface-0/-1/-2 and --canvas, so any of
+     these is safe as text on any surface in the system. */
+  --ink-900: #0b1c30; /* headings                    15.7:1 */
+  --ink-800: #1f2937; /* strong body                 13.4:1 */
+  --ink-700: #374151; /* body                         9.4:1 */
+  --ink-600: #4b5563; /* secondary                    6.9:1 */
+  --ink-500: #5b6473; /* muted — replaces #9ca3af     5.4:1 */
+  --ink-400: #67707e; /* floor for text               4.5:1 */
+  --ink-300: #9ca3af; /* NON-TEXT ONLY: icons ≥24px, decorative rules, borders.
+                         2.5:1 — never use for text. */
+  --line-300: #d0d7e2;
+  --line-200: #e2e8f0;
+  --line-100: #eef2f7;
+  --surface-0: #fff; /* cards, modals, table bodies */
+  --surface-1: #f8fafc; /* subtle fills, hover rows   */
+  --surface-2: #f1f5f9; /* table headers              */
+  --canvas: #f5f7fb; /* ONE page background — replaces 5 different greys */
+
+  /* ── Semantic — AA on white AND on their own -50 tint ─────────────────── */
+  --success-700: #046c4e;
+  --success-600: #047857;
+  --success-500: #10b981; /* fills only */
+  --success-100: #d1fae5;
+  --success-50: #ecfdf5;
+  --warn-700: #92400e;
+  --warn-600: #b45309;
+  --warn-500: #f59e0b; /* fills only */
+  --warn-100: #fef3c7;
+  --warn-50: #fffbeb;
+  --danger-700: #991b1b;
+  --danger-600: #b91c1c;
+  --danger-500: #dc2626;
+  --danger-100: #fee2e2;
+  --danger-50: #fef2f2;
+  --info-700: #1d4ed8;
+  --info-600: #2563eb;
+  --info-500: #3b82f6;
+  --info-100: #dbeafe;
+  --info-50: #eff6ff;
+
+  /* Categorical palette for charts — colour-blind safe, checked against each
+     other and against --surface-0. Order matters: first four are most distinct. */
+  --cat-1: #2563eb;
+  --cat-2: #b45309;
+  --cat-3: #047857;
+  --cat-4: #7c3aed;
+  --cat-5: #0891b2;
+  --cat-6: #be185d;
+  --cat-7: #4d7c0f;
+  --cat-8: #c2410c;
+
+  /* ── Type: 8 steps, no 8/9/10.5px ─────────────────────────────────────── */
+  --fs-2xs: 11px; /* hard floor — nothing smaller ships */
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-md: 14px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 30px;
+  --lh-tight: 1.25;
+  --lh-normal: 1.5;
+  --lh-relaxed: 1.7;
+  --fw-normal: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+  --font-sans: inter, system-ui, -apple-system, sans-serif;
+  --font-display: "Public Sans", inter, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", menlo, monospace;
+
+  /* ── Space: 4px base ──────────────────────────────────────────────────── */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-10: 40px;
+
+  /* ── Radius: 4 values, replacing 19 ───────────────────────────────────── */
+  --r-sm: 4px;
+  --r-md: 8px;
+  --r-lg: 12px;
+  --r-full: 999px;
+
+  /* ── Elevation ────────────────────────────────────────────────────────── */
+  --e-1: 0 1px 2px rgb(15 23 42 / 6%);
+  --e-2: 0 2px 8px rgb(15 23 42 / 8%);
+  --e-3: 0 8px 24px rgb(15 23 42 / 10%);
+  --e-4: 0 20px 48px rgb(15 23 42 / 16%);
+
+  /* ── Z-index: 6 named layers, replacing 23 ad-hoc values ──────────────── */
+  --z-base: 0;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+
+  /* ── Motion ───────────────────────────────────────────────────────────── */
+  --dur-fast: 120ms;
+  --dur-base: 180ms;
+  --dur-slow: 240ms;
+  --ease: cubic-bezier(0.2, 0, 0.2, 1);
+
+  /* The house default, shared by every page — bills, vendors and review each
+     used to redeclare this identically in their own lazy-loaded chunk, which
+     silently broke any component (ApprovalStepper) shared across chunks that
+     load independently: whichever chunk hadn't loaded yet left these
+     undefined, so the component's transitions and animations just didn't
+     run. One definition, always loaded, no load-order dependency. */
+  --bp-ease: cubic-bezier(0.32, 0.72, 0, 1); /* critically damped, damping 1.0, response ~0.35s */
+  --bp-spring: cubic-bezier(0.34, 1.26, 0.64, 1); /* slight overshoot — surfaces arriving with momentum only */
+  --bp-press: 100ms ease-out; /* press feedback has to beat the eye, so it's not on the duration scale */
+
+  /* ── Focus — replaces 63 instances of `outline: none` with nothing ────── */
+  --focus-ring: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--brand-600);
+
+  /* ── Layout ───────────────────────────────────────────────────────────── */
+  --sidebar-w-collapsed: 56px;
+  --sidebar-w-expanded: 216px;
+  --topbar-h: 54px;
+}
+
+/* Any element that can take focus gets a visible, consistent ring.
+   :focus-visible means it shows for keyboard users without the mouse-click halo. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-sm);
+}
+
+/* Vestibular safety. The audit found 20+ animations and zero opt-out, including
+   a 650ms scale(0.028) modal zoom. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Financial figures must align on the decimal in every table. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Visually hidden but available to screen readers. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* ── Print ────────────────────────────────────────────────────────────────
+   Finance prints. The audit found zero @media print rules, so a printed bill
+   carried the sidebar, the toolbar and a dark page background. */
+@media print {
+  :root {
+    --canvas: #fff;
+  }
+
+  body {
+    background: #fff;
+    font-size: 11pt;
+  }
+
+  .sb,
+  .mn,
+  .tb,
+  .u-toasts,
+  .u-bulkbar,
+  .no-print {
+    display: none !important;
+  }
+
+  .shell__main {
+    margin-left: 0 !important;
+  }
+
+  .shell__content,
+  .u-table-wrap {
+    overflow: visible !important;
+  }
+
+  .u-card,
+  .u-table-wrap {
+    box-shadow: none !important;
+    border: 1px solid #999 !important;
+    break-inside: avoid;
+  }
+
+  .u-table th {
+    position: static !important;
+  }
+
+  tr {
+    break-inside: avoid;
+  }
+}

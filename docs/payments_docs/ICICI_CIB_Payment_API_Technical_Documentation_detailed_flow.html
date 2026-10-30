@@ -1,0 +1,1053 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ICICI CIB Payment API — Technical Documentation</title>
+<style>
+  :root{
+    --ink:#12233b;          /* deep navy ink */
+    --ink-soft:#41536b;
+    --paper:#f6f4ee;        /* warm paper */
+    --panel:#ffffff;
+    --line:#d9d3c6;
+    --line-strong:#b8ae9c;
+    --accent:#b8332f;       /* ICICI-ish deep red */
+    --accent-2:#f37021;     /* ICICI orange */
+    --ok:#1f7a54;
+    --warn:#b9720b;
+    --bad:#b8332f;
+    --code-bg:#0f1b2d;
+    --code-ink:#e7edf5;
+    --mono:"SFMono-Regular",ui-monospace,"JetBrains Mono",Consolas,monospace;
+    --sans:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    --serif:"Georgia","Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    margin:0;background:var(--paper);color:var(--ink);
+    font-family:var(--sans);font-size:15px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{display:grid;grid-template-columns:270px 1fr;max-width:1400px;margin:0 auto;}
+  /* ---- Sidebar ---- */
+  aside{
+    position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto;
+    background:var(--ink);color:#dfe6f0;padding:26px 20px;border-right:3px solid var(--accent-2);
+  }
+  aside .brand{font-family:var(--serif);font-size:20px;font-weight:700;color:#fff;letter-spacing:.3px;line-height:1.25;}
+  aside .brand span{color:var(--accent-2);}
+  aside .sub{font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#8fa2bd;margin-top:6px;margin-bottom:22px;}
+  aside nav a{display:block;color:#c3cfe0;text-decoration:none;font-size:13px;padding:5px 10px;border-radius:6px;margin:1px 0;}
+  aside nav a:hover{background:rgba(255,255,255,.08);color:#fff;}
+  aside nav .grp{font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:#6d80a0;margin:16px 0 4px;padding-left:10px;}
+  /* ---- Main ---- */
+  main{padding:0 46px 120px;max-width:1050px;}
+  header.masthead{
+    padding:46px 0 30px;border-bottom:3px solid var(--ink);margin-bottom:10px;
+  }
+  header.masthead .kicker{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--accent);font-weight:700;}
+  header.masthead h1{font-family:var(--serif);font-size:40px;line-height:1.1;margin:12px 0 8px;font-weight:700;}
+  header.masthead p.lede{font-size:16px;color:var(--ink-soft);max-width:70ch;margin:0;}
+  .meta-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;}
+  .meta-grid .chip{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:5px 14px;font-size:12px;}
+  .meta-grid .chip b{color:var(--accent);}
+  section{padding:40px 0 8px;border-bottom:1px solid var(--line);}
+  h2{font-family:var(--serif);font-size:26px;margin:0 0 4px;display:flex;align-items:baseline;gap:12px;}
+  h2 .no{font-family:var(--mono);font-size:13px;color:#fff;background:var(--accent);border-radius:6px;padding:3px 9px;font-weight:700;}
+  h3{font-size:17px;margin:28px 0 8px;color:var(--ink);border-left:4px solid var(--accent-2);padding-left:10px;}
+  h4{font-size:14px;text-transform:uppercase;letter-spacing:1px;color:var(--ink-soft);margin:20px 0 6px;}
+  p{margin:8px 0;}
+  code.inl{font-family:var(--mono);font-size:.86em;background:#eee7d8;color:#8a2a26;padding:1px 6px;border-radius:4px;border:1px solid #e0d7c4;}
+  /* tables */
+  .tbl-wrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:10px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;background:var(--panel);}
+  th{background:var(--ink);color:#fff;text-align:left;padding:9px 12px;font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;}
+  td{padding:8px 12px;border-top:1px solid var(--line);vertical-align:top;}
+  tr:nth-child(even) td{background:#faf8f2;}
+  td.mono,th.mono{font-family:var(--mono);font-size:12px;}
+  .req{color:var(--accent);font-weight:700;}
+  .opt{color:var(--ink-soft);}
+  .tag{display:inline-block;font-size:11px;font-family:var(--mono);padding:2px 7px;border-radius:5px;font-weight:600;}
+  .tag.get{background:#e3f0e9;color:var(--ok);border:1px solid #b6d8c6;}
+  .tag.post{background:#fde7e6;color:var(--accent);border:1px solid #f3bcb9;}
+  .tag.ok{background:#e3f0e9;color:var(--ok);}
+  .tag.fail{background:#fde7e6;color:var(--bad);}
+  .tag.pend{background:#fbf0dc;color:var(--warn);}
+  /* endpoint card */
+  .endpoint{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--accent-2);border-radius:10px;padding:14px 18px;margin:16px 0;}
+  .endpoint .path{font-family:var(--mono);font-size:14px;color:var(--ink);margin-top:6px;}
+  .endpoint .desc{font-size:13px;color:var(--ink-soft);margin-top:6px;}
+  /* code blocks */
+  pre{background:var(--code-bg);color:var(--code-ink);padding:16px 18px;border-radius:10px;overflow-x:auto;font-family:var(--mono);font-size:12.5px;line-height:1.55;margin:12px 0;border:1px solid #1d2c42;}
+  pre .k{color:#7fb2ff;} pre .s{color:#9ee6a8;} pre .c{color:#6b7d95;font-style:italic;} pre .n{color:#f0b86e;}
+  /* callouts */
+  .note{border-radius:10px;padding:12px 16px;margin:14px 0;font-size:13.5px;border:1px solid;}
+  .note.info{background:#eef4fb;border-color:#c2d6ee;}
+  .note.warn{background:#fdf4e3;border-color:#f0d8a6;}
+  .note.danger{background:#fdecea;border-color:#f3c0bb;}
+  .note.ok{background:#eaf5ef;border-color:#bfe0cd;}
+  .note b{display:block;margin-bottom:2px;text-transform:uppercase;font-size:11px;letter-spacing:1px;}
+  .note.info b{color:#2a5b96;} .note.warn b{color:var(--warn);} .note.danger b{color:var(--bad);} .note.ok b{color:var(--ok);}
+  /* mermaid figure */
+  .fig{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;margin:18px 0;text-align:center;overflow-x:auto;}
+  .fig figcaption{font-size:12px;color:var(--ink-soft);margin-top:10px;text-transform:uppercase;letter-spacing:1px;}
+  .mermaid{display:flex;justify-content:center;}
+  .fig svg{max-width:100%;height:auto;font-family:var(--sans);}
+  .fig svg .box{fill:var(--panel);stroke:var(--line-strong);stroke-width:1.5;}
+  .fig svg .box-ink{fill:var(--ink);}
+  .fig svg .box-accent{fill:#fdeee6;stroke:var(--accent-2);stroke-width:1.8;}
+  .fig svg .box-ok{fill:#eaf5ef;stroke:var(--ok);stroke-width:1.6;}
+  .fig svg .box-bad{fill:#fdecea;stroke:var(--bad);stroke-width:1.6;}
+  .fig svg .box-pend{fill:#fbf0dc;stroke:var(--warn);stroke-width:1.6;}
+  .fig svg .lbl{fill:var(--ink);font-size:13px;font-weight:600;}
+  .fig svg .lbl-sm{fill:var(--ink-soft);font-size:11px;font-weight:500;}
+  .fig svg .lbl-w{fill:#fff;font-size:13px;font-weight:600;}
+  .fig svg .lbl-ws{fill:#c3cfe0;font-size:10.5px;}
+  .fig svg .edge{stroke:var(--ink-soft);stroke-width:1.6;fill:none;}
+  .fig svg .edge-lbl{fill:var(--ink-soft);font-size:10.5px;font-weight:600;}
+  .fig svg .grp{fill:none;stroke:var(--line);stroke-width:1.4;stroke-dasharray:5 4;}
+  .fig svg .grp-lbl{fill:var(--ink-soft);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+  .fig svg .diamond{fill:#eef4fb;stroke:#2a5b96;stroke-width:1.6;}
+  .fig svg .ent{fill:var(--panel);stroke:var(--line-strong);stroke-width:1.4;}
+  .fig svg .ent-hd{fill:var(--ink);}
+  .fig svg .ent-title{fill:#fff;font-size:12px;font-weight:700;letter-spacing:.4px;}
+  .fig svg .ent-row{fill:var(--ink);font-size:10.5px;font-family:var(--mono);}
+  .fig svg .ent-pk{fill:var(--accent);font-weight:700;}
+  .fig svg .ent-fk{fill:#2a5b96;}
+  .fig svg .rel{stroke:var(--accent-2);stroke-width:1.6;fill:none;}
+  .fig svg .rel-lbl{fill:var(--ink-soft);font-size:10px;font-style:italic;}
+  /* two-col */
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:1024px){.wrap{grid-template-columns:1fr}aside{position:static;height:auto}main{padding:0 22px 80px}.two{grid-template-columns:1fr}}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;margin:10px 0;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;}
+  footer{padding:34px 46px;color:var(--ink-soft);font-size:12px;max-width:1050px;}
+  a.top{font-size:11px;color:var(--accent);text-decoration:none;float:right;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside>
+  <div class="brand"><span>ICICI</span> Bank</div>
+  <div class="sub">CIB Payment API</div>
+  <nav>
+    <a href="#overview">Overview</a>
+    <a href="#architecture">System Architecture</a>
+    <a href="#lifecycle">Transaction Lifecycle</a>
+    <div class="grp">Onboarding</div>
+    <a href="#handshake">Handshake &amp; Security</a>
+    <a href="#er">Data Model (ER)</a>
+    <div class="grp">Services</div>
+    <a href="#svc-register">1 · Registration</a>
+    <a href="#svc-dereg">2 · De-registration</a>
+    <a href="#svc-regstatus">3 · Registration Status</a>
+    <a href="#svc-balance">4 · Balance Fetch</a>
+    <a href="#svc-payment">5 · Payment</a>
+    <a href="#svc-status">6 · Txn Status</a>
+    <a href="#svc-neft">7 · NEFT Incremental</a>
+    <a href="#svc-stmt">8 · Bank Statement</a>
+    <a href="#svc-incstmt">9 · Incremental Stmt</a>
+    <div class="grp">Reference</div>
+    <a href="#limits">Transaction Limits</a>
+    <a href="#status-logic">Status Logic</a>
+    <a href="#errors">Error Catalog</a>
+    <a href="#failuremsgs">Failure Scenarios</a>
+    <a href="#nfr">NFRs &amp; Recon</a>
+    <a href="#notes">Integration Notes</a>
+  </nav>
+</aside>
+
+<main>
+<header class="masthead">
+  <div class="kicker">Technical Integration Guide · UAT → Production</div>
+  <h1>CIB Payment API</h1>
+  <p class="lede">Adhoc payment &amp; collection integration for Corporate Internet Banking (CIBNEXT). Covers registration, balance, payments across NEFT / RTGS / IMPS / FT / Virtual Accounts, status inquiry, NEFT incremental tracking, and statements — with flows, payloads, and the full error catalog.</p>
+  <div class="meta-grid">
+    <div class="chip"><b>Bank:</b> ICICI Bank Ltd.</div>
+    <div class="chip"><b>Platform:</b> CIBNEXT</div>
+    <div class="chip"><b>Model:</b> Partner / Aggregator</div>
+    <div class="chip"><b>Auth:</b> IP whitelist + 4096-bit PKI</div>
+    <div class="chip"><b>Currency:</b> INR only</div>
+    <div class="chip"><b>Payment:</b> Without OTP (bypassable)</div>
+  </div>
+</header>
+
+<!-- OVERVIEW -->
+<section id="overview">
+  <h2><span class="no">00</span> Overview</h2>
+  <p>The CIB Payment API lets a registered <b>Partner / Aggregator</b> initiate and track payments on behalf of their corporate clients through ICICI Bank's CIBNEXT platform. It is an <b>adhoc payment API</b> (no beneficiary pre-registration by default) supporting NEFT, RTGS, IMPS, ICICI-to-ICICI FT, and Virtual Account collections. All traffic is secured by IP whitelisting and public-key encryption of responses.</p>
+
+  <h4>Scope of Services</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>#</th><th>Service</th><th>Purpose</th></tr>
+    <tr><td>1</td><td>Registration</td><td>One-time registration of a CIB user under an aggregator</td></tr>
+    <tr><td>2</td><td>De-registration</td><td>One-time de-registration</td></tr>
+    <tr><td>3</td><td>Registration Status</td><td>Check whether a URN / user is registered</td></tr>
+    <tr><td>4</td><td>Balance Fetch</td><td>Effective available balance of a registered account</td></tr>
+    <tr><td>5</td><td>Transactional (Payment)</td><td>Payment without OTP across all modes</td></tr>
+    <tr><td>6</td><td>Transaction Status</td><td>Payment status for all modes</td></tr>
+    <tr><td>7</td><td>NEFT Incremental Status</td><td>Real-time incremental status of a NEFT txn by UTR</td></tr>
+    <tr><td>8</td><td>Bank Statement</td><td>Statement of a registered account for a date range</td></tr>
+    <tr><td>9</td><td>Incremental Statement</td><td>Paginated statement (200-record pages) via continuation flag</td></tr>
+  </table></div>
+
+  <div class="note info"><b>CIBNEXT Access Links</b>
+  Maintain the aggregator approval link on your platform. Direct approval path:<br>
+  <code class="inl">…/AuthenticationController?…&amp;__CALL_MODE__=57&amp;AGGR_ID=&lt;Aggregator Id&gt;</code><br>
+  Short link (menu-based): <code class="inl">…&amp;BANK_ID=ICI&amp;USER_ID=&amp;ORG_ID=&amp;MENU_ID=25</code>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <h2><span class="no">01</span> System Architecture</h2>
+  <p>Requests originate from the Partner's whitelisted server, traverse ICICI's API gateway, and are processed by the CIB engine against Core Banking (CBS) and the payment rails (RBI for NEFT/RTGS, NPCI for IMPS). Responses are encrypted with the Partner's public key before return.</p>
+  <figure class="fig">
+    <svg viewBox="0 0 960 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Architecture diagram">
+      <defs>
+        <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#41536b"/>
+        </marker>
+      </defs>
+      <!-- groups -->
+      <rect class="grp" x="14" y="40" width="200" height="250" rx="12"/>
+      <text class="grp-lbl" x="24" y="30">Partner / Aggregator</text>
+      <rect class="grp" x="300" y="40" width="360" height="250" rx="12"/>
+      <text class="grp-lbl" x="310" y="30">ICICI Bank</text>
+      <rect class="grp" x="748" y="40" width="196" height="250" rx="12"/>
+      <text class="grp-lbl" x="758" y="30">Payment Rails</text>
+
+      <!-- Partner nodes -->
+      <rect class="box" x="44" y="70" width="140" height="52" rx="8"/>
+      <text class="lbl" x="114" y="101" text-anchor="middle">Partner App</text>
+      <rect class="box-ok" x="44" y="200" width="140" height="60" rx="8"/>
+      <text class="lbl" x="114" y="226" text-anchor="middle">Private Key</text>
+      <text class="lbl-sm" x="114" y="244" text-anchor="middle">decrypt response</text>
+
+      <!-- ICICI nodes -->
+      <rect class="box-ok" x="330" y="70" width="130" height="52" rx="8"/>
+      <text class="lbl" x="395" y="92" text-anchor="middle">API Gateway</text>
+      <text class="lbl-sm" x="395" y="109" text-anchor="middle">IP whitelist</text>
+      <rect class="box-ink" x="330" y="150" width="130" height="60" rx="8"/>
+      <text class="lbl-w" x="395" y="176" text-anchor="middle">CIB Engine</text>
+      <text class="lbl-ws" x="395" y="193" text-anchor="middle">workflow · validations</text>
+      <rect class="box" x="510" y="150" width="130" height="60" rx="8"/>
+      <text class="lbl" x="575" y="176" text-anchor="middle">Core Banking</text>
+      <text class="lbl-sm" x="575" y="193" text-anchor="middle">CBS</text>
+      <rect class="box-accent" x="330" y="238" width="130" height="42" rx="8"/>
+      <text class="lbl" x="395" y="264" text-anchor="middle">Encrypt (Public Key)</text>
+
+      <!-- Rails -->
+      <rect class="box" x="778" y="90" width="136" height="52" rx="8"/>
+      <text class="lbl" x="846" y="112" text-anchor="middle">RBI</text>
+      <text class="lbl-sm" x="846" y="129" text-anchor="middle">NEFT / RTGS</text>
+      <rect class="box" x="778" y="180" width="136" height="52" rx="8"/>
+      <text class="lbl" x="846" y="202" text-anchor="middle">NPCI</text>
+      <text class="lbl-sm" x="846" y="219" text-anchor="middle">IMPS</text>
+
+      <!-- edges -->
+      <path class="edge" d="M184,96 L326,96" marker-end="url(#arrow)"/>
+      <text class="edge-lbl" x="255" y="88" text-anchor="middle">HTTPS request</text>
+      <path class="edge" d="M395,122 L395,146" marker-end="url(#arrow)"/>
+      <path class="edge" d="M460,180 L506,180" marker-end="url(#arrow)"/>
+      <path class="edge" d="M460,175 C700,175 720,116 774,116" marker-end="url(#arrow)"/>
+      <path class="edge" d="M460,195 C700,195 720,206 774,206" marker-end="url(#arrow)"/>
+      <path class="edge" d="M395,210 L395,236" marker-end="url(#arrow)"/>
+      <path class="edge" d="M330,259 C240,259 240,150 240,130 L184,110" marker-end="url(#arrow)"/>
+      <text class="edge-lbl" x="250" y="150" text-anchor="middle">encrypted response</text>
+      <path class="edge" d="M114,122 L114,196" marker-end="url(#arrow)"/>
+    </svg>
+    <figcaption>Figure 1 — End-to-end request/response topology</figcaption>
+  </figure>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--accent-2)"></span> Encryption boundary at ICICI</span>
+    <span><span class="dot" style="background:var(--ok)"></span> Whitelist enforced at gateway</span>
+  </div>
+</section>
+
+<!-- LIFECYCLE -->
+<section id="lifecycle">
+  <h2><span class="no">02</span> Transaction Lifecycle</h2>
+  <p>Every payment follows onboarding → initiation → workflow (optional) → rail processing → status inquiry. The decision logic below drives whether a client should re-inquire, re-initiate, or stop.</p>
+
+  <figure class="fig">
+    <svg viewBox="0 0 940 620" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Transaction lifecycle decision flow">
+      <defs>
+        <marker id="ar2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#41536b"/></marker>
+      </defs>
+      <!-- Start -->
+      <rect class="box-ink" x="400" y="10" width="120" height="38" rx="19"/>
+      <text class="lbl-w" x="460" y="34" text-anchor="middle">Start</text>
+      <!-- REG diamond -->
+      <polygon class="diamond" points="460,70 555,110 460,150 365,110"/>
+      <text class="lbl" x="460" y="107" text-anchor="middle">User</text>
+      <text class="lbl" x="460" y="122" text-anchor="middle">registered?</text>
+      <!-- REG No -->
+      <rect class="box-bad" x="620" y="88" width="150" height="44" rx="8"/>
+      <text class="lbl" x="695" y="107" text-anchor="middle">FAILURE:</text>
+      <text class="lbl-sm" x="695" y="122" text-anchor="middle">User not registered</text>
+      <!-- INIT -->
+      <rect class="box" x="385" y="172" width="150" height="40" rx="8"/>
+      <text class="lbl" x="460" y="197" text-anchor="middle">Payment API call</text>
+      <!-- DUP diamond -->
+      <polygon class="diamond" points="460,232 555,272 460,312 365,272"/>
+      <text class="lbl" x="460" y="269" text-anchor="middle">Unique ID</text>
+      <text class="lbl" x="460" y="284" text-anchor="middle">reused?</text>
+      <rect class="box-bad" x="620" y="250" width="150" height="44" rx="8"/>
+      <text class="lbl" x="695" y="269" text-anchor="middle">DUPLICATE</text>
+      <text class="lbl-sm" x="695" y="284" text-anchor="middle">not posted</text>
+      <!-- WF diamond -->
+      <polygon class="diamond" points="460,332 555,372 460,412 365,372"/>
+      <text class="lbl" x="460" y="369" text-anchor="middle">Workflow</text>
+      <text class="lbl" x="460" y="384" text-anchor="middle">required?</text>
+      <rect class="box-pend" x="620" y="350" width="150" height="44" rx="8"/>
+      <text class="lbl" x="695" y="369" text-anchor="middle">Pending approval</text>
+      <text class="lbl-sm" x="695" y="384" text-anchor="middle">approver acts in CIB</text>
+      <!-- PROC -->
+      <rect class="box" x="385" y="432" width="150" height="38" rx="8"/>
+      <text class="lbl" x="460" y="456" text-anchor="middle">Process on rail</text>
+      <!-- RESP diamond -->
+      <polygon class="diamond" points="460,486 550,522 460,558 370,522"/>
+      <text class="lbl" x="460" y="527" text-anchor="middle">RESPONSE?</text>
+      <rect class="box-bad" x="600" y="500" width="170" height="44" rx="8"/>
+      <text class="lbl-sm" x="685" y="519" text-anchor="middle">FAILURE — service</text>
+      <text class="lbl-sm" x="685" y="533" text-anchor="middle">could not respond</text>
+      <!-- ST diamond -->
+      <polygon class="diamond" points="200,486 285,522 200,558 115,522"/>
+      <text class="lbl" x="200" y="527" text-anchor="middle">STATUS?</text>
+      <!-- ST outcomes -->
+      <rect class="box-ok" x="60" y="585" width="130" height="30" rx="8"/>
+      <text class="lbl-sm" x="125" y="604" text-anchor="middle">Success → done</text>
+      <rect class="box-bad" x="205" y="585" width="130" height="30" rx="8"/>
+      <text class="lbl-sm" x="270" y="604" text-anchor="middle">Failure → re-init</text>
+      <rect class="box-pend" x="10" y="430" width="120" height="44" rx="8"/>
+      <text class="lbl-sm" x="70" y="449" text-anchor="middle">Pending →</text>
+      <text class="lbl-sm" x="70" y="463" text-anchor="middle">inquire 2 hrs</text>
+
+      <!-- edges -->
+      <path class="edge" d="M460,48 L460,66" marker-end="url(#ar2)"/>
+      <path class="edge" d="M555,110 L616,110" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="585" y="102">No</text>
+      <path class="edge" d="M460,150 L460,168" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="470" y="164">Yes</text>
+      <path class="edge" d="M460,212 L460,228" marker-end="url(#ar2)"/>
+      <path class="edge" d="M555,272 L616,272" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="585" y="264">Yes</text>
+      <path class="edge" d="M460,312 L460,328" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="470" y="324">No</text>
+      <path class="edge" d="M555,372 L616,372" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="585" y="364">Yes</text>
+      <path class="edge" d="M695,394 L695,432 C695,452 560,451 536,451" marker-end="url(#ar2)"/>
+      <path class="edge" d="M460,412 L460,430" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="470" y="426">bypass</text>
+      <path class="edge" d="M460,470 L460,484" marker-end="url(#ar2)"/>
+      <path class="edge" d="M550,522 L596,522" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="573" y="514">FAILURE</text>
+      <path class="edge" d="M370,522 L289,522" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="325" y="514">SUCCESS</text>
+      <path class="edge" d="M180,554 L130,580" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="120" y="560">Success</text>
+      <path class="edge" d="M215,556 L255,582" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="270" y="560">Failure</text>
+      <path class="edge" d="M150,506 C110,490 90,480 75,476" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="95" y="500">Pending</text>
+      <path class="edge" d="M70,430 C70,400 155,430 175,502" marker-end="url(#ar2)"/>
+      <text class="edge-lbl" x="120" y="410">re-inquire</text>
+    </svg>
+    <figcaption>Figure 2 — Payment + status-inquiry decision flow</figcaption>
+  </figure>
+
+  <div class="note warn"><b>Gateway error</b>Where the <code class="inl">STATUS</code> tag is absent (API gateway error), always re-initiate the <b>inquiry</b> service — never the payment.</div>
+</section>
+
+<!-- HANDSHAKE -->
+<section id="handshake">
+  <h2><span class="no">03</span> Handshake &amp; Security</h2>
+  <p>Both UAT and Production require the following to be exchanged before go-live.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Pre-requisite</th><th>Use</th><th>Remarks</th></tr>
+    <tr><td><b>IP</b></td><td>Static IP / range for API requests</td><td>Whitelisted at ICICI. Requests accepted <b>only</b> from whitelisted IPs.</td></tr>
+    <tr><td><b>Public Key Cert (4096-bit)</b></td><td>Encryption of responses at ICICI</td><td>Client decrypts with the matching <b>private key</b>. A public/private mismatch causes encryption/decryption errors.</td></tr>
+    <tr><td><b>SSL Certificate</b></td><td>Callback communication</td><td>Secure domain-based certificate.</td></tr>
+  </table></div>
+
+  <h4>Certificate rules</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Requirement</th><th>Value</th></tr>
+    <tr><td>Key size</td><td class="mono">4096-bit</td></tr>
+    <tr><td>Format</td><td class="mono">X.509</td></tr>
+    <tr><td>Extension</td><td class="mono">.cer / .crt / .txt</td></tr>
+    <tr><td>Header / footer</td><td class="mono">-----BEGIN CERTIFICATE----- … -----END CERTIFICATE-----</td></tr>
+    <tr><td>Tooling</td><td>OpenSSL (requires server access)</td></tr>
+  </table></div>
+  <div class="note ok"><b>Self-test</b>Encrypt a sample payload with your <b>public</b> key, then decrypt it with your <b>private</b> key. A successful round-trip confirms the key pair is valid.</div>
+</section>
+
+<!-- ER DIAGRAM -->
+<section id="er">
+  <h2><span class="no">04</span> Data Model — Entity Relationships</h2>
+  <p>The <code class="inl">URN</code> is the linkage key established at registration and reused across every service. Reconciliation keys are <code class="inl">UNIQUEID</code> (client) and <code class="inl">UTRNUMBER</code> (bank).</p>
+  <figure class="fig">
+    <svg viewBox="0 0 960 560" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Entity relationship diagram">
+      <!-- relationship lines (drawn first, behind entities) -->
+      <path class="rel" d="M150,110 L150,150"/>
+      <text class="rel-lbl" x="156" y="135">owns 1:N</text>
+      <path class="rel" d="M260,190 L360,190"/>
+      <text class="rel-lbl" x="278" y="182">links 1:1</text>
+      <path class="rel" d="M150,270 L150,320"/>
+      <text class="rel-lbl" x="156" y="300">authorizes 1:N</text>
+      <path class="rel" d="M260,360 L360,360"/>
+      <text class="rel-lbl" x="272" y="352">generates</text>
+      <path class="rel" d="M150,470 L150,410 L155,410"/>
+      <text class="rel-lbl" x="156" y="440">tracked by</text>
+      <path class="rel" d="M260,410 C330,410 340,470 360,470"/>
+      <text class="rel-lbl" x="300" y="445">NEFT only</text>
+      <path class="rel" d="M600,190 L700,190"/>
+      <text class="rel-lbl" x="712" y="182">holds 1:N</text>
+      <path class="rel" d="M790,230 L790,320"/>
+      <text class="rel-lbl" x="796" y="285">records 1:N</text>
+
+      <!-- AGGREGATOR -->
+      <g>
+        <rect class="ent" x="60" y="20" width="180" height="90" rx="6"/>
+        <rect class="ent-hd" x="60" y="20" width="180" height="26" rx="6"/>
+        <rect class="ent-hd" x="60" y="36" width="180" height="10"/>
+        <text class="ent-title" x="150" y="38" text-anchor="middle">AGGREGATOR</text>
+        <text class="ent-row ent-pk" x="72" y="64">AGGRID · PK</text>
+        <text class="ent-row" x="72" y="82">AGGRNAME</text>
+      </g>
+      <!-- REGISTRATION -->
+      <g>
+        <rect class="ent" x="60" y="150" width="200" height="120" rx="6"/>
+        <rect class="ent-hd" x="60" y="150" width="200" height="26" rx="6"/>
+        <rect class="ent-hd" x="60" y="166" width="200" height="10"/>
+        <text class="ent-title" x="160" y="168" text-anchor="middle">REGISTRATION</text>
+        <text class="ent-row ent-pk" x="72" y="194">URN · PK</text>
+        <text class="ent-row ent-fk" x="72" y="212">CORPID · FK</text>
+        <text class="ent-row ent-fk" x="72" y="230">USERID · FK</text>
+        <text class="ent-row" x="72" y="248">UNIQUEID</text>
+      </g>
+      <!-- CORPORATE_USER -->
+      <g>
+        <rect class="ent" x="360" y="150" width="200" height="88" rx="6"/>
+        <rect class="ent-hd" x="360" y="150" width="200" height="26" rx="6"/>
+        <rect class="ent-hd" x="360" y="166" width="200" height="10"/>
+        <text class="ent-title" x="460" y="168" text-anchor="middle">CORPORATE_USER</text>
+        <text class="ent-row" x="372" y="194">CORPID</text>
+        <text class="ent-row" x="372" y="212">USERID</text>
+      </g>
+      <!-- PAYMENT -->
+      <g>
+        <rect class="ent" x="40" y="320" width="220" height="176" rx="6"/>
+        <rect class="ent-hd" x="40" y="320" width="220" height="26" rx="6"/>
+        <rect class="ent-hd" x="40" y="336" width="220" height="10"/>
+        <text class="ent-title" x="150" y="338" text-anchor="middle">PAYMENT</text>
+        <text class="ent-row ent-pk" x="52" y="364">UNIQUEID · PK</text>
+        <text class="ent-row ent-fk" x="52" y="382">URN · FK</text>
+        <text class="ent-row" x="52" y="400">DEBITACC</text>
+        <text class="ent-row" x="52" y="418">CREDITACC</text>
+        <text class="ent-row" x="52" y="436">IFSC</text>
+        <text class="ent-row" x="52" y="454">AMOUNT · TXNTYPE</text>
+        <text class="ent-row" x="52" y="472">REQID</text>
+      </g>
+      <!-- UTR -->
+      <g>
+        <rect class="ent" x="360" y="330" width="180" height="70" rx="6"/>
+        <rect class="ent-hd" x="360" y="330" width="180" height="26" rx="6"/>
+        <rect class="ent-hd" x="360" y="346" width="180" height="10"/>
+        <text class="ent-title" x="450" y="348" text-anchor="middle">UTR</text>
+        <text class="ent-row ent-pk" x="372" y="374">UTRNUMBER · PK</text>
+        <text class="ent-row" x="372" y="392">CreditDate</text>
+      </g>
+      <!-- NEFT_INCREMENTAL -->
+      <g>
+        <rect class="ent" x="360" y="440" width="200" height="88" rx="6"/>
+        <rect class="ent-hd" x="360" y="440" width="200" height="26" rx="6"/>
+        <rect class="ent-hd" x="360" y="456" width="200" height="10"/>
+        <text class="ent-title" x="460" y="458" text-anchor="middle">NEFT_INCREMENTAL</text>
+        <text class="ent-row ent-fk" x="372" y="484">UTRNUMBER · FK</text>
+        <text class="ent-row" x="372" y="502">STATUS · Reason</text>
+      </g>
+      <!-- ACCOUNT -->
+      <g>
+        <rect class="ent" x="700" y="150" width="180" height="80" rx="6"/>
+        <rect class="ent-hd" x="700" y="150" width="180" height="26" rx="6"/>
+        <rect class="ent-hd" x="700" y="166" width="180" height="10"/>
+        <text class="ent-title" x="790" y="168" text-anchor="middle">ACCOUNT</text>
+        <text class="ent-row ent-pk" x="712" y="194">ACCOUNTNO · PK</text>
+        <text class="ent-row" x="712" y="212">EFFECTIVEBAL</text>
+      </g>
+      <!-- STATEMENT_TXN -->
+      <g>
+        <rect class="ent" x="700" y="320" width="200" height="106" rx="6"/>
+        <rect class="ent-hd" x="700" y="320" width="200" height="26" rx="6"/>
+        <rect class="ent-hd" x="700" y="336" width="200" height="10"/>
+        <text class="ent-title" x="800" y="338" text-anchor="middle">STATEMENT_TXN</text>
+        <text class="ent-row ent-pk" x="712" y="364">TRANSACTIONID · PK</text>
+        <text class="ent-row" x="712" y="382">TXNDATE</text>
+        <text class="ent-row" x="712" y="400">AMOUNT · TYPE</text>
+      </g>
+    </svg>
+    <figcaption>Figure 3 — Logical entity-relationship model (PK in red · FK in blue)</figcaption>
+  </figure>
+</section>
+
+<!-- ============ SERVICES ============ -->
+
+<!-- 1 REGISTRATION -->
+<section id="svc-register">
+  <h2><span class="no">05</span> Service 1 · Registration <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span> <span class="tag ok">One-time</span>
+    <div class="path">/cib/register</div>
+    <div class="desc">One-time registration of a CIB user under an aggregator. Establishes the <code class="inl">URN</code> linkage reused by all other services. Not possible on inactive/dormant CIB IDs; expires if the CIB user is deleted.</div>
+  </div>
+  <h4>Request</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Parameter</th><th>Datatype</th><th>Len</th><th>Mand.</th><th>Remarks</th></tr>
+    <tr><td class="mono">AGGRID</td><td class="mono">NVARCHAR2</td><td>100</td><td class="req">Y</td><td>Aggregator / Partner ID</td></tr>
+    <tr><td class="mono">AGGRNAME</td><td class="mono">NVARCHAR2</td><td>32</td><td class="req">Y</td><td>Aggregator name</td></tr>
+    <tr><td class="mono">CORPID</td><td class="mono">NVARCHAR2</td><td>32</td><td class="req">Y</td><td>Corporate ID</td></tr>
+    <tr><td class="mono">USERID</td><td class="mono">NVARCHAR2</td><td>32</td><td class="req">Y</td><td>CIB User ID (must have txn access)</td></tr>
+    <tr><td class="mono">URN</td><td class="mono">NVARCHAR2</td><td>40</td><td class="req">Y</td><td>Unique reference set by Partner</td></tr>
+    <tr><td class="mono">UNIQUEID</td><td class="mono">NVARCHAR2</td><td>40</td><td class="req">Y</td><td>Request-level unique id</td></tr>
+  </table></div>
+  <div class="note danger"><b>Failure examples</b>
+  <code class="inl">CORPORATE ALREADY REGISTERED (995109)</code> · <code class="inl">USER ID PASSED IS NOT AVAILABLE OR DISABLED (995109)</code> · <code class="inl">Invalid Corp Id or User Id or Aggregator Id is passed (9906)</code> · <code class="inl">Invalid Login Credentials (106803)</code> when an ALIASID is created but not passed.</div>
+</section>
+
+<!-- 2 DEREG -->
+<section id="svc-dereg">
+  <h2><span class="no">06</span> Service 2 · De-registration <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span> <span class="tag ok">One-time</span>
+    <div class="path">/cib/deregister</div>
+    <div class="desc">Removes the aggregator↔user linkage. Validates that the user is registered before proceeding.</div>
+  </div>
+  <div class="note danger"><b>Failure</b><code class="inl">{ "Message":"User is not registered.", "ErrorCode":"9907", "Response":"Failure" }</code> when the user was never registered.</div>
+</section>
+
+<!-- 3 REG STATUS -->
+<section id="svc-regstatus">
+  <h2><span class="no">07</span> Service 3 · Registration Status <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span>
+    <div class="path">/cib/registration-status</div>
+    <div class="desc">Returns whether the given URN / user is currently registered. A wrong URN returns <code class="inl">Aggregator Registration missing (FAILURE)</code>.</div>
+  </div>
+</section>
+
+<!-- 4 BALANCE -->
+<section id="svc-balance">
+  <h2><span class="no">08</span> Service 4 · Balance Fetch <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span>
+    <div class="path">/cib/balance</div>
+    <div class="desc">Effective available balance of a registered account.</div>
+  </div>
+  <div class="two">
+    <div>
+      <h4>Request</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Mand.</th></tr>
+        <tr><td class="mono">AGGRID</td><td class="mono">NVARCHAR2(100)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">CORPID</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">USERID</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">URN</td><td class="mono">NVARCHAR2(40)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">ACCOUNTNO</td><td class="mono">NUMBER(12)</td><td class="req">Y</td></tr>
+      </table></div>
+    </div>
+    <div>
+      <h4>Response</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>Param</th><th>Type</th></tr>
+        <tr><td class="mono">AGGR_ID / CORP_ID / USER_ID</td><td class="mono">NVARCHAR2</td></tr>
+        <tr><td class="mono">URN</td><td class="mono">NVARCHAR2(40)</td></tr>
+        <tr><td class="mono">ACCOUNTNO</td><td class="mono">NUMBER(12)</td></tr>
+        <tr><td class="mono">DATE</td><td class="mono">DATETIME</td></tr>
+        <tr><td class="mono">EFFECTIVEBAL</td><td class="mono">NUMBER(18,3)</td></tr>
+        <tr><td class="mono">CURRENCY</td><td class="mono">NVARCHAR2(3)</td></tr>
+        <tr><td class="mono">RESPONSE</td><td class="mono">CHAR(10) — SUCCESS/FAILURE</td></tr>
+        <tr><td class="mono">MESSAGE</td><td class="mono">NVARCHAR2(255) — failure only</td></tr>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 PAYMENT -->
+<section id="svc-payment">
+  <h2><span class="no">09</span> Service 5 · Payment (Transactional) <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span> <span class="tag ok">Without OTP</span>
+    <div class="path">/cib/payment</div>
+    <div class="desc">Core payment initiation across NEFT / RTGS / IMPS / FT / VAP. OTP and maker-checker workflow are both bypassable on confirmation from the account holder's authority.</div>
+  </div>
+
+  <h4>Request parameters</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Parameter</th><th>Datatype</th><th>Len</th><th>Mand.</th><th>Remarks</th></tr>
+    <tr><td class="mono">AGGRID</td><td class="mono">NVARCHAR2</td><td>100</td><td class="req">Y</td><td>Partner / Aggregator ID</td></tr>
+    <tr><td class="mono">CORPID</td><td class="mono">NVARCHAR2</td><td>32</td><td class="req">Y</td><td>Corporate ID</td></tr>
+    <tr><td class="mono">USERID</td><td class="mono">NVARCHAR2</td><td>32</td><td class="req">Y</td><td>User ID</td></tr>
+    <tr><td class="mono">URN</td><td class="mono">NVARCHAR2</td><td>40</td><td class="req">Y</td><td>Same as passed at registration</td></tr>
+    <tr><td class="mono">UNIQUEID</td><td class="mono">NVARCHAR2</td><td>40</td><td class="req">Y</td><td><b>Recon on first 15 chars</b> (debit narration captures first 15)</td></tr>
+    <tr><td class="mono">DEBITACC</td><td class="mono">NVARCHAR2</td><td>34</td><td class="req">Y</td><td>Debit account</td></tr>
+    <tr><td class="mono">CREDITACC</td><td class="mono">NVARCHAR2</td><td>34</td><td class="req">Y</td><td>Beneficiary account</td></tr>
+    <tr><td class="mono">IFSC</td><td class="mono">NVARCHAR2</td><td>32</td><td class="req">Y</td><td>ICICI FT → <code class="inl">ICIC0000011</code>; VAP → <code class="inl">ICIC0000103/104/106</code></td></tr>
+    <tr><td class="mono">AMOUNT</td><td class="mono">NUMBER(18,3)</td><td>18</td><td class="req">Y</td><td>Up to 2 decimals</td></tr>
+    <tr><td class="mono">CURRENCY</td><td class="mono">NVARCHAR2</td><td>3</td><td class="req">Y</td><td><code class="inl">INR</code></td></tr>
+    <tr><td class="mono">TXNTYPE</td><td class="mono">CHAR</td><td>11</td><td class="req">Y</td><td>See mapping below</td></tr>
+    <tr><td class="mono">PAYEENAME</td><td class="mono">NVARCHAR2</td><td>80</td><td class="req">Y</td><td>No special characters</td></tr>
+    <tr><td class="mono">REMARKS</td><td class="mono">NVARCHAR2</td><td>255</td><td class="opt">N</td><td>No special chars; NEFT max 32 chars</td></tr>
+    <tr><td class="mono">WORKFLOW_REQD</td><td class="mono">CHAR</td><td>1</td><td class="opt">N</td><td>Set to bypass workflow (no approval)</td></tr>
+    <tr><td class="mono">BENLEI</td><td class="mono">NVARCHAR2</td><td>20</td><td class="opt">N</td><td>Beneficiary LEI — required for non-individual bene, NEFT/RTGS &gt; INR 50 Cr</td></tr>
+  </table></div>
+
+  <h4>TXNTYPE mapping</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Value</th><th>Mode</th><th>Notes</th></tr>
+    <tr><td class="mono">RTG</td><td>RTGS</td><td>08:00–17:45; not on Sundays/holidays</td></tr>
+    <tr><td class="mono">RGS</td><td>NEFT</td><td>Also used with VAP</td></tr>
+    <tr><td class="mono">IFS</td><td>IMPS</td><td>24×7</td></tr>
+    <tr><td class="mono">TPA</td><td>ICICI → ICICI FT</td><td>24×7</td></tr>
+    <tr><td class="mono">VAP</td><td>Virtual Account Payment</td><td>Use <code class="inl">VAP</code> &amp; <code class="inl">RGS</code>; IMPS/RTGS not allowed</td></tr>
+  </table></div>
+  <div class="note warn"><b>VAP rules</b>IFSC must be <code class="inl">ICIC0000103 / 104 / 106</code> per client code set up at onboarding. IMPS &amp; RTGS are not permitted for virtual payments.</div>
+
+  <h4>Sample request payload</h4>
+<pre><span class="c">// POST /cib/payment  (payload encrypted with ICICI public key)</span>
+{
+  <span class="k">"CORPID"</span>:    <span class="s">"&lt;corp id&gt;"</span>,
+  <span class="k">"USERID"</span>:    <span class="s">"&lt;user id&gt;"</span>,
+  <span class="k">"DEBITACC"</span>:  <span class="s">"&lt;debit acc no&gt;"</span>,
+  <span class="k">"CREDITACC"</span>: <span class="s">"&lt;credit acc no&gt;"</span>,
+  <span class="k">"IFSC"</span>:      <span class="s">"ICIC0000011"</span>,       <span class="c">// static for FT</span>
+  <span class="k">"AMOUNT"</span>:    <span class="s">"&lt;amount&gt;"</span>,
+  <span class="k">"CURRENCY"</span>:  <span class="s">"INR"</span>,
+  <span class="k">"TXNTYPE"</span>:   <span class="s">"RGS"</span>,               <span class="c">// RTG|RGS|IFS|TPA|VAP</span>
+  <span class="k">"REMARKS"</span>:   <span class="s">"&lt;remarks&gt;"</span>,
+  <span class="k">"AGGRID"</span>:    <span class="s">"&lt;partner id&gt;"</span>,
+  <span class="k">"PAYEENAME"</span>: <span class="s">"&lt;payee name&gt;"</span>,
+  <span class="k">"UNIQUEID"</span>:  <span class="s">"&lt;aggregator unique id&gt;"</span>,
+  <span class="k">"URN"</span>:       <span class="s">"&lt;URN&gt;"</span>
+}</pre>
+
+  <h4>Success response — UAT</h4>
+<pre>{
+  <span class="k">"URN"</span>: <span class="s">"..."</span>, <span class="k">"UNIQUEID"</span>: <span class="s">"..."</span>, <span class="k">"REQID"</span>: <span class="s">"..."</span>,
+  <span class="k">"UTRNUMBER"</span>: <span class="s">"..."</span>,           <span class="c">// absent on failure / pending-approval</span>
+  <span class="k">"STATUS"</span>: <span class="s">"SUCCESS"</span>,
+  <span class="k">"RESPONSE"</span>: <span class="s">"SUCCESS"</span>          <span class="c">// SUCCESS | FAILURE only</span>
+}</pre>
+
+  <h4>Success response — Live</h4>
+<pre>{
+  <span class="k">"AGGR_ID"</span>:<span class="s">"..."</span>, <span class="k">"AGGR_NAME"</span>:<span class="s">"..."</span>, <span class="k">"CORP_ID"</span>:<span class="s">"..."</span>, <span class="k">"USER_ID"</span>:<span class="s">"..."</span>,
+  <span class="k">"URN"</span>:<span class="s">"..."</span>, <span class="k">"UNIQUEID"</span>:<span class="s">"..."</span>, <span class="k">"UTRNUMBER"</span>:<span class="s">"..."</span>, <span class="k">"REQID"</span>:<span class="s">"..."</span>,
+  <span class="k">"STATUS"</span>:<span class="s">"SUCCESS"</span>, <span class="k">"RESPONSE"</span>:<span class="s">"SUCCESS"</span>
+}</pre>
+
+  <h4>Output messages</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Scenario</th><th>Message</th><th>RESPONSE</th></tr>
+    <tr><td>Success (no workflow)</td><td>Transaction with reference id XXXX processed successfully.</td><td><span class="tag ok">SUCCESS</span></td></tr>
+    <tr><td>Success (with workflow)</td><td>Transaction with reference id XXXX submitted successfully and is pending for Processing</td><td><span class="tag ok">SUCCESS</span></td></tr>
+    <tr><td>Invalid Corp/User/Partner ID</td><td>Invalid Corp Id or User Id or Partner Id is passed</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>Unregistered user</td><td>User is not registered</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>Debit acc missing / invalid</td><td>Debit Account is mandatory / Debit Account is invalid</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>Credit acc missing</td><td>Credit Account is mandatory</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>IFSC missing</td><td>Bank Identifier is mandatory for adhoc payment</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>Amount / Currency / Txn type / Payee missing</td><td>Amount not entered / Invalid Currency / Transaction Type is mandatory / Payee name is mandatory</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>BENE LEI special chars</td><td>Field can contain numbers or alphabets.</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>BENE LEI not 20 chars</td><td>Please enter a valid 20 digit Alphanumeric Beneficiary LEI.</td><td><span class="tag fail">FAILURE</span></td></tr>
+    <tr><td>Remitter LEI missing/expired</td><td>Large value transaction of more than INR 500000000 can't be processed as Legal entity identifier is not available/expired…</td><td><span class="tag fail">FAILURE</span></td></tr>
+  </table></div>
+
+  <h4>STP vs Non-STP processing</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Workflow</th><th>NEFT</th><th>RTGS</th><th>FT</th><th>IMPS</th><th>Remarks</th></tr>
+    <tr><td><b>STP</b></td><td>Synchronous</td><td>Synchronous</td><td>Synchronous</td><td>Synchronous</td><td>Response is for the debit only. If the txn fails at RBI/NPCI/dest. bank, the account is credited back manually but <b>CIB continues to show success</b>.</td></tr>
+    <tr><td><b>NON-STP</b></td><td>Async</td><td>Async</td><td>Async</td><td>Async</td><td>Status via inquiry / batch.</td></tr>
+  </table></div>
+</section>
+
+<!-- 6 STATUS -->
+<section id="svc-status">
+  <h2><span class="no">10</span> Service 6 · Transaction Status <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span>
+    <div class="path">/cib/transaction-status</div>
+    <div class="desc">Returns the status of a transaction done in E-Banking. CORP/USER ID are not passed — the <code class="inl">URN</code> establishes linkage. USERID registration is validated.</div>
+  </div>
+  <div class="two">
+    <div>
+      <h4>Request</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>Param</th><th>Type</th><th>Mand.</th></tr>
+        <tr><td class="mono">AGGRID</td><td class="mono">NVARCHAR2(100)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">CORPID</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">USERID</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">UNIQUEID</td><td class="mono">NVARCHAR2(40)</td><td class="req">Y</td></tr>
+        <tr><td class="mono">URN</td><td class="mono">NVARCHAR2(40)</td><td class="req">Y</td></tr>
+      </table></div>
+    </div>
+    <div>
+      <h4>Response (Success / Failure)</h4>
+      <div class="tbl-wrap"><table>
+        <tr><th>Param</th><th>Type</th></tr>
+        <tr><td class="mono">URN / UNIQUEID</td><td class="mono">NVARCHAR2(40)</td></tr>
+        <tr><td class="mono">STATUS</td><td class="mono">NVARCHAR2(20)</td></tr>
+        <tr><td class="mono">UTRNUMBER</td><td class="mono">NVARCHAR2(32)</td></tr>
+        <tr><td class="mono">RESPONSE</td><td class="mono">CHAR(10)</td></tr>
+        <tr><td class="mono">MESSAGE</td><td class="mono">NVARCHAR2(255) — failure</td></tr>
+      </table></div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 NEFT INCREMENTAL -->
+<section id="svc-neft">
+  <h2><span class="no">11</span> Service 7 · NEFT Incremental Status <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span> <span class="tag pend">NEFT only</span>
+    <div class="path">/cib/neft-incremental-status</div>
+    <div class="desc">When a NEFT txn's terminal status is Success/Pending, pass the same <code class="inl">UTRNUMBER</code> to get real-time incremental progress up to bene-credit or refund.</div>
+  </div>
+  <h4>Request</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Param</th><th>Type</th><th>Mand.</th></tr>
+    <tr><td class="mono">AGGRID</td><td class="mono">NVARCHAR2(100)</td><td class="req">Y</td></tr>
+    <tr><td class="mono">CORPID</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+    <tr><td class="mono">USERID</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+    <tr><td class="mono">UTRNUMBER</td><td class="mono">NVARCHAR2(32)</td><td class="req">Y</td></tr>
+    <tr><td class="mono">URN</td><td class="mono">NVARCHAR2(40)</td><td class="req">Y</td></tr>
+  </table></div>
+
+  <h4>Incremental STATUS values</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Stage</th><th>Meaning</th></tr>
+    <tr><td class="mono">Posted to RBI</td><td>Initial state</td></tr>
+    <tr><td class="mono">Amount credited to Beneficiary</td><td>Confirmed by bene bank</td></tr>
+    <tr><td class="mono">Paid</td><td>Success at ICICI, bene-bank confirmation not yet received</td></tr>
+    <tr><td class="mono">Amount refunded to Remitter</td><td>Wrong bene details; <code class="inl">Reason</code> tag carries the cause</td></tr>
+    <tr><td class="mono">REVERSED</td><td>Rejected at RBI; auto-reversed within 24 hrs (Invalid IFSC / Error in processing)</td></tr>
+    <tr><td class="mono">Invalid Transaction ID</td><td>Wrong UTR passed</td></tr>
+  </table></div>
+
+  <div class="note info"><b>Reason values (on refund)</b>ACCOUNT CLOSED · ACCOUNT TRANSFERRED · ACCOUNT DOES NOT EXIST · NO SUCH ACCOUNT TYPE · BENEFICIARY NAME DIFFERS · ACCOUNT HOLDER EXPIRED · ACCOUNT UNDER ATTACHMENT · GARNISHEE ORDER RECEIVED · OPERATIONS SUSPENDED · PARTY'S INSTRUCTIONS · CREDIT TO NRI ACCOUNT · ANY OTHER REASON</div>
+
+  <h4>Sample responses</h4>
+<pre><span class="c">// Initial</span>
+{ <span class="k">"STATUS"</span>:<span class="s">"Posted to RBI"</span>, <span class="k">"UTRNUMBER"</span>:<span class="s">"XXXXXXXXXX"</span>, <span class="k">"CreditDate"</span>:<span class="s">""</span>, <span class="k">"Response"</span>:<span class="s">"SUCCESS"</span> }
+
+<span class="c">// Credited to beneficiary</span>
+{ <span class="k">"STATUS"</span>:<span class="s">"Amount credited to Beneficiary."</span>, <span class="k">"UTRNUMBER"</span>:<span class="s">"XXXXXXXXXX"</span>,
+  <span class="k">"CreditDate"</span>:<span class="s">"DD,MM,YYYY HH:MM:SS AM/PM"</span>, <span class="k">"Response"</span>:<span class="s">"SUCCESS"</span> }
+
+<span class="c">// Invalid UTR</span>
+{ <span class="k">"STATUS"</span>:<span class="s">"FAILURE"</span>, <span class="k">"ErrorCode"</span>:<span class="s">"999922"</span>, <span class="k">"Message"</span>:<span class="s">"Invalid Transaction Id."</span>, <span class="k">"Response"</span>:<span class="s">"Failure"</span> }
+
+<span class="c">// Auto-reversed at RBI (SMSAWAY envelope)</span>
+&lt;SMSAWAY&gt;
+  &lt;STATUS&gt;REVERSED&lt;/STATUS&gt;
+  &lt;UTRNUMBER&gt;057262551&lt;/UTRNUMBER&gt;
+  &lt;CreditDate/&gt;
+  &lt;Response&gt;SUCCESS&lt;/Response&gt;
+  &lt;REASON&gt;Invalid IFSC&lt;/REASON&gt;
+&lt;/SMSAWAY&gt;</pre>
+  <div class="note warn"><b>Reversal narration in statement</b><code class="inl">INF/NEFT-RETURN-57260081DC-Invalid IFSC</code> · <code class="inl">INF/NEFT-RETURN-57260081DC-Error in processing</code></div>
+</section>
+
+<!-- 8 STATEMENT -->
+<section id="svc-stmt">
+  <h2><span class="no">12</span> Service 8 · Bank Statement <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span>
+    <div class="path">/cib/statement</div>
+    <div class="desc">Statement of a registered account across a date range.</div>
+  </div>
+  <h4>Request</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Param</th><th>Type</th><th>Format</th><th>Mand.</th></tr>
+    <tr><td class="mono">AGGRID / CORPID / USERID</td><td class="mono">NVARCHAR2</td><td>—</td><td class="req">Y</td></tr>
+    <tr><td class="mono">ACCOUNTNO</td><td class="mono">NUMBER(12)</td><td>—</td><td class="req">Y</td></tr>
+    <tr><td class="mono">FROMDATE</td><td class="mono">DATE</td><td>DD-MM-YYYY</td><td class="req">Y</td></tr>
+    <tr><td class="mono">TODATE</td><td class="mono">DATE</td><td>DD-MM-YYYY</td><td class="req">Y</td></tr>
+    <tr><td class="mono">URN</td><td class="mono">NVARCHAR2(40)</td><td>—</td><td class="req">Y</td></tr>
+  </table></div>
+  <h4>Sample response (per record)</h4>
+<pre>{
+  <span class="k">"CORP_ID"</span>:<span class="s">"CIBNEXT"</span>, <span class="k">"USER_ID"</span>:<span class="s">"CIBNEXT.SUCHI"</span>, <span class="k">"AGGR_ID"</span>:<span class="s">"104"</span>,
+  <span class="k">"URN"</span>:<span class="s">"123"</span>, <span class="k">"ACCOUNTNO"</span>:<span class="s">"000405075030"</span>,
+  <span class="c">// record</span>
+  <span class="k">"TXNDATE"</span>:<span class="s">"03-07-2015 12:00:00 AM"</span>,
+  <span class="k">"REMARKS"</span>:<span class="s">"INF/000004458149/Salary"</span>,
+  <span class="k">"AMOUNT"</span>:<span class="s">"0.00"</span>, <span class="k">"BALANCE"</span>:<span class="s">"48,964.97"</span>,
+  <span class="k">"VALUEDATE"</span>:<span class="s">"03-07-2015 12:00:00 AM"</span>,
+  <span class="k">"TYPE"</span>:<span class="s">"CR"</span>, <span class="k">"TRANSACTIONID"</span>:<span class="s">"S26063006"</span>,
+  <span class="k">"RESPONSE"</span>:<span class="s">"SUCCESS"</span>
+}</pre>
+</section>
+
+<!-- 9 INCREMENTAL STATEMENT -->
+<section id="svc-incstmt">
+  <h2><span class="no">13</span> Service 9 · Incremental Statement (Paginated) <a class="top" href="#overview">↑ top</a></h2>
+  <div class="endpoint"><span class="tag post">POST</span> <span class="tag pend">Paginated · 200/page</span>
+    <div class="path">/cib/statement-incremental</div>
+    <div class="desc">Paginated statement using a continuation flag. The response returns a <code class="inl">LASTTRID</code> only when more than 200 records exist — echo it in the next request to fetch the next page.</div>
+  </div>
+  <h4>Request (adds pagination fields)</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Param</th><th>Type</th><th>Mand.</th><th>Remarks</th></tr>
+    <tr><td class="mono">AGGRID / CORPID / USERID</td><td class="mono">NVARCHAR2</td><td class="req">Y</td><td>—</td></tr>
+    <tr><td class="mono">ACCOUNTNO</td><td class="mono">NUMBER(12)</td><td class="req">Y</td><td>—</td></tr>
+    <tr><td class="mono">FROMDATE / TODATE</td><td class="mono">DATE</td><td class="req">Y</td><td>DD-MM-YYYY</td></tr>
+    <tr><td class="mono">URN</td><td class="mono">NVARCHAR2(40)</td><td class="req">Y</td><td>—</td></tr>
+    <tr><td class="mono">CONFLG</td><td class="mono">CHAR(1)</td><td class="req">Y</td><td><b>N</b> on 1st hit, then <b>Y</b>. Passing Y first → <i>Invalid last transaction value passed</i></td></tr>
+    <tr><td class="mono">LASTTRID</td><td class="mono">NVARCHAR2(255)</td><td class="opt">N</td><td>Blank on 1st hit; then the <code class="inl">LASTTRID</code> from the previous response. Allows numbers, letters, and symbols <code class="inl">. : - |</code> and spaces</td></tr>
+  </table></div>
+
+  <figure class="fig">
+    <svg viewBox="0 0 900 240" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pagination loop">
+      <defs>
+        <marker id="ar4" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#41536b"/></marker>
+      </defs>
+      <!-- A -->
+      <rect class="box" x="20" y="60" width="160" height="66" rx="8"/>
+      <text class="lbl" x="100" y="84" text-anchor="middle">1st request</text>
+      <text class="lbl-sm" x="100" y="101" text-anchor="middle">CONFLG = N</text>
+      <text class="lbl-sm" x="100" y="116" text-anchor="middle">LASTTRID = blank</text>
+      <!-- B -->
+      <rect class="box-ink" x="250" y="66" width="150" height="54" rx="8"/>
+      <text class="lbl-w" x="325" y="90" text-anchor="middle">Response</text>
+      <text class="lbl-ws" x="325" y="107" text-anchor="middle">up to 200 records</text>
+      <!-- C diamond -->
+      <polygon class="diamond" points="530,93 610,60 690,93 610,126"/>
+      <text class="lbl" x="610" y="90" text-anchor="middle">LASTTRID</text>
+      <text class="lbl" x="610" y="104" text-anchor="middle">returned?</text>
+      <!-- D -->
+      <rect class="box-ok" x="740" y="60" width="150" height="40" rx="20"/>
+      <text class="lbl" x="815" y="79" text-anchor="middle">Done</text>
+      <text class="lbl-sm" x="815" y="94" text-anchor="middle">≤ 200 records</text>
+      <!-- E -->
+      <rect class="box-pend" x="470" y="170" width="200" height="60" rx="8"/>
+      <text class="lbl" x="570" y="192" text-anchor="middle">Next request</text>
+      <text class="lbl-sm" x="570" y="208" text-anchor="middle">CONFLG = Y</text>
+      <text class="lbl-sm" x="570" y="222" text-anchor="middle">LASTTRID = prev value</text>
+
+      <!-- edges -->
+      <path class="edge" d="M180,93 L246,93" marker-end="url(#ar4)"/>
+      <path class="edge" d="M400,93 L526,93" marker-end="url(#ar4)"/>
+      <path class="edge" d="M690,85 L736,80" marker-end="url(#ar4)"/>
+      <text class="edge-lbl" x="712" y="72">No</text>
+      <path class="edge" d="M610,126 L610,166" marker-end="url(#ar4)"/>
+      <text class="edge-lbl" x="620" y="150">Yes</text>
+      <path class="edge" d="M470,200 C300,200 300,140 325,124" marker-end="url(#ar4)"/>
+    </svg>
+    <figcaption>Figure 4 — Incremental statement pagination loop</figcaption>
+  </figure>
+
+  <h4>Sample response</h4>
+<pre>{
+  <span class="k">"CORP_ID"</span>:<span class="s">"CIBNEXT"</span>, <span class="k">"USER_ID"</span>:<span class="s">"CIBNEXT.SUCHI"</span>, <span class="k">"AGGR_ID"</span>:<span class="s">"104"</span>,
+  <span class="k">"URN"</span>:<span class="s">"123"</span>, <span class="k">"ACCOUNTNO"</span>:<span class="s">"000405075030"</span>,
+  <span class="k">"LISTTRID"</span>:<span class="s">"1|S25587116|03-07-2015 00:00:00|INR|1.8003908038E8|10-11-2016 15:05:49"</span>,
+  <span class="c">// records follow …</span>
+  <span class="k">"TXNDATE"</span>:<span class="s">"10-11-2016 15:07:54"</span>, <span class="k">"REMARKS"</span>:<span class="s">"INF/000004458149/Salary"</span>,
+  <span class="k">"AMOUNT"</span>:<span class="s">"0.00"</span>, <span class="k">"BALANCE"</span>:<span class="s">"48,964.97"</span>, <span class="k">"VALUEDATE"</span>:<span class="s">"03-07-2015"</span>,
+  <span class="k">"TYPE"</span>:<span class="s">"CR"</span>, <span class="k">"TRANSACTIONID"</span>:<span class="s">"S26063006"</span>,
+  <span class="k">"RESPONSE"</span>:<span class="s">"SUCCESS"</span>
+}</pre>
+  <div class="note info"><b>Note</b>The <code class="inl">LASTTRID</code>/<code class="inl">LISTTRID</code> field appears in the response only when there are more than 200 records.</div>
+</section>
+
+<!-- LIMITS -->
+<section id="limits">
+  <h2><span class="no">14</span> Transaction Limits &amp; Cut-offs <a class="top" href="#overview">↑ top</a></h2>
+  <div class="tbl-wrap"><table>
+    <tr><th>Mode</th><th>Window</th><th>01:00–19:00</th><th>Post cut-off<br/>(00:00–01:00 &amp; 19:00–00:00)</th><th>2nd/4th Sat, Sun &amp; Holidays</th></tr>
+    <tr><td><b>NEFT (RGS)</b><br/><span class="opt">SES · per txn</span></td><td>Per RBI</td><td>Existing workflow limit mapped to corporate</td><td>Max ₹10 Lakh</td><td>Max ₹10 Lakh</td></tr>
+    <tr><td><b>RTGS (RTG)</b><br/><span class="opt">SES · 08:00–17:45</span></td><td>08:00–17:45</td><td>Existing workflow limit mapped to corporate</td><td>Max ₹1 Crore</td><td>Max ₹1 Crore</td></tr>
+    <tr><td><b>IMPS (IFS)</b></td><td>24×7</td><td colspan="3">Max ₹5 Lakh per txn</td></tr>
+    <tr><td><b>ICICI→ICICI (TPA)</b></td><td>24×7</td><td colspan="3">Per workflow limit</td></tr>
+  </table></div>
+  <div class="note warn"><b>Cut-off behaviour</b>
+  • RTGS is not processed on Sundays &amp; bank holidays; if the bene bank has a holiday, credit happens next business day.<br>
+  • 19:00–00:00 → NEFT up to ₹10 Lakh processes; larger amounts process next working day.<br>
+  • 00:00–01:00 → RTGS is rejected at CIB.<br>
+  • 00:00–01:00 → NEFT limited to 5 txns; beyond that: <i>Please try after sometime as the NEFT post cutoff limits are crossed</i>.</div>
+</section>
+
+<!-- STATUS LOGIC -->
+<section id="status-logic">
+  <h2><span class="no">15</span> Status Values &amp; Interpretation <a class="top" href="#overview">↑ top</a></h2>
+  <h4>STATUS dictionary</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>STATUS</th><th>Meaning</th></tr>
+    <tr><td><span class="tag ok">SUCCESS</span></td><td>Transaction processed</td></tr>
+    <tr><td><span class="tag fail">FAILURE</span></td><td>Transaction not processed</td></tr>
+    <tr><td><span class="tag pend">PENDING</span></td><td>Suspect — re-inquire after 2 hrs</td></tr>
+    <tr><td><span class="tag pend">Pending For Processing</span></td><td>Initiated after cut-off (NEFT &amp; RTGS)</td></tr>
+    <tr><td><span class="tag pend">Pending For approval</span></td><td>Went to workflow approval</td></tr>
+    <tr><td><span class="tag pend">Processing</span></td><td>Post-cutoff txn, status checked during cut-off</td></tr>
+    <tr><td><span class="tag fail">DUPLICATE</span></td><td>Unique ID reused — not posted</td></tr>
+    <tr><td><span class="tag pend">Reversed</span></td><td>RTGS reversed within 2 hrs</td></tr>
+    <tr><td><span class="tag pend">REVERSED</span></td><td>NEFT rejected — auto-reversed within 24 hrs</td></tr>
+    <tr><td><span class="tag pend">UNCERTAIN</span></td><td>FT/NEFT/RTGS status unretrievable — <b>do not re-initiate if debited</b></td></tr>
+  </table></div>
+
+  <h4>Response × Status decision matrix</h4>
+  <div class="tbl-wrap"><table>
+    <tr><th>Condition</th><th>Action</th></tr>
+    <tr><td><code class="inl">RESPONSE = FAILURE</code></td><td>Status is meaningless — service could not respond</td></tr>
+    <tr><td><code class="inl">FAILURE</code> + <code class="inl">Pending</code></td><td>Check inquiry API per the message. IMPS: if debited, write to bank; if not debited in 30 min, treat as failure</td></tr>
+    <tr><td><code class="inl">Success</code> + <code class="inl">Pending / Pending For Processing</code></td><td>Re-run inquiry service</td></tr>
+    <tr><td><code class="inl">Success</code> + <code class="inl">Success</code></td><td>Terminal — no action</td></tr>
+    <tr><td><code class="inl">Success</code> + <code class="inl">Failure</code></td><td>Re-initiate transaction</td></tr>
+    <tr><td>No STATUS tag (gateway error)</td><td>Re-run inquiry service</td></tr>
+  </table></div>
+  <div class="note danger"><b>IMPS special case</b>If no RRN is generated (check via status inquiry) and there is no debit for 2 hrs, consider the transaction failed.</div>
+</section>
+
+<!-- ERROR CATALOG -->
+<section id="errors">
+  <h2><span class="no">16</span> Error Code Catalog <a class="top" href="#overview">↑ top</a></h2>
+  <p>Consolidated error / response codes. Codes marked <code class="inl">106910</code> are processing-stage rejections that carry a secondary <b>Response Code</b>.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Error Message</th><th>Error Code</th><th>Resp. Code</th></tr>
+    <tr><td>Unique ID is already used</td><td class="mono">999033</td><td>—</td></tr>
+    <tr><td>Transactions already processed with same unique ID…</td><td class="mono">999936</td><td>—</td></tr>
+    <tr><td>Aggregator Registration missing</td><td class="mono">9906</td><td>—</td></tr>
+    <tr><td>Invalid Corp Id or User Id or Aggregator Id is passed</td><td class="mono">9906</td><td>—</td></tr>
+    <tr><td>User is not registered</td><td class="mono">9907</td><td>—</td></tr>
+    <tr><td>OTP validation Required</td><td class="mono">99274</td><td>—</td></tr>
+    <tr><td>OTP Validation Failed (wrong OTP)</td><td class="mono">994006</td><td>—</td></tr>
+    <tr><td>OTP Validation Failed (after 15 min)</td><td class="mono">107889</td><td>—</td></tr>
+    <tr><td>OTP disabled — multiple incorrect entries</td><td class="mono">24036</td><td>—</td></tr>
+    <tr><td>Invalid Currency set up…</td><td class="mono">101422</td><td>—</td></tr>
+    <tr><td>Debit Account is invalid</td><td class="mono">100019</td><td>—</td></tr>
+    <tr><td>Invalid Account Number</td><td class="mono">100046</td><td>—</td></tr>
+    <tr><td>Invalid Account Number. Please contact bank administrator</td><td class="mono">999050</td><td>—</td></tr>
+    <tr><td>Transaction Type is mandatory</td><td class="mono">106753</td><td>—</td></tr>
+    <tr><td>Invalid Bank/Branch Identifier or Network</td><td class="mono">103354</td><td>—</td></tr>
+    <tr><td>Transaction amount limit exceeded or no limit configured</td><td class="mono">100249</td><td>—</td></tr>
+    <tr><td>No rule setup for the transaction type</td><td class="mono">100249</td><td>—</td></tr>
+    <tr><td>…failed, Transaction not permitted</td><td class="mono">106910</td><td class="mono">100031</td></tr>
+    <tr><td>…failed, sender and receiver cannot be same bank</td><td class="mono">106910</td><td class="mono">100031</td></tr>
+    <tr><td>…failed, Beneficiary bank not available (reversed if debited)</td><td class="mono">106910</td><td class="mono">008</td></tr>
+    <tr><td>…failed, Transaction timed out at Beneficiary Bank</td><td class="mono">106910</td><td class="mono">091</td></tr>
+    <tr><td>…failed, Invalid Account</td><td class="mono">106910</td><td class="mono">100046</td></tr>
+    <tr><td>…failed, Insufficient funds</td><td class="mono">106910</td><td class="mono">100030</td></tr>
+    <tr><td>…failed, Host not available</td><td class="mono">106910</td><td class="mono">14084</td></tr>
+    <tr><td>…failed, Invalid Beneficiary Mobile/MMID/Account (IMPS)</td><td class="mono">106910</td><td class="mono">0M1</td></tr>
+    <tr><td>…failed, Invalid amount</td><td class="mono">106910</td><td class="mono">013</td></tr>
+    <tr><td>…failed (generic)</td><td class="mono">106910</td><td class="mono">954</td></tr>
+    <tr><td>NFS Host unreachable</td><td class="mono">106910</td><td class="mono">995034</td></tr>
+    <tr><td>The transaction cannot be processed with the available networks</td><td class="mono">108220</td><td>—</td></tr>
+    <tr><td>Transaction timed out at Beneficiary Bank</td><td class="mono">103064</td><td>—</td></tr>
+    <tr><td>Beneficiary Bank not available. Amount if debited, will be reversed</td><td class="mono">995030</td><td>—</td></tr>
+    <tr><td>Unable to process your request / Unable to process request</td><td class="mono">999353 / 106589</td><td>—</td></tr>
+    <tr><td>Counterparty Account is a closed account</td><td class="mono">107027</td><td>—</td></tr>
+    <tr><td>Beneficiary account is closed</td><td class="mono">995011</td><td>—</td></tr>
+    <tr><td>Invalid Beneficiary Mobile Number/MMID/Account number</td><td class="mono">995007</td><td>—</td></tr>
+    <tr><td>Enter the valid amount in the range supported by the network</td><td class="mono">101443</td><td>—</td></tr>
+    <tr><td>Amount Entered is Invalid</td><td class="mono">14165</td><td>—</td></tr>
+    <tr><td>Selected initiator and counterparty accounts are same</td><td class="mono">100731</td><td>—</td></tr>
+    <tr><td>You cannot initiate/modify this transaction as per workflow rule</td><td class="mono">995098</td><td>—</td></tr>
+    <tr><td>You do not have access to this transaction type</td><td class="mono">104460</td><td>—</td></tr>
+    <tr><td>You do not have transaction access on this account</td><td class="mono">1294</td><td>—</td></tr>
+    <tr><td>Invalid Login Credentials</td><td class="mono">106803</td><td>—</td></tr>
+    <tr><td>Please try after sometime as the NEFT post cutoff limits are crossed</td><td class="mono">900</td><td>—</td></tr>
+    <tr><td>…submitted successfully. Do not re-initiate, check after 15 min</td><td class="mono">103068</td><td class="mono">100043</td></tr>
+    <tr><td>The user does not have access to the menu [$Menu_id]</td><td class="mono">111008</td><td>—</td></tr>
+    <tr><td>Invalid Transaction Id</td><td class="mono">999922</td><td>—</td></tr>
+    <tr><td>Session could not be retrieved</td><td class="mono">101</td><td>—</td></tr>
+    <tr><td>Beneficiary not found</td><td class="mono">999039</td><td>—</td></tr>
+    <tr><td>REGISTRATION FAILED — USER ID not available/disabled</td><td class="mono">995109</td><td>—</td></tr>
+    <tr><td>REGISTRATION FAILED — CORPORATE ALREADY REGISTERED</td><td class="mono">995109</td><td>—</td></tr>
+    <tr><td>Connection to RIB failed / USERID MANDATORY</td><td class="mono">111</td><td>—</td></tr>
+    <tr><td>Insufficient funds</td><td class="mono">116</td><td>—</td></tr>
+    <tr><td>Remitter LEI not mapped / not 20 chars / Expired</td><td class="mono">995479</td><td>—</td></tr>
+  </table></div>
+</section>
+
+<!-- FAILURE SCENARIOS -->
+<section id="failuremsgs">
+  <h2><span class="no">17</span> Failure Response Scenarios <a class="top" href="#overview">↑ top</a></h2>
+  <p>Real bank failure payloads and their root cause. Gateway-level codes (<code class="inl">8003/8010/8012/8013</code>) require re-inquiry after 15 minutes.</p>
+  <div class="tbl-wrap"><table>
+    <tr><th>Message</th><th>Cause / Action</th></tr>
+    <tr><td class="mono">8003-INVALID_FIELD FORMAT OR LENGTH-CREDITACC/PAYEENAME/REMARKS</td><td>Field format invalid → hit inquiry after 15 min</td></tr>
+    <tr><td class="mono">8010 INTERNAL_SERVICE_FAILURE</td><td>Bank servers down → inquiry after 15 min</td></tr>
+    <tr><td class="mono">8012 BACKEND_CONNECTION_TIMEOUT</td><td>Connection timeout → inquiry after 15 min</td></tr>
+    <tr><td class="mono">8013 BACKEND_READ_TIMEOUT</td><td>Read timeout → inquiry after 15 min</td></tr>
+    <tr><td>Connection to RIB failed</td><td>Unexpected</td></tr>
+    <tr><td>Counterparty Account is a closed account</td><td>Credit account closed</td></tr>
+    <tr><td>Enter the valid amount in the range supported by the network</td><td>RTGS below ₹2 Lakh</td></tr>
+    <tr><td>Host Not Available</td><td>Channel/interface down</td></tr>
+    <tr><td>Invalid Account Number</td><td>Invalid debit account</td></tr>
+    <tr><td>Invalid Bank/Branch Identifier or Network</td><td>Invalid IFSC or wrong TXNTYPE</td></tr>
+    <tr><td>RTGS transaction not allowed beyond cut-off (08:00–16:15)</td><td>RTGS attempted before 8 AM</td></tr>
+    <tr><td>Selected initiator and counterparty accounts are same</td><td>Debit = credit account</td></tr>
+    <tr><td>The transaction cannot be processed with the available networks</td><td>RTGS/NEFT on a holiday</td></tr>
+    <tr><td>…submitted successfully and its status is unknown</td><td>SUSPECT — timeout at core</td></tr>
+    <tr><td>Transaction amount limit exceeded or no limit configured</td><td>Workflow limit exceeded/not configured</td></tr>
+    <tr><td>…Invalid Beneficiary Mobile/MMID/Account number</td><td>Invalid bene account</td></tr>
+    <tr><td>…Invalid response code</td><td>Unexpected code CORE→CIB</td></tr>
+    <tr><td>…Beneficiary account is closed</td><td>Credit account closed</td></tr>
+    <tr><td>…Beneficiary Bank not available. Amount if debited</td><td>Bene bank uncontactable</td></tr>
+    <tr><td>…E4221</td><td>RTGS failure</td></tr>
+    <tr><td>…Transaction not permitted</td><td>Account frozen / lien marked</td></tr>
+    <tr><td>…Host not connected / ICICI CBS unreachable / Host not available</td><td>Backend/CBS technical outage</td></tr>
+    <tr><td>…Unable to process</td><td>Bene bank backend unavailable</td></tr>
+    <tr><td>…Insufficient funds / account has insufficient available amount</td><td>Low balance (within-bank / other-bank)</td></tr>
+    <tr><td>You cannot initiate/modify this transaction…</td><td>No workflow created</td></tr>
+    <tr><td>You do not have access to this transaction type</td><td>Txn type not permitted for user</td></tr>
+    <tr><td>You do not have transaction access on this account</td><td>View-only access</td></tr>
+    <tr><td>…Invalid IFSC code</td><td>Bene bank has no NEFT/FT access</td></tr>
+    <tr><td>…No checking account</td><td>IFSC not mapped at bene bank/NPCI</td></tr>
+    <tr><td>…Invalid ISO code Passed</td><td>IFSC lowercase or unmapped for RTGS</td></tr>
+  </table></div>
+</section>
+
+<!-- NFR -->
+<section id="nfr">
+  <h2><span class="no">18</span> Non-Functional Requirements &amp; Reconciliation <a class="top" href="#overview">↑ top</a></h2>
+  <div class="tbl-wrap"><table>
+    <tr><th>Aspect</th><th>Committed value</th></tr>
+    <tr><td>TPS</td><td>1–2 transactions per account per second</td></tr>
+    <tr><td>Connection timeout</td><td class="mono">30,000 ms</td></tr>
+    <tr><td>Read timeout</td><td class="mono">60,000 ms</td></tr>
+    <tr><td>Firing interval</td><td>Fire at committed TPS; bank responds simultaneously</td></tr>
+    <tr><td>Status approach</td><td>Take status via inquiry <code class="inl">STATUS</code> parameter for NEFT/RTGS/FT/IMPS</td></tr>
+    <tr><td>Reconciliation keys</td><td><code class="inl">UNIQUEID</code> (client) + <code class="inl">UTRNUMBER</code> (bank; present in statement). Recon done on <b>first 15 chars</b> of Unique ID</td></tr>
+  </table></div>
+</section>
+
+<!-- NOTES -->
+<section id="notes">
+  <h2><span class="no">19</span> Integration Notes &amp; Constraints <a class="top" href="#overview">↑ top</a></h2>
+  <div class="two">
+    <div class="note info"><b>Access &amp; eligibility</b>
+    • Only ICICI <b>Current account</b> holders with CIB <b>transaction access</b> can use this API — view/fraud-scheme access cannot.<br>
+    • One-time registration requires CIB transaction access with one-time authorization in CIB.<br>
+    • No registration on inactive/dormant CIB IDs; deleting the CIB user expires the registration.<br>
+    • User needs <b>Adhoc payment access (PMT)</b> — else request it at a branch or via API SM/RM.</div>
+
+    <div class="note ok"><b>Workflow &amp; charges</b>
+    • Authorization flow mirrors CIB; single-user CIB customers get STP once initiated.<br>
+    • Maker-checker workflow and OTP are both bypassable on authorized confirmation.<br>
+    • No registration charges; transaction charges per SOC; no additional API charges.<br>
+    • Payment Txn ID reflects in the customer's bank statement for reconciliation.</div>
+  </div>
+  <div class="note warn"><b>Operational</b>
+  • Only INR domestic transfers — no FX via CIB.<br>
+  • This is an <b>adhoc</b> payment API (no bene registration by default); confirm registered-bene requirement at integration start.<br>
+  • On failure of an already-debited txn, manual credit-back occurs but CIB continues showing success.<br>
+  • Some special-account clients may need a written request to enable registration.<br>
+  • Support: <code class="inl">corporatecare@icicibank.com</code> · Customer Care via icicibank.com.</div>
+</section>
+
+<footer>
+  ICICI Bank — CIB Payment API · Technical Integration Documentation (UAT → Production). Field definitions, IFSC constants, cut-off behaviour, error codes, and status semantics are consolidated from the API specification. Values shown in samples are illustrative.
+</footer>
+</main>
+</div>
+
+</body>
+</html>

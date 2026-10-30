@@ -1,0 +1,183 @@
+{
+ "_source": "AU Small Finance Bank — API Banking Integration Document, Payout API / Enquiry API, v1.2 (docs/payments_docs/Payout_AU Bank API Banking Integration_V1.2.pdf)",
+ "_note": "AU resolves a transaction from a COMPOUND key: batchStatusCode (batch level) plus statusCode (inside transactionEnquiryDetails). Neither alone is sufficient — batchStatusCode 00 covers success, failure AND processing. Every combination the document defines is listed in `enquiry`; anything outside it is undefined and must not be guessed.",
+ "bank": "AU Small Finance Bank",
+ "payment_type": "IMPS",
+ "base_urls": {
+  "auth_uat": "https://api.aubankuat.in/oauth/accesstoken?grant_type=client_credentials",
+  "payment_uat": "https://api.aubankuat.in/CNBPaymentService/paymentCreation",
+  "enquiry_uat": "https://api.aubankuat.in/CNBPaymentService/paymentEnquiry",
+  "_production": "shared by the bank only after UAT sign-off"
+ },
+ "initiation_response_codes": {
+  "00": {
+   "response_message": "ACCEPTED",
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "ENQUIRE",
+   "meaning": "The batch was accepted for processing and a batchNo was issued. This is NOT a payment. Settlement is only confirmed by the Enquiry API returning status PAID."
+  },
+  "99": {
+   "response_message": "FAILED",
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REENQUIRY",
+   "meaning": "The batch was rejected outright; read errorMessage / ExtendedErrorDetails for the cause (e.g. 'Duplicate file uploaded.')."
+  }
+ },
+ "enquiry": [
+  {
+   "batch_status_code": "00",
+   "status_code": "00",
+   "meaning": "SUCCESS",
+   "status": "PROCESSED",
+   "terminal": true,
+   "action": "NO_REENQUIRY",
+   "note": "Txn success. No further enquiry. A utr is present."
+  },
+  {
+   "batch_status_code": "00",
+   "status_code": "99",
+   "meaning": "FAILED",
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REENQUIRY",
+   "note": "Txn failed at transaction level. No further enquiry. Read errorCode/errorMessage."
+  },
+  {
+   "batch_status_code": "99",
+   "status_code": "NA",
+   "meaning": "FAILED",
+   "status": "REJECTED",
+   "terminal": true,
+   "action": "NO_REENQUIRY",
+   "note": "Whole batch failed, so no transaction-level status exists. No further enquiry."
+  },
+  {
+   "batch_status_code": "00",
+   "status_code": "100",
+   "meaning": "PROCESSING",
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REENQUIRE_5MIN",
+   "note": "Still in the system, final status not updated. Re-enquire every 5 minutes. DO NOT re-initiate the payment — the money may still move."
+  },
+  {
+   "batch_status_code": "00",
+   "status_code": "101",
+   "meaning": "PROCESSING",
+   "status": "INTERIM",
+   "terminal": false,
+   "action": "REENQUIRE_5MIN",
+   "note": "Still in the system, final status not updated. Re-enquire every 5 minutes. DO NOT re-initiate the payment — the money may still move."
+  }
+ ],
+ "transaction_statuses": {
+  "OPEN": {
+   "level": 1,
+   "status": "INTERIM",
+   "terminal": false,
+   "note": "Enquiry stage 1 — accepted, not yet processed."
+  },
+  "TOBEPROCESSED": {
+   "level": 2,
+   "status": "INTERIM",
+   "terminal": false,
+   "note": "Enquiry stage 2 — queued for the core banking system."
+  },
+  "SENTTOCORE": {
+   "level": 2,
+   "status": "INTERIM",
+   "terminal": false,
+   "note": "Enquiry stage 2 — handed to core, outcome still unknown."
+  },
+  "PAID": {
+   "level": 3,
+   "status": "PROCESSED",
+   "terminal": true,
+   "note": "Enquiry stage 3 — the ONLY status that means the beneficiary was credited. Carries a utr."
+  },
+  "PROCESSING": {
+   "level": 2,
+   "status": "INTERIM",
+   "terminal": false,
+   "note": "statusCode 100/101 — still in the system, final status not updated. Re-enquire every 5 minutes; AU's document states the payment must NOT be re-initiated."
+  }
+ },
+ "http_errors": {
+  "200": {
+   "description": "Success",
+   "message": "Success response",
+   "retryable": false
+  },
+  "400": {
+   "description": "Bad request",
+   "message": "Bad request",
+   "retryable": false
+  },
+  "401": {
+   "description": "Unauthorized",
+   "message": "Invalid authentication credentials",
+   "retryable": false
+  },
+  "404": {
+   "description": "Not Found",
+   "message": "Not Found",
+   "retryable": false
+  },
+  "500": {
+   "description": "Internal Server Error",
+   "message": "Something went wrong",
+   "retryable": true
+  },
+  "503": {
+   "description": "Service Unavailable",
+   "message": "Service Unavailable",
+   "retryable": true
+  },
+  "504": {
+   "description": "Gateway timeout",
+   "message": "Gateway timeout",
+   "retryable": true
+  }
+ },
+ "limits": {
+  "IMPS": {
+   "min": 1,
+   "max": 500000,
+   "settlement": "real-time"
+  },
+  "RTGS": {
+   "min": 200000,
+   "max": null,
+   "settlement": "real-time",
+   "_max_note": "existing workflow limit mapped to the corporate"
+  },
+  "NEFT": {
+   "min": null,
+   "max": null,
+   "settlement": "batched through RBI; 30 min to 2 hours for final status"
+  },
+  "Internal Fund Transfer": {
+   "min": null,
+   "max": null,
+   "settlement": "within AU Small Finance Bank; no IFSC passed"
+  }
+ },
+ "operational_constraints": {
+  "bulk_max_transactions": 50,
+  "enquiry_not_before_seconds": 120,
+  "enquiry_retry_on_processing_minutes": 5,
+  "enquiry_recommended_interval_minutes": [
+   15,
+   30
+  ],
+  "_enquiry_interval_note": "The document gives 15 minutes in the process overview and 15-30 in the FAQ, while PROCESSING rows say retry at 5. The 5-minute figure applies specifically to a PROCESSING transaction.",
+  "do_not_transact_window": "23:30-01:00 (EOD/BOD)",
+  "evening_value_cap": "18:30-00:00 consolidated transactions capped at Rs 1 crore",
+  "token_validity_hours": 24,
+  "payload_encryption": "GCM (Galois Counter Mode); GCM-KEY and GCM-SALT (IV) issued by the bank at onboarding. Encryption of the payload is mandatory.",
+  "unique_request_id_max_len": 20,
+  "transaction_ref_no_max_len": 25
+ }
+}
