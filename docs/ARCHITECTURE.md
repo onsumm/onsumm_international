@@ -1,6 +1,6 @@
 # Onsumm.ai — Architecture Overview
 
-> Pilot-testing reference. High-level architecture, tech stack, and services for the Onsumm.ai AP/AR cashflow platform. For the full endpoint-by-endpoint reference see [`README.md`](../README.md); for the router/module layout of the API see [`BACKEND_STRUCTURE.md`](BACKEND_STRUCTURE.md).
+> Pilot-testing reference. High-level architecture, tech stack, and services for the Onsumm.ai AP/AR cashflow platform. For the full endpoint-by-endpoint reference see [`TECHNICAL_REFERENCE.md`](TECHNICAL_REFERENCE.md); for the router/module layout of the API see [`BACKEND_STRUCTURE.md`](BACKEND_STRUCTURE.md).
 
 ## 1. System overview
 
