@@ -1,6 +1,6 @@
 # Onsumm Platform Documentation
 
-The overview, scalability design and the atlas of every diagram live in the [repository README](../../README.md).
+The [repository README](../../README.md) tells the product story end to end, business and technical, with every diagram from these documents in place.
 
 | # | Document | Scope |
 |---|---|---|
@@ -18,7 +18,7 @@ The previous endpoint-by-endpoint reference is in [`docs/TECHNICAL_REFERENCE.md`
 
 ## Updating the root README
 
-The root README's header lives in [`_build/README.header.md`](_build/README.header.md); the diagram atlas is generated from the docs above. After editing either, run from the repo root:
+The root README is built from the story in [`_build/README.story.md`](_build/README.story.md); each `{{Dnn-mm}}` placeholder pulls the mm-th diagram from document nn. After editing the story or a document, run from the repo root:
 
 ```bash
 python scripts/build_docs_readme.py
