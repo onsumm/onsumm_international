@@ -20,6 +20,12 @@ const SSO_ERRORS: Record<string, string> = {
   error: 'Sign-in failed. Please try again.',
 }
 
+// Hackathon demo logins, shown under the form. Clicking one fills the form.
+const DEMO_ACCOUNTS = [
+  { label: 'Main', username: 'vibhanshu', password: 'vibhanshu123' },
+  { label: 'International', username: 'lumen.asha', password: 'Demo@2026!' },
+]
+
 // Provider marks. Inline SVG rather than an icon pack: lucide ships no brand
 // logos, and both providers require their own colours on a light surface — a
 // monochrome stand-in would be off-guidelines for each.
@@ -291,6 +297,17 @@ export default function LoginPage({ onBack }: Props) {
                   <MicrosoftMark />
                   {ssoBusy === 'microsoft' ? 'Redirecting…' : 'Continue with Microsoft'}
                 </button>
+              </div>
+
+              <div className="lp__demo">
+                <div className="lp__demo-title">Demo logins</div>
+                {DEMO_ACCOUNTS.map(a => (
+                  <button key={a.username} type="button" className="lp__demo-row"
+                    onClick={() => { setUsername(a.username); setPassword(a.password); setError('') }}>
+                    <span className="lp__demo-tag">{a.label}</span>
+                    <span className="lp__demo-cred"><code>{a.username}</code> / <code>{a.password}</code></span>
+                  </button>
+                ))}
               </div>
               </>
             )}
@@ -676,6 +693,32 @@ export default function LoginPage({ onBack }: Props) {
           font-size: 13px; color: #166534;
           background: #f0fdf4; border: 1px solid #bbf7d0;
           border-radius: 4px; padding: 10px 12px;
+        }
+
+        .lp__demo {
+          margin-top: 16px; padding: 12px;
+          background: #eff4ff; border: 1px solid #c3d4f0; border-radius: 6px;
+          display: flex; flex-direction: column; gap: 6px;
+        }
+        .lp__demo-title {
+          font-size: 11px; font-weight: 600; color: #424750;
+          text-transform: uppercase; letter-spacing: 0.06em;
+        }
+        .lp__demo-row {
+          display: flex; align-items: center; gap: 10px;
+          background: #fff; border: 1px solid #dbe3f0; border-radius: 4px;
+          padding: 8px 10px; cursor: pointer; text-align: left;
+          font-family: inherit; font-size: 12px; color: #0b1c30;
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .lp__demo-row:hover { border-color: #004080; background: #f7f9ff; }
+        .lp__demo-tag {
+          flex-shrink: 0; min-width: 92px;
+          font-size: 11px; font-weight: 600; color: #00696b;
+        }
+        .lp__demo-cred code {
+          font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+          font-size: 12px; color: #0b1c30;
         }
 
         .lp__trust {
