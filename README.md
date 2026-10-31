@@ -6,14 +6,29 @@ This README tells the product's story end to end: what problem it solves, who us
 
 | | |
 |---|---|
+| **As of** | 2026-10-31 · commit `6e1278f` |
 | **Read this if you are** | a founder, investor, customer, product manager, engineer, operator or auditor |
 | **Product document** | [Onsumm product doc (Google Drive)](https://drive.google.com/file/d/1ufVwbaIemoXzzf0D4QpIKz4CfFgMEhM5/view?usp=sharing) |
 | **Deep dives** | [`docs/platform/`](docs/platform/README.md) — HLD, LLD, user flows, data model, API, operations, security, integrations, glossary |
 
 ---
 
+## Try the demo
+
+Live app: **https://onsumm.collabup.co.in**
+
+| Username | Password |
+|---|---|
+| `vibhanshu` | `vibhanshu123` |
+| `lumen.asha` | `Demo@2026!` |
+
+> Demo accounts for evaluation only. Crypto payouts run on Base Sepolia testnet — no real funds move.
+
+---
+
 ## Contents
 
+- [Try the demo](#try-the-demo)
 - [Prologue — Why accounts payable is broken](#prologue--why-accounts-payable-is-broken)
 - [Chapter 1 — What Onsumm is](#chapter-1--what-onsumm-is)
 - [Chapter 2 — How it is built](#chapter-2--how-it-is-built)
