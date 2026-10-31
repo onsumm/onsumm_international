@@ -1,9 +1,10 @@
 """Rebuild the repo-root README.md from the platform docs.
 
-The README is the hand-written header in docs/platform/_build/README.header.md
-followed by a generated atlas of every Mermaid diagram in docs/platform/0*.md,
-each linked back to the section it came from. Edit the header or the docs, then
-run from the repo root:
+The README is the product story in docs/platform/_build/README.story.md. Each
+{{Dnn-mm}} placeholder in it is replaced by the mm-th Mermaid diagram of
+docs/platform/nn_*.md, so the README always carries the current diagrams. The
+build fails if any diagram is missing from the story or placed twice. Edit the
+story or the docs, then run from the repo root:
 
     python scripts/build_docs_readme.py
 """
@@ -13,9 +14,8 @@ import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DOCS = os.path.join(ROOT, "docs", "platform")
-HEADER = os.path.join(DOCS, "_build", "README.header.md")
+STORY = os.path.join(DOCS, "_build", "README.story.md")
 OUT = os.path.join(ROOT, "README.md")
-LINK = "docs/platform/"
 
 NAMES = {
     "01_HLD.md": "01 High-Level Design",
@@ -33,13 +33,6 @@ TYPES = {
     "stateDiagram-v2": "State machine", "classDiagram": "Class diagram",
     "erDiagram": "ER diagram", "journey": "User journey", "gantt": "Schedule",
 }
-KINDS = ["Flowchart", "Sequence", "State machine", "Class diagram", "ER diagram", "User journey", "Schedule"]
-
-
-def slug(heading):
-    """GitHub's heading anchor: lowercase, punctuation dropped, spaces to hyphens."""
-    h = heading.strip().lower()
-    return "".join(c for c in h if c.isalnum() or c in " -_").replace(" ", "-")
 
 
 def strip_number(heading):
@@ -85,46 +78,25 @@ def collect():
 
 
 def build():
-    entries = collect()
-    header = open(HEADER, encoding="utf-8").read()
-    header = header.replace("__DIAGRAM_COUNT__", str(len(entries)))
-    out = [header]
+    entries = {f"D{e['doc'][:2]}-{e['num']:02d}": e for e in collect()}
+    story = open(STORY, encoding="utf-8").read()
+    used = re.findall(r"\{\{(D\d{2}-\d{2})\}\}", story)
 
-    counts = collections.Counter((e["doc"], e["kind"]) for e in entries)
-    out.append("### 8.0 Atlas summary\n")
-    out.append(f"{len(entries)} diagrams across {len(NAMES)} documents "
-               f"(plus {header.count('```mermaid')} in the sections above).\n")
-    out.append("| Document | " + " | ".join(KINDS) + " | Total |")
-    out.append("|---|" + "---:|" * (len(KINDS) + 1))
-    for f, name in NAMES.items():
-        row = [counts[(f, k)] for k in KINDS]
-        cells = " | ".join(str(x) if x else "·" for x in row)
-        out.append(f"| [{name}]({LINK}{f}) | {cells} | **{sum(row)}** |")
-    totals = [sum(counts[(f, k)] for f in NAMES) for k in KINDS]
-    out.append("| **All** | " + " | ".join(f"**{x}**" for x in totals) + f" | **{len(entries)}** |\n")
+    unknown = sorted(set(used) - set(entries))
+    repeated = sorted(d for d, n in collections.Counter(used).items() if n > 1)
+    missing = sorted(set(entries) - set(used))
+    if unknown or repeated or missing:
+        raise SystemExit(f"story placeholders out of sync: unknown={unknown} "
+                         f"repeated={repeated} missing={missing}")
 
-    for i, (f, name) in enumerate(NAMES.items(), 1):
-        doc_entries = [e for e in entries if e["doc"] == f]
-        if not doc_entries:
-            continue
-        out.append(f"### 8.{i} {name}\n")
-        out.append(f"Source: [{f}]({LINK}{f}) · {len(doc_entries)} diagrams\n")
-        out.append("| ID | Diagram | Type |")
-        out.append("|---|---|---|")
-        for e in doc_entries:
-            did = f"D{f[:2]}-{e['num']:02d}"
-            out.append(f"| [{did}](#{slug(did + ' ' + e['title'])}) | {e['title']} | {e['kind']} |")
-        out.append("")
-        for e in doc_entries:
-            did = f"D{f[:2]}-{e['num']:02d}"
-            out.append(f"#### {did} {e['title']}\n")
-            out.append(f"*{e['kind']}* · from [{name} › {e['head']}]({LINK}{f}#{slug(e['head'])})\n")
-            out.append("```mermaid\n" + e["code"] + "\n```\n")
-        out.append("[Back to atlas summary](#80-atlas-summary)\n\n---\n")
+    def diagram(match):
+        return "```mermaid\n" + entries[match.group(1)]["code"] + "\n```"
 
+    readme = re.sub(r"\{\{(D\d{2}-\d{2})\}\}", diagram, story)
     with open(OUT, "w", encoding="utf-8") as fh:
-        fh.write("\n".join(out))
-    print(f"Wrote {OUT}: {len(entries)} atlas diagrams")
+        fh.write(readme)
+    print(f"Wrote {OUT}: {len(entries)} doc diagrams + "
+          f"{story.count('```mermaid')} README-only diagrams")
 
 
 if __name__ == "__main__":
